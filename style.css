@@ -1,0 +1,174 @@
+/* ==========================================================================
+   1. 디자인 토큰 (Design Tokens) - 웜톤 & 저대비 팔레트
+   ========================================================================== */
+:root {
+  /* 웜톤 배경 색상 (눈이 시리지 않는 미색 및 온화한 그레이) */
+  --bg-primary: #F9F8F5;       /* 기본 배경: 따뜻한 크림빛 화이트 */
+  --bg-secondary: #F2EFE9;     /* 2차 배경: 포근한 라이트 오트밀 */
+  --bg-card: #FFFFFF;          /* 카드/버블 배경: 깨끗한 오프화이트 */
+  --bg-accent: #E8E2D8;        /* 강조 영역 배경: 웜 샌드 */
+  --bg-dim: rgba(45, 41, 38, 0.45); /* 눈부심 없는 연한 소프트 암전 레이어 */
+
+  /* 웜톤 텍스트 색상 (새까만 블랙 배제) */
+  --text-primary: #2C2825;     /* 기본 본문: 부드러운 다크 웜차콜 */
+  --text-secondary: #746C65;   /* 서브 텍스트: 차분한 브라운 그레이 */
+  --text-muted: #A39B92;       /* 비활성 텍스트: 라이트 웜그레이 */
+
+  /* 인용구(질문) 특수 다크 웜톤 하이라이트 배색 */
+  --quote-bg: #383430;         /* 너무 어둡지 않은 다크 웜그레이 */
+  --quote-text: #EDE8E1;       /* 눈이 편안한 미색 웜화이트 */
+
+  /* 테두리 및 구분선 */
+  --border-subtle: #E6E1D8;
+  --border-strong: #D5CEBF;
+
+  /* 포인트/버튼 웜 톤 */
+  --btn-warm-surface: #EFEBE4;
+  --btn-warm-border: #DCD5C9;
+  --btn-warm-hover: #E5DFD4;
+
+  /* 헤더 높이 토큰 */
+  --header-height: 54px;
+  --sub-header-height: 44px;
+
+  /* 전환 속도 */
+  --transition-smooth: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==========================================================================
+   2. 전역 리셋 & 모바일 필수 설정
+   ========================================================================== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+input, textarea {
+  user-select: auto;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ==========================================================================
+   3. [핵심] 전역 스크롤바 완전 숨김 (브라우저 기본 스크롤바 제거)
+   ========================================================================== */
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+* {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE/Edge */
+}
+
+/* ==========================================================================
+   4. 기본 컨테이너 & 레이아웃 구조
+   ========================================================================== */
+#app-container {
+  position: relative;
+  width: 100%;
+  max-width: 600px; /* 태블릿/PC 환경에서도 모바일 뷰로 제한 */
+  height: 100%;
+  height: 100dvh;
+  margin: 0 auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-primary);
+}
+
+/* 헤더 공통 */
+.app-header {
+  position: relative;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background-color: var(--bg-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.header-1 {
+  height: var(--header-height);
+}
+
+.header-2 {
+  height: var(--sub-header-height);
+  background-color: var(--bg-secondary);
+}
+
+.header-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+}
+
+.sub-header-title {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  color: var(--text-primary);
+}
+
+.header-right-space {
+  width: 40px;
+}
+
+/* 메인 뷰 스위처 */
+#main-content {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+}
+
+.view-section {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-smooth);
+}
+
+.view-section.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 유틸리티 */
+.hidden {
+  display: none !important;
+}
