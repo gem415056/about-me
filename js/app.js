@@ -760,35 +760,39 @@ const SessionManager = {
   deleteMode: { psychology: false, saju: false },
   selectedForDeletion: { psychology: new Set(), saju: new Set() },
 
-  toggleDeleteMode(category) {
-    const isMode = !this.deleteMode[category];
+  async toggleDeleteMode(category) {
+    const isCurrentlyDeleting = this.deleteMode[category];
     const btn = document.getElementById(category === 'psychology' ? 'btn-delete-mode-psych' : 'btn-delete-mode-saju');
 
-    if (isMode) {
+    if (!isCurrentlyDeleting) {
+      // 1. 삭제 모드 진입
       this.deleteMode[category] = true;
       this.selectedForDeletion[category].clear();
       if (btn) btn.classList.add('active');
-      this.renderSessionList(category);
+      await this.renderSessionList(category);
     } else {
-      // 삭제 실행
-      const selected = this.selectedForDeletion[category];
-      if (selected.size > 0) {
-        if (confirm(`선택한 ${selected.size}개의 대화를 완전히 삭제하시겠습니까?`)) {
-          selected.forEach(async (id) => {
-            await DB.delete('chat_sessions', id);
-            const msgs = await DB.getByIndex('chat_messages', 'sessionId', id);
+      // 2. 삭제 모드 상태에서 재클릭 -> 실제 삭제 실행
+      const targets = Array.from(this.selectedForDeletion[category]);
+      if (targets.length > 0) {
+        if (confirm(`선택한 ${targets.length}개의 대화를 완전히 삭제하시겠습니까?`)) {
+          for (const sessId of targets) {
+            await DB.delete('chat_sessions', sessId);
+            const msgs = await DB.getByIndex('chat_messages', 'sessionId', sessId);
             for (const m of msgs) await DB.delete('chat_messages', m.id);
-          });
+            if (ChatManager.currentSessionId === sessId) {
+              ChatManager.currentSessionId = null;
+              ChatManager.activeHistory = [];
+            }
+          }
         }
       }
       this.deleteMode[category] = false;
       this.selectedForDeletion[category].clear();
       if (btn) btn.classList.remove('active');
-      setTimeout(() => this.renderSessionList(category), 100);
+      await this.renderSessionList(category);
     }
   },
-  
-  // 날짜/시각 기반 기본 세션 제목 생성 (예: 2025. 05. 15. 14:30 대화)
+
   generateDefaultTitle() {
     const now = new Date();
     const m = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -798,7 +802,6 @@ const SessionManager = {
     return `${m}.${d} ${h}:${min} 대화`;
   },
 
-  // 새 세션 생성
   async createNewSession(category) {
     const sessionId = `session_${category}_${Date.now()}`;
     const newSession = {
@@ -808,13 +811,11 @@ const SessionManager = {
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
-
     await DB.set('chat_sessions', newSession);
     await this.renderSessionList(category);
     return newSession;
   },
 
-  // 특정 세션으로 대화방 전환 및 메시지 복원
   async loadSession(sessionId) {
     const session = await DB.get('chat_sessions', sessionId);
     if (!session) return;
@@ -827,10 +828,8 @@ const SessionManager = {
     const container = document.getElementById(containerId);
     if (container) container.innerHTML = '';
 
-    // 화면 전환
     Router.navigate(session.category);
 
-    // 해당 세션의 모든 메시지 가져오기
     const messages = await DB.getByIndex('chat_messages', 'sessionId', sessionId);
     messages.sort((a, b) => a.timestamp - b.timestamp);
 
@@ -842,7 +841,6 @@ const SessionManager = {
     await this.renderSessionList(session.category);
   },
 
-  // 메시지 1건을 DB에 영구 저장
   async saveMessage(sessionId, role, content) {
     if (!sessionId) return;
     const msgId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
@@ -854,7 +852,6 @@ const SessionManager = {
       timestamp: Date.now()
     });
 
-    // 세션 갱신일 업데이트
     const session = await DB.get('chat_sessions', sessionId);
     if (session) {
       session.updatedAt = Date.now();
@@ -862,7 +859,6 @@ const SessionManager = {
     }
   },
 
-  // 좌측 서랍 내 세션 리스트 렌더링
   async renderSessionList(category) {
     const listEl = document.getElementById(category === 'psychology' ? 'psychology-chat-list' : 'saju-chat-list');
     if (!listEl) return;
@@ -878,9 +874,11 @@ const SessionManager = {
     }
 
     listEl.innerHTML = '';
+    const isDeleting = this.deleteMode[category];
+
     filtered.forEach(session => {
       const item = document.createElement('div');
-      const isSelected = this.selectedForDeletion && this.selectedForDeletion[category] && this.selectedForDeletion[category].has(session.id);
+      const isSelected = this.selectedForDeletion[category].has(session.id);
       item.className = `chat-session-item ${session.id === ChatManager.currentSessionId ? 'active' : ''} ${isSelected ? 'delete-selected' : ''}`;
       
       const dateStr = new Date(session.updatedAt).toLocaleDateString('ko-KR', {
@@ -899,17 +897,15 @@ const SessionManager = {
         </div>
       `;
 
-      // 대화방 클릭 시: 삭제 모드면 선택/해제, 일반 모드면 대화방 불러오기
       item.addEventListener('click', (e) => {
         if (e.target.closest('.btn-edit-title')) return;
 
-        if (this.deleteMode && this.deleteMode[category]) {
-          const selectedSet = this.selectedForDeletion[category];
-          if (selectedSet.has(session.id)) {
-            selectedSet.delete(session.id);
+        if (this.deleteMode[category]) {
+          if (this.selectedForDeletion[category].has(session.id)) {
+            this.selectedForDeletion[category].delete(session.id);
             item.classList.remove('delete-selected');
           } else {
-            selectedSet.add(session.id);
+            this.selectedForDeletion[category].add(session.id);
             item.classList.add('delete-selected');
           }
         } else {
@@ -918,7 +914,6 @@ const SessionManager = {
         }
       });
 
-      // 제목 수정 클릭
       const btnEdit = item.querySelector('.btn-edit-title');
       if (btnEdit) {
         btnEdit.addEventListener('click', async (e) => {
