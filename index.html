@@ -31,7 +31,32 @@
     <!-- 메인 동적 화면 전환 영역 -->
     <main id="main-content">
       <!-- 1. 랜딩 화면 섹션 -->
-      <section id="view-landing" class="view-section active"></section>
+      <section id="view-landing" class="view-section active">
+        <div class="landing-container">
+          <div class="landing-header">
+            <h1 class="landing-title">𝘼𝘽𝙊𝙐𝙏 𝙈𝙀</h1>
+            <p class="landing-subtitle">나를 깊이 이해하는 두 가지 여정</p>
+          </div>
+          
+          <div class="landing-actions">
+            <button type="button" id="btn-start-psychology" class="landing-btn">
+              <div class="btn-content">
+                <span class="btn-main-title">심리학으로 알아보기</span>
+                <span class="btn-sub-desc">대화를 통한 내면과 무의식 심리 탐색</span>
+              </div>
+              <span class="btn-arrow">→</span>
+            </button>
+
+            <button type="button" id="btn-start-saju" class="landing-btn">
+              <div class="btn-content">
+                <span class="btn-main-title">명리학으로 알아보기</span>
+                <span class="btn-sub-desc">만세력과 사주 원국 심층 분석</span>
+              </div>
+              <span class="btn-arrow">→</span>
+            </button>
+          </div>
+        </div>
+      </section>
 
       <!-- 2. 심리학 검사 대화방 섹션 -->
       <section id="view-psychology" class="view-section hidden"></section>
