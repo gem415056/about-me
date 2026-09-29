@@ -215,19 +215,128 @@ const SajuManager = {
   }
 };
 
+// 8. 경량 마크다운 파서 & 보고서 감지 엔진 (MarkdownParser)
+const MarkdownParser = {
+  parse(text) {
+    if (!text) return '';
+
+    // HTML 특수문자 이스케이프
+    let html = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    // 1. 인용구 (> 문장) 처리 - 다크 웜톤 박스
+    html = html.replace(/^&gt;\s?(.*)$/gm, '<blockquote>$1</blockquote>');
+    // 연속된 blockquote 병합
+    html = html.replace(/<\/blockquote>\n<blockquote>/g, '<br>');
+
+    // 2. 볼드체 (**텍스트**)
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+    // 3. 이탤릭 (*텍스트*)
+    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+    // 4. 줄바꿈 (\n)
+    html = html.replace(/\n/g, '<br>');
+
+    return html;
+  },
+
+  // 보고서 태그 분리 및 검출
+  extractReport(rawText) {
+    const reportRegex = /\[REPORT_START\]([\s\S]*?)\[REPORT_END\]/;
+    const match = rawText.match(reportRegex);
+
+    if (match) {
+      return {
+        hasReport: true,
+        reportContent: match[1].trim(),
+        chatContent: rawText.replace(reportRegex, '').trim()
+      };
+    }
+    return {
+      hasReport: false,
+      reportContent: '',
+      chatContent: rawText
+    };
+  }
+};
+
+// 9. 전체화면 보고서 오버레이 관리자 (ReportController)
+const ReportController = {
+  view: document.getElementById('report-fullscreen-view'),
+  body: document.getElementById('report-body-content'),
+  isOpen: false,
+
+  open(reportRawText) {
+    if (this.isOpen) return;
+    this.isOpen = true;
+
+    // 보고서 마크다운 파싱 렌더링
+    this.body.innerHTML = MarkdownParser.parse(reportRawText);
+    this.view.classList.remove('hidden');
+
+    // 뒤로가기 스택에 보고서 닫기 등록 (모바일 뒤로가기 시 1단계 닫힘 보장)
+    NavStack.push({
+      id: 'report-fullscreen-view',
+      onClose: () => this.close(false)
+    });
+  },
+
+  close(triggerBack = true) {
+    if (!this.isOpen) return;
+    this.isOpen = false;
+    this.view.classList.add('hidden');
+    this.body.innerHTML = '';
+
+    if (triggerBack) {
+      NavStack.pop();
+    }
+  }
+};
+
 // 6. 대화 UI 헬퍼 및 자동 스크롤 (ChatUI)
 const ChatUI = {
-  // 메시지 말풍선 화면 추가
-  appendMessage(containerId, role, content) {
+  // 메시지 말풍선 화면 추가 (마크다운 및 보고서 감지 적용)
+  appendMessage(containerId, role, rawContent) {
     const container = document.getElementById(containerId);
     if (!container) return null;
 
     const bubble = document.createElement('div');
     bubble.className = `chat-bubble ${role}`;
-    bubble.textContent = content; // 마크다운 파서는 8단계에서 바인딩
-    container.appendChild(bubble);
 
-    // 새 메시지 추가 시 기본 스크롤 다운
+    if (role === 'model') {
+      const extracted = MarkdownParser.extractReport(rawContent);
+
+      // 일반 대화 내용 파싱 렌더링
+      if (extracted.chatContent) {
+        bubble.innerHTML = MarkdownParser.parse(extracted.chatContent);
+      }
+
+      // [요구사항] 보고서 감지 시: 말풍선에는 '분석 보고서 열기' 카드만 간단히 표시
+      if (extracted.hasReport) {
+        const reportCard = document.createElement('div');
+        reportCard.className = 'report-card-summary';
+        reportCard.innerHTML = `
+          <div class="report-card-info">
+            <span class="report-card-title">심층 분석 보고서</span>
+            <span class="report-card-desc">전문 분석 결과가 도착했습니다.</span>
+          </div>
+          <button type="button" class="btn-open-report">분석 보고서 열기</button>
+        `;
+
+        reportCard.querySelector('.btn-open-report').addEventListener('click', () => {
+          ReportController.open(extracted.reportContent);
+        });
+
+        bubble.appendChild(reportCard);
+      }
+    } else {
+      bubble.textContent = rawContent;
+    }
+
+    container.appendChild(bubble);
     container.scrollTop = container.scrollHeight;
     return bubble;
   },
@@ -606,6 +715,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       ModalController.close(true);
     });
   });
+
+  // 전체화면 보고서 닫기(✕) 버튼 이벤트
+  const btnCloseReport = document.getElementById('btn-close-report');
+  if (btnCloseReport) {
+    btnCloseReport.addEventListener('click', () => {
+      ReportController.close(true);
+    });
+  }
 
   // 모달 탭 전환 이벤트 바인딩
   document.querySelectorAll('.modal-tabs').forEach(tabGroup => {
