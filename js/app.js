@@ -99,6 +99,121 @@ const Router = {
   }
 };
 
+// 4. 모달 관리자 & 닫힘 시 일괄 저장 (ModalController)
+const ModalController = {
+  container: document.getElementById('modal-container'),
+  activeModalId: null,
+
+  async open(modalId) {
+    if (this.activeModalId) return;
+
+    // 열기 전 DB에서 최신 데이터 로드하여 폼 채우기
+    await this.loadFormData(modalId);
+
+    this.activeModalId = modalId;
+    const modalEl = document.getElementById(modalId);
+    if (!modalEl) return;
+
+    this.container.classList.remove('hidden');
+    modalEl.classList.remove('hidden');
+
+    // 암전 활성화 (서랍이 열려있지 않은 경우 암전 활성화)
+    DrawerController.backdrop.classList.remove('hidden');
+    void DrawerController.backdrop.offsetWidth;
+    DrawerController.backdrop.classList.add('active');
+
+    // 뒤로가기 스택에 모달 닫기 등록
+    NavStack.push({
+      id: modalId,
+      onClose: () => this.close(false)
+    });
+  },
+
+  async close(triggerBack = true) {
+    if (!this.activeModalId) return;
+
+    const modalId = this.activeModalId;
+    const modalEl = document.getElementById(modalId);
+
+    // [핵심] 모달이 닫히는 바로 이 순간 IndexedDB에 일괄 저장 수행
+    await this.saveFormData(modalId);
+
+    if (modalEl) modalEl.classList.add('hidden');
+    this.container.classList.add('hidden');
+    this.activeModalId = null;
+
+    // 만약 서랍이 열려있지 않다면 암전도 함께 닫기
+    if (!DrawerController.isOpenLeft) {
+      DrawerController.backdrop.classList.remove('active');
+      setTimeout(() => {
+        if (!DrawerController.isOpenLeft && !this.activeModalId) {
+          DrawerController.backdrop.classList.add('hidden');
+        }
+      }, 280);
+    }
+
+    if (triggerBack) {
+      NavStack.pop();
+    }
+  },
+
+  // 폼 데이터 IndexedDB로부터 로드
+  async loadFormData(modalId) {
+    try {
+      if (modalId === 'modal-prompts') {
+        const psychPrompt = await DB.get('prompts', 'psychology');
+        const sajuPrompt = await DB.get('prompts', 'saju');
+        document.getElementById('prompt-psychology-input').value = psychPrompt?.content || '';
+        document.getElementById('prompt-saju-input').value = sajuPrompt?.content || '';
+      } else if (modalId === 'modal-settings') {
+        const geminiKey = await DB.get('settings', 'gemini_api_key');
+        const vertexConfig = await DB.get('settings', 'vertex_config');
+        const firestoreConfig = await DB.get('settings', 'firestore_config');
+        const general = await DB.get('settings', 'general_settings');
+
+        document.getElementById('setting-gemini-key').value = geminiKey?.value || '';
+        document.getElementById('setting-vertex-config').value = vertexConfig?.value || '';
+        document.getElementById('setting-firestore-config').value = firestoreConfig?.value || '';
+
+        // 드롭다운 모드 복원
+        const outputMode = general?.outputMode || 'stream';
+        const labelText = outputMode === 'batch' ? '일시 출력 (답변 완성 후 한번에 표시)' : '스트리밍 출력 (실시간 생성)';
+        document.getElementById('dropdown-selected-text').textContent = labelText;
+        document.querySelectorAll('#dropdown-output-menu .dropdown-item').forEach(item => {
+          item.classList.toggle('selected', item.dataset.value === outputMode);
+        });
+      }
+    } catch (e) {
+      console.error('데이터 로드 실패:', e);
+    }
+  },
+
+  // 폼 데이터 IndexedDB로 최종 일괄 저장 (실시간 타자 중 저장 방지)
+  async saveFormData(modalId) {
+    try {
+      if (modalId === 'modal-prompts') {
+        const psychVal = document.getElementById('prompt-psychology-input').value;
+        const sajuVal = document.getElementById('prompt-saju-input').value;
+        await DB.set('prompts', { id: 'psychology', content: psychVal, updatedAt: Date.now() });
+        await DB.set('prompts', { id: 'saju', content: sajuVal, updatedAt: Date.now() });
+      } else if (modalId === 'modal-settings') {
+        const geminiVal = document.getElementById('setting-gemini-key').value;
+        const vertexVal = document.getElementById('setting-vertex-config').value;
+        const firestoreVal = document.getElementById('setting-firestore-config').value;
+        const selectedItem = document.querySelector('#dropdown-output-menu .dropdown-item.selected');
+        const outputMode = selectedItem ? selectedItem.dataset.value : 'stream';
+
+        await DB.set('settings', { id: 'gemini_api_key', value: geminiVal, updatedAt: Date.now() });
+        await DB.set('settings', { id: 'vertex_config', value: vertexVal, updatedAt: Date.now() });
+        await DB.set('settings', { id: 'firestore_config', value: firestoreVal, updatedAt: Date.now() });
+        await DB.set('settings', { id: 'general_settings', outputMode: outputMode, updatedAt: Date.now() });
+      }
+    } catch (e) {
+      console.error('데이터 저장 실패:', e);
+    }
+  }
+};
+
 // 3. 서랍 및 오버레이 UI 컨트롤러 (DrawerController)
 const DrawerController = {
   leftDrawer: document.getElementById('left-drawer'),
@@ -176,13 +291,90 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // 암전 오버레이 터치 시 서랍 닫기
+  // 암전 오버레이 터치 시: 모달이 열려있으면 모달 닫기, 서랍이 열려있으면 서랍 닫기
   const backdrop = document.getElementById('backdrop-overlay');
   if (backdrop) {
     backdrop.addEventListener('click', () => {
-      if (DrawerController.isOpenLeft) {
+      if (ModalController.activeModalId) {
+        ModalController.close(true);
+      } else if (DrawerController.isOpenLeft) {
         DrawerController.closeLeft(true);
       }
+    });
+  }
+
+  // 좌측 서랍 하단 툴바 버튼 이벤트 바인딩
+  const btnOpenPrompts = document.getElementById('btn-open-prompts-modal');
+  if (btnOpenPrompts) {
+    btnOpenPrompts.addEventListener('click', () => {
+      DrawerController.closeLeft(false); // 서랍 닫고
+      ModalController.open('modal-prompts'); // 프롬프트 팝업 열기
+    });
+  }
+
+  const btnOpenApi = document.getElementById('btn-open-api-modal');
+  if (btnOpenApi) {
+    btnOpenApi.addEventListener('click', () => {
+      DrawerController.closeLeft(false); // 서랍 닫고
+      ModalController.open('modal-settings'); // 설정 팝업 열기
+    });
+  }
+
+  // 모달 내부 닫기(✕) 버튼 클릭 이벤트
+  document.querySelectorAll('.btn-close-modal').forEach(btn => {
+    btn.addEventListener('click', () => {
+      ModalController.close(true);
+    });
+  });
+
+  // 모달 탭 전환 이벤트 바인딩
+  document.querySelectorAll('.modal-tabs').forEach(tabGroup => {
+    tabGroup.addEventListener('click', (e) => {
+      const tabBtn = e.target.closest('.tab-btn');
+      if (!tabBtn) return;
+
+      const targetTabId = tabBtn.dataset.tab;
+      const modalEl = tabBtn.closest('.app-modal');
+
+      // 탭 버튼 active 토글
+      modalEl.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      tabBtn.classList.add('active');
+
+      // 탭 컨텐츠 전환
+      modalEl.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.toggle('active', content.id === targetTabId);
+        content.classList.toggle('hidden', content.id !== targetTabId);
+      });
+    });
+  });
+
+  // 일반 설정 탭: 커스텀 드롭다운 동작 바인딩
+  const dropdownBtn = document.getElementById('dropdown-output-btn');
+  const dropdownMenu = document.getElementById('dropdown-output-menu');
+  const selectedText = document.getElementById('dropdown-selected-text');
+
+  if (dropdownBtn && dropdownMenu) {
+    dropdownBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdownMenu.classList.toggle('hidden');
+      dropdownBtn.classList.toggle('open');
+    });
+
+    dropdownMenu.addEventListener('click', (e) => {
+      const item = e.target.closest('.dropdown-item');
+      if (!item) return;
+
+      dropdownMenu.querySelectorAll('.dropdown-item').forEach(el => el.classList.remove('selected'));
+      item.classList.add('selected');
+      selectedText.textContent = item.textContent;
+
+      dropdownMenu.classList.add('hidden');
+      dropdownBtn.classList.remove('open');
+    });
+
+    document.addEventListener('click', () => {
+      dropdownMenu.classList.add('hidden');
+      dropdownBtn.classList.remove('open');
     });
   }
 });
