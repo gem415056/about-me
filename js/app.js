@@ -441,6 +441,137 @@ const ReportController = {
   }
 };
 
+// 12. 대화 세션 및 기록 저장소 관리자 (SessionManager)
+const SessionManager = {
+  // 날짜/시각 기반 기본 세션 제목 생성 (예: 2025. 05. 15. 14:30 대화)
+  generateDefaultTitle() {
+    const now = new Date();
+    const m = (now.getMonth() + 1).toString().padStart(2, '0');
+    const d = now.getDate().toString().padStart(2, '0');
+    const h = now.getHours().toString().padStart(2, '0');
+    const min = now.getMinutes().toString().padStart(2, '0');
+    return `${m}.${d} ${h}:${min} 대화`;
+  },
+
+  // 새 세션 생성
+  async createNewSession(category) {
+    const sessionId = `session_${category}_${Date.now()}`;
+    const newSession = {
+      id: sessionId,
+      category: category,
+      title: this.generateDefaultTitle(),
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+
+    await DB.set('chat_sessions', newSession);
+    await this.renderSessionList(category);
+    return newSession;
+  },
+
+  // 특정 세션으로 대화방 전환 및 메시지 복원
+  async loadSession(sessionId) {
+    const session = await DB.get('chat_sessions', sessionId);
+    if (!session) return;
+
+    ChatManager.currentSessionId = session.id;
+    ChatManager.activeHistory = [];
+
+    const isPsychology = session.category === 'psychology';
+    const containerId = isPsychology ? 'psychology-chat-messages' : 'saju-chat-messages';
+    const container = document.getElementById(containerId);
+    if (container) container.innerHTML = '';
+
+    // 화면 전환
+    Router.navigate(session.category);
+
+    // 해당 세션의 모든 메시지 가져오기
+    const messages = await DB.getByIndex('chat_messages', 'sessionId', sessionId);
+    messages.sort((a, b) => a.timestamp - b.timestamp);
+
+    messages.forEach(msg => {
+      ChatUI.appendMessage(containerId, msg.role, msg.content);
+      ChatManager.activeHistory.push({ role: msg.role, content: msg.content });
+    });
+
+    await this.renderSessionList(session.category);
+  },
+
+  // 메시지 1건을 DB에 영구 저장
+  async saveMessage(sessionId, role, content) {
+    if (!sessionId) return;
+    const msgId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    await DB.set('chat_messages', {
+      id: msgId,
+      sessionId: sessionId,
+      role: role,
+      content: content,
+      timestamp: Date.now()
+    });
+
+    // 세션 갱신일 업데이트
+    const session = await DB.get('chat_sessions', sessionId);
+    if (session) {
+      session.updatedAt = Date.now();
+      await DB.set('chat_sessions', session);
+    }
+  },
+
+  // 좌측 서랍 내 세션 리스트 렌더링
+  async renderSessionList(category) {
+    const listEl = document.getElementById(category === 'psychology' ? 'psychology-chat-list' : 'saju-chat-list');
+    if (!listEl) return;
+
+    const allSessions = await DB.getAll('chat_sessions');
+    const filtered = allSessions
+      .filter(s => s.category === category)
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+
+    if (filtered.length === 0) {
+      listEl.innerHTML = '<div class="empty-list-notice">기록된 대화가 없습니다.</div>';
+      return;
+    }
+
+    listEl.innerHTML = '';
+    filtered.forEach(session => {
+      const item = document.createElement('div');
+      item.className = `chat-session-item ${session.id === ChatManager.currentSessionId ? 'active' : ''}`;
+      
+      const dateStr = new Date(session.updatedAt).toLocaleDateString('ko-KR', {
+        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+
+      item.innerHTML = `
+        <div class="session-info">
+          <span class="session-title">${session.title}</span>
+          <span class="session-date">${dateStr}</span>
+        </div>
+        <button type="button" class="btn-edit-title" title="제목 수정">✎</button>
+      `;
+
+      // 대화방 불러오기 클릭
+      item.querySelector('.session-info').addEventListener('click', () => {
+        DrawerController.closeLeft(true);
+        this.loadSession(session.id);
+      });
+
+      // 제목 수정 클릭
+      item.querySelector('.btn-edit-title').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const newTitle = prompt('대화방 제목을 입력하세요:', session.title);
+        if (newTitle && newTitle.trim()) {
+          session.title = newTitle.trim();
+          session.updatedAt = Date.now();
+          await DB.set('chat_sessions', session);
+          await this.renderSessionList(category);
+        }
+      });
+
+      listEl.appendChild(item);
+    });
+  }
+};
+
 // 11. 대화 세션 및 메시지 송수신 매니저 (ChatManager)
 const ChatManager = {
   currentSessionId: null,
@@ -468,13 +599,20 @@ const ChatManager = {
     inputEl.value = '';
     inputEl.style.height = 'auto';
 
-    // 2. 사용자 말풍선 표시
+    // 활성 세션이 없으면 자동 생성
+    if (!this.currentSessionId) {
+      const newSession = await SessionManager.createNewSession(category);
+      this.currentSessionId = newSession.id;
+    }
+
+    // 2. 사용자 말풍선 표시 및 DB 영구 저장
     let displayUserText = text;
     if (!isPsychology && attachedProfiles.length > 0) {
       const tagPrefix = attachedProfiles.map(p => `[${p.name}의 만세력]`).join(' ');
       displayUserText = `${tagPrefix}\n${text}`.trim();
     }
     ChatUI.appendMessage(containerId, 'user', displayUserText);
+    await SessionManager.saveMessage(this.currentSessionId, 'user', displayUserText);
 
     // 3. 첨부 태그 컨테이너 초기화 (전송 완료 후 비우기)
     if (!isPsychology) {
@@ -532,9 +670,11 @@ const ChatManager = {
           modelBubble.appendChild(reportCard);
         }
 
-        // 메모리 히스토리 업데이트
+        // 메모리 히스토리 업데이트 및 DB 영구 저장
         this.activeHistory.push({ role: 'user', content: displayUserText });
         this.activeHistory.push({ role: 'model', content: finalText });
+        await SessionManager.saveMessage(this.currentSessionId, 'model', finalText);
+        await SessionManager.renderSessionList(category);
 
         // 잠금 해제
         this.isGenerating = false;
@@ -780,6 +920,10 @@ const DrawerController = {
   openLeft() {
     if (this.isOpenLeft) return;
     this.isOpenLeft = true;
+
+    // 좌측 서랍 열릴 때 대화 기록 리스트 최신 상태로 갱신
+    SessionManager.renderSessionList('psychology');
+    SessionManager.renderSessionList('saju');
     this.leftDrawer.classList.add('open');
     this.leftDrawer.setAttribute('aria-hidden', 'false');
     this.backdrop.classList.remove('hidden');
@@ -862,15 +1006,42 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnPsychology = document.getElementById('btn-start-psychology');
   const btnSaju = document.getElementById('btn-start-saju');
 
+  // 새 대화 시작 함수
+  const startFreshChat = async (category) => {
+    ChatManager.currentSessionId = null;
+    ChatManager.activeHistory = [];
+    const containerId = category === 'psychology' ? 'psychology-chat-messages' : 'saju-chat-messages';
+    const container = document.getElementById(containerId);
+    if (container) container.innerHTML = '';
+
+    const newSession = await SessionManager.createNewSession(category);
+    ChatManager.currentSessionId = newSession.id;
+    Router.navigate(category);
+  };
+
   if (btnPsychology) {
-    btnPsychology.addEventListener('click', () => {
-      Router.navigate('psychology');
-    });
+    btnPsychology.addEventListener('click', () => startFreshChat('psychology'));
   }
 
   if (btnSaju) {
-    btnSaju.addEventListener('click', () => {
-      Router.navigate('saju');
+    btnSaju.addEventListener('click', () => startFreshChat('saju'));
+  }
+
+  // 좌측 서랍 내 '+ 새 대화' 버튼
+  const btnNewPsych = document.getElementById('btn-new-psychology-chat');
+  const btnNewSaju = document.getElementById('btn-new-saju-chat');
+
+  if (btnNewPsych) {
+    btnNewPsych.addEventListener('click', () => {
+      DrawerController.closeLeft(true);
+      startFreshChat('psychology');
+    });
+  }
+
+  if (btnNewSaju) {
+    btnNewSaju.addEventListener('click', () => {
+      DrawerController.closeLeft(true);
+      startFreshChat('saju');
     });
   }
 
