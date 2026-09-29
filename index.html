@@ -121,7 +121,79 @@
     <aside id="right-saju-drawer" class="drawer-container drawer-right"></aside>
 
     <!-- 공통 팝업/모달 레이어 컨테이너 -->
-    <div id="modal-container" class="modal-layer hidden"></div>
+    <div id="modal-container" class="modal-layer hidden">
+      <!-- 1. 프롬프트 설정 모달 -->
+      <div id="modal-prompts" class="app-modal hidden" role="dialog" aria-modal="true">
+        <div class="modal-header">
+          <h2 class="modal-title">프롬프트 설정</h2>
+          <button type="button" class="btn-close-modal icon-btn" data-target="modal-prompts">✕</button>
+        </div>
+        <div class="modal-tabs">
+          <button type="button" class="tab-btn active" data-tab="tab-prompt-psychology">심리학</button>
+          <button type="button" class="tab-btn" data-tab="tab-prompt-saju">명리학</button>
+        </div>
+        <div class="modal-body">
+          <div id="tab-prompt-psychology" class="tab-content active">
+            <textarea id="prompt-psychology-input" class="modal-textarea" placeholder="심리학 검사 진행을 위한 시스템 프롬프트를 입력하세요..."></textarea>
+          </div>
+          <div id="tab-prompt-saju" class="tab-content hidden">
+            <textarea id="prompt-saju-input" class="modal-textarea" placeholder="명리학 사주 분석 진행을 위한 시스템 프롬프트를 입력하세요..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. 환경 설정 모달 (4개 탭) -->
+      <div id="modal-settings" class="app-modal hidden" role="dialog" aria-modal="true">
+        <div class="modal-header">
+          <h2 class="modal-title">환경 설정</h2>
+          <button type="button" class="btn-close-modal icon-btn" data-target="modal-settings">✕</button>
+        </div>
+        <div class="modal-tabs four-tabs">
+          <button type="button" class="tab-btn active" data-tab="tab-gemini">Gemini</button>
+          <button type="button" class="tab-btn" data-tab="tab-vertex">Vertex AI</button>
+          <button type="button" class="tab-btn" data-tab="tab-firestore">Firestore</button>
+          <button type="button" class="tab-btn" data-tab="tab-general">설정</button>
+        </div>
+        <div class="modal-body">
+          <!-- 탭 1: Gemini API 키 -->
+          <div id="tab-gemini" class="tab-content active">
+            <label class="input-label" for="setting-gemini-key">Gemini API Key</label>
+            <input type="password" id="setting-gemini-key" class="modal-input" placeholder="AI Studio에서 발급받은 API 키를 입력하세요">
+            <p class="input-guide">Gemini API 키가 입력되어 있으면 기본 대화 엔진으로 우선 사용됩니다.</p>
+          </div>
+
+          <!-- 탭 2: Vertex AI & App Check 설정 -->
+          <div id="tab-vertex" class="tab-content hidden">
+            <label class="input-label" for="setting-vertex-config">Firebase Vertex AI & App Check 스크립트 / 설정</label>
+            <textarea id="setting-vertex-config" class="modal-textarea code-area" placeholder="Firebase Config 객체 또는 <script> 태그 스니펫을 입력하세요"></textarea>
+            <p class="input-guide">대화 시 App Check 보안 토큰이 자동으로 동기화되어 호출됩니다.</p>
+          </div>
+
+          <!-- 탭 3: Firestore 백업 설정 -->
+          <div id="tab-firestore" class="tab-content hidden">
+            <label class="input-label" for="setting-firestore-config">Firestore 백업용 Firebase Config</label>
+            <textarea id="setting-firestore-config" class="modal-textarea code-area" placeholder="Firestore 연동을 위한 firebaseConfig 스크립트를 입력하세요"></textarea>
+            <p class="input-guide">클라우드 백업 및 타 기기 복원에 활용됩니다.</p>
+          </div>
+
+          <!-- 탭 4: 일반 설정 (커스텀 드롭다운 출력 방식 선택) -->
+          <div id="tab-general" class="tab-content hidden">
+            <label class="input-label">답변 출력 방식</label>
+            <div class="custom-dropdown" id="dropdown-output-mode">
+              <button type="button" class="dropdown-trigger" id="dropdown-output-btn">
+                <span id="dropdown-selected-text">스트리밍 출력 (실시간 생성)</span>
+                <span class="dropdown-arrow">▼</span>
+              </button>
+              <div class="dropdown-menu hidden" id="dropdown-output-menu">
+                <div class="dropdown-item selected" data-value="stream">스트리밍 출력 (실시간 생성)</div>
+                <div class="dropdown-item" data-value="batch">일시 출력 (답변 완성 후 한번에 표시)</div>
+              </div>
+            </div>
+            <p class="input-guide">AI의 답변이 화면에 표시되는 방식을 선택합니다.</p>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- 전체화면 최종 분석 보고서 오버레이 -->
     <div id="report-fullscreen-view" class="report-fullscreen hidden"></div>
