@@ -143,10 +143,8 @@ const SajuManager = {
     profiles.forEach(p => {
       const item = document.createElement('div');
       item.className = 'saju-profile-item';
-      item.innerHTML = `
-        <span class="saju-item-name">${p.name}</span>
-        <span class="saju-item-badge">만세력 첨부 +</span>
-      `;
+      // '만세력 첨부 +' 촌스러운 텍스트 완전 제거 (순수 이름만 미니멀 렌더링)
+      item.innerHTML = `<span class="saju-item-name">${p.name}</span>`;
 
       // [핵심] 인물을 터치할 때 서랍을 닫지 않고 입력창에 누적 첨부!
       item.addEventListener('click', () => {
@@ -681,7 +679,7 @@ const SessionManager = {
     messages.sort((a, b) => a.timestamp - b.timestamp);
 
     messages.forEach(msg => {
-      ChatUI.appendMessage(containerId, msg.role, msg.content);
+      ChatUI.appendMessage(containerId, msg.role, msg.content, msg.id);
       ChatManager.activeHistory.push({ role: msg.role, content: msg.content });
     });
 
@@ -737,7 +735,14 @@ const SessionManager = {
           <span class="session-title">${session.title}</span>
           <span class="session-date">${dateStr}</span>
         </div>
-        <button type="button" class="btn-edit-title" title="제목 수정">✎</button>
+        <div class="session-actions">
+          <button type="button" class="session-action-btn btn-edit-title" title="제목 수정">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pen"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>
+          </button>
+          <button type="button" class="session-action-btn btn-delete-session" title="대화 삭제">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash"><path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div>
       `;
 
       // 대화방 불러오기 클릭
@@ -752,9 +757,30 @@ const SessionManager = {
         const newTitle = prompt('대화방 제목을 입력하세요:', session.title);
         if (newTitle && newTitle.trim()) {
           session.title = newTitle.trim();
+          session.isCustomTitle = true; // 사용자가 직접 수정한 제목 표시 플래그
           session.updatedAt = Date.now();
           await DB.set('chat_sessions', session);
           await this.renderSessionList(category);
+        }
+      });
+
+      // 대화방 삭제 클릭
+      item.querySelector('.btn-delete-session').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (confirm('이 대화 기록을 완전히 삭제하시겠습니까?')) {
+          // 세션 및 메시지 DB 삭제
+          await DB.delete('chat_sessions', session.id);
+          const msgs = await DB.getByIndex('chat_messages', 'sessionId', session.id);
+          for (const m of msgs) {
+            await DB.delete('chat_messages', m.id);
+          }
+
+          // 현재 열려있던 대화방이면 새 대화로 초기화
+          if (ChatManager.currentSessionId === session.id) {
+            startFreshChat(category);
+          } else {
+            await this.renderSessionList(category);
+          }
         }
       });
 
@@ -802,8 +828,26 @@ const ChatManager = {
       const tagPrefix = attachedProfiles.map(p => `[${p.name}의 만세력]`).join(' ');
       displayUserText = `${tagPrefix}\n${text}`.trim();
     }
-    ChatUI.appendMessage(containerId, 'user', displayUserText);
-    await SessionManager.saveMessage(this.currentSessionId, 'user', displayUserText);
+    const userMsgId = `msg_${Date.now()}_u`;
+    ChatUI.appendMessage(containerId, 'user', displayUserText, userMsgId);
+    await DB.set('chat_messages', {
+      id: userMsgId,
+      sessionId: this.currentSessionId,
+      role: 'user',
+      content: displayUserText,
+      timestamp: Date.now()
+    });
+
+    // [핵심] 첫 질문일 때: 사용자가 제목을 수정한 적 없다면 첫 질문을 바탕으로 세션 제목 자동 업데이트 (AI Studio 스타일)
+    const currentSession = await DB.get('chat_sessions', this.currentSessionId);
+    if (currentSession && !currentSession.isCustomTitle && this.activeHistory.length === 0) {
+      const autoTitle = text.slice(0, 18).trim() + (text.length > 18 ? '...' : '');
+      if (autoTitle) {
+        currentSession.title = autoTitle;
+        await DB.set('chat_sessions', currentSession);
+        await SessionManager.renderSessionList(category);
+      }
+    }
 
     // 3. 첨부 태그 컨테이너 초기화 (전송 완료 후 비우기)
     if (!isPsychology) {
@@ -864,7 +908,23 @@ const ChatManager = {
         // 메모리 히스토리 업데이트 및 DB 영구 저장
         this.activeHistory.push({ role: 'user', content: displayUserText });
         this.activeHistory.push({ role: 'model', content: finalText });
-        await SessionManager.saveMessage(this.currentSessionId, 'model', finalText);
+
+        const modelMsgId = `msg_${Date.now()}_m`;
+        modelBubble.dataset.msgId = modelMsgId;
+        await DB.set('chat_messages', {
+          id: modelMsgId,
+          sessionId: this.currentSessionId,
+          role: 'model',
+          content: finalText,
+          timestamp: Date.now()
+        });
+
+        // 세션 갱신일 업데이트 및 목록 새로고침
+        const sess = await DB.get('chat_sessions', this.currentSessionId);
+        if (sess) {
+          sess.updatedAt = Date.now();
+          await DB.set('chat_sessions', sess);
+        }
         await SessionManager.renderSessionList(category);
 
         // 잠금 해제
@@ -884,42 +944,136 @@ const ChatManager = {
 
 // 6. 대화 UI 헬퍼 및 자동 스크롤 (ChatUI)
 const ChatUI = {
-  // 메시지 말풍선 화면 추가 (마크다운 및 보고서 감지 적용)
-  appendMessage(containerId, role, rawContent) {
+  // 메시지 말풍선 화면 추가 (수정/삭제 액션 버튼 및 인라인 편집 탑재)
+  appendMessage(containerId, role, rawContent, msgId = null, isGreeting = false) {
     const container = document.getElementById(containerId);
     if (!container) return null;
 
     const bubble = document.createElement('div');
     bubble.className = `chat-bubble ${role}`;
+    if (msgId) bubble.dataset.msgId = msgId;
 
-    if (role === 'model') {
-      const extracted = MarkdownParser.extractReport(rawContent);
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'bubble-text-content';
 
-      // 일반 대화 내용 파싱 렌더링
-      if (extracted.chatContent) {
-        bubble.innerHTML = MarkdownParser.parse(extracted.chatContent);
+    let currentRaw = rawContent;
+
+    const renderInnerContent = () => {
+      if (role === 'model') {
+        const extracted = MarkdownParser.extractReport(currentRaw);
+        contentDiv.innerHTML = MarkdownParser.parse(extracted.chatContent || '');
+
+        if (extracted.hasReport) {
+          const reportCard = document.createElement('div');
+          reportCard.className = 'report-card-summary';
+          reportCard.innerHTML = `
+            <div class="report-card-info">
+              <span class="report-card-title">심층 분석 보고서</span>
+              <span class="report-card-desc">전문 분석 결과가 도착했습니다.</span>
+            </div>
+            <button type="button" class="btn-open-report">분석 보고서 열기</button>
+          `;
+          reportCard.querySelector('.btn-open-report').addEventListener('click', () => {
+            ReportController.open(extracted.reportContent);
+          });
+          contentDiv.appendChild(reportCard);
+        }
+      } else {
+        contentDiv.innerHTML = MarkdownParser.parse(currentRaw);
       }
+    };
 
-      // [요구사항] 보고서 감지 시: 말풍선에는 '분석 보고서 열기' 카드만 간단히 표시
-      if (extracted.hasReport) {
-        const reportCard = document.createElement('div');
-        reportCard.className = 'report-card-summary';
-        reportCard.innerHTML = `
-          <div class="report-card-info">
-            <span class="report-card-title">심층 분석 보고서</span>
-            <span class="report-card-desc">전문 분석 결과가 도착했습니다.</span>
+    renderInnerContent();
+    bubble.appendChild(contentDiv);
+
+    // 시스템 첫 인사말이 아닐 때만 수정/삭제 버튼 제공
+    if (!isGreeting) {
+      const actionBar = document.createElement('div');
+      actionBar.className = 'bubble-action-bar';
+      actionBar.innerHTML = `
+        <button type="button" class="bubble-action-btn btn-edit-msg" title="메시지 수정">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pen-line"><path d="M13 21h8"/><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>
+        </button>
+        <button type="button" class="bubble-action-btn btn-delete-msg" title="메시지 삭제">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eraser"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/><path d="m5.082 11.09 8.828 8.828"/></svg>
+        </button>
+      `;
+
+      // 수정 클릭 시 인라인 텍스트에어리어 전환
+      actionBar.querySelector('.btn-edit-msg').addEventListener('click', () => {
+        contentDiv.classList.add('hidden');
+        actionBar.classList.add('hidden');
+
+        const editForm = document.createElement('div');
+        editForm.className = 'bubble-edit-form';
+        editForm.innerHTML = `
+          <textarea class="bubble-edit-textarea">${currentRaw}</textarea>
+          <div class="bubble-edit-actions">
+            <button type="button" class="btn-bubble-cancel">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              <span>취소</span>
+            </button>
+            <button type="button" class="btn-bubble-confirm">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check"><path d="M20 6 9 17l-5-5"/></svg>
+              <span>확인</span>
+            </button>
           </div>
-          <button type="button" class="btn-open-report">분석 보고서 열기</button>
         `;
 
-        reportCard.querySelector('.btn-open-report').addEventListener('click', () => {
-          ReportController.open(extracted.reportContent);
+        // 취소 클릭
+        editForm.querySelector('.btn-bubble-cancel').addEventListener('click', () => {
+          editForm.remove();
+          contentDiv.classList.remove('hidden');
+          actionBar.classList.remove('hidden');
         });
 
-        bubble.appendChild(reportCard);
-      }
-    } else {
-      bubble.textContent = rawContent;
+        // 확인 클릭: DB 저장 및 다음 Payload에 완벽 반영
+        editForm.querySelector('.btn-bubble-confirm').addEventListener('click', async () => {
+          const updatedText = editForm.querySelector('.bubble-edit-textarea').value.trim();
+          if (!updatedText) return;
+
+          currentRaw = updatedText;
+          renderInnerContent();
+
+          // 1. IndexedDB 업데이트
+          if (msgId) {
+            const msgObj = await DB.get('chat_messages', msgId);
+            if (msgObj) {
+              msgObj.content = updatedText;
+              await DB.set('chat_messages', msgObj);
+            }
+          }
+
+          // 2. [핵심] 활성 메모리 히스토리 동기화 (다음 AI 전송 시 수정본으로 전송!)
+          const historyIdx = ChatManager.activeHistory.findIndex(h => h.role === role && h.content === rawContent);
+          if (historyIdx !== -1) {
+            ChatManager.activeHistory[historyIdx].content = updatedText;
+          }
+
+          editForm.remove();
+          contentDiv.classList.remove('hidden');
+          actionBar.classList.remove('hidden');
+        });
+
+        bubble.appendChild(editForm);
+      });
+
+      // 삭제 클릭
+      actionBar.querySelector('.btn-delete-msg').addEventListener('click', async () => {
+        if (confirm('이 메시지를 삭제하시겠습니까?')) {
+          if (msgId) {
+            await DB.delete('chat_messages', msgId);
+          }
+          // 메모리 히스토리에서도 즉시 제거
+          const historyIdx = ChatManager.activeHistory.findIndex(h => h.role === role && h.content === currentRaw);
+          if (historyIdx !== -1) {
+            ChatManager.activeHistory.splice(historyIdx, 1);
+          }
+          bubble.remove();
+        }
+      });
+
+      bubble.appendChild(actionBar);
     }
 
     container.appendChild(bubble);
@@ -1185,6 +1339,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnPsychology = document.getElementById('btn-start-psychology');
   const btnSaju = document.getElementById('btn-start-saju');
 
+  // 첫 진입 시 화면 전용 초기 안내 메시지 템플릿 (Payload 전송에는 포함되지 않음)
+  const INITIAL_GREETINGS = {
+    psychology: `본격적으로 이야기를 시작하기 전에, 가장 편안한 대화 환경부터 맞춰볼게요!\n\n1. 어떤 대화 톤이 편하신가요?\n- 친구처럼 거침없이 반말로 티키타카 하기\n- 적당히 위트 있고 편안한 존댓말 쓰기\n\n2. 대화하는 동안 제가 어떤 호칭(닉네임)으로 불러드리면 좋을까요?\n\n3. 지금 머릿속에 가장 먼저 떠오르는 이야기 하나만 편하게 꺼내주세요!\n(재밌게 본 영화/드라마/유튜브, 친구나 직장에서 겪은 웃기거나 빡쳤던 일화, 나만의 독특한 취미나 덕질, 요즘 느끼는 인간관계의 피로감이나 고민 등... 어떤 이야기든 좋습니다.)`,
+    saju: `명리학으로 심층 분석할 만세력과 궁금하신 내용을 함께 전송해주세요!`
+  };
+
   // 새 대화 시작 함수
   const startFreshChat = async (category) => {
     ChatManager.currentSessionId = null;
@@ -1196,6 +1356,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const newSession = await SessionManager.createNewSession(category);
     ChatManager.currentSessionId = newSession.id;
     Router.navigate(category);
+
+    // [요구사항] 대화방 화면에 첫 안내 AI 말풍선 자동 출력 (Payload에는 미포함)
+    if (INITIAL_GREETINGS[category]) {
+      ChatUI.appendMessage(containerId, 'model', INITIAL_GREETINGS[category], null, true);
+    }
   };
 
   if (btnPsychology) {
