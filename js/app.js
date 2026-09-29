@@ -123,10 +123,37 @@ const KeyboardViewportManager = {
   }
 };
 
-// 7. 명리학 명식 관리 및 다중 누적 첨부 (SajuManager)
+// 7. 명리학 명식 관리, 다중 누적 첨부 및 일괄 삭제 (SajuManager)
 const SajuManager = {
-  attachedProfiles: [], // 현재 입력창에 첨부된 명식 목록 [{id, name, imageData}]
+  attachedProfiles: [],
   tempImageData: null,
+  isDeleteMode: false,
+  selectedForDeletion: new Set(),
+
+  // 삭제 모드 토글 및 일괄 삭제 실행
+  async toggleDeleteMode() {
+    const btn = document.getElementById('btn-toggle-delete-saju');
+    if (!this.isDeleteMode) {
+      // 1. 삭제 선택 모드 진입
+      this.isDeleteMode = true;
+      this.selectedForDeletion.clear();
+      if (btn) btn.classList.add('active');
+      await this.renderProfilesList();
+    } else {
+      // 2. 이미 삭제 모드인 상태에서 다시 누름 -> 선택 항목 일괄 삭제 실행!
+      if (this.selectedForDeletion.size > 0) {
+        if (confirm(`선택한 ${this.selectedForDeletion.size}개의 명식을 완전히 삭제하시겠습니까?`)) {
+          for (const id of this.selectedForDeletion) {
+            await DB.delete('saju_profiles', id);
+          }
+        }
+      }
+      this.isDeleteMode = false;
+      this.selectedForDeletion.clear();
+      if (btn) btn.classList.remove('active');
+      await this.renderProfilesList();
+    }
+  },
 
   // IndexedDB로부터 명식 목록 화면 렌더링
   async renderProfilesList() {
@@ -142,13 +169,24 @@ const SajuManager = {
     listEl.innerHTML = '';
     profiles.forEach(p => {
       const item = document.createElement('div');
-      item.className = 'saju-profile-item';
-      // '만세력 첨부 +' 촌스러운 텍스트 완전 제거 (순수 이름만 미니멀 렌더링)
+      const isSelected = this.selectedForDeletion.has(p.id);
+      item.className = `saju-profile-item ${isSelected ? 'delete-selected' : ''}`;
       item.innerHTML = `<span class="saju-item-name">${p.name}</span>`;
 
-      // [핵심] 인물을 터치할 때 서랍을 닫지 않고 입력창에 누적 첨부!
       item.addEventListener('click', () => {
-        this.attachProfile(p);
+        if (this.isDeleteMode) {
+          // 삭제 모드일 때는 선택/해제 토글
+          if (this.selectedForDeletion.has(p.id)) {
+            this.selectedForDeletion.delete(p.id);
+            item.classList.remove('delete-selected');
+          } else {
+            this.selectedForDeletion.add(p.id);
+            item.classList.add('delete-selected');
+          }
+        } else {
+          // 일반 모드일 때는 입력창에 만세력 누적 첨부
+          this.attachProfile(p);
+        }
       });
 
       listEl.appendChild(item);
@@ -1450,11 +1488,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnOpenAddSaju = document.getElementById('btn-open-add-saju');
   if (btnOpenAddSaju) {
     btnOpenAddSaju.addEventListener('click', () => {
+      if (SajuManager.isDeleteMode) SajuManager.toggleDeleteMode();
       DrawerController.closeRight(false);
       ModalController.open('modal-add-saju');
     });
   }
 
+  // 명식 서랍 내 '선택 삭제' 토글 버튼
+  const btnToggleDeleteSaju = document.getElementById('btn-toggle-delete-saju');
+  if (btnToggleDeleteSaju) {
+    btnToggleDeleteSaju.addEventListener('click', () => {
+      SajuManager.toggleDeleteMode();
+    });
+  }
+  
   // 이미지 파일 선택 처리
   const fileInput = document.getElementById('saju-image-file');
   const btnSelectImage = document.getElementById('btn-select-saju-image');
