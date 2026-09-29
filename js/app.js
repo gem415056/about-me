@@ -141,7 +141,14 @@ const DrawerController = {
 };
 
 // 초기화
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // IndexedDB 초기화
+  try {
+    await DB.init();
+  } catch (err) {
+    console.error('IndexedDB 로드 오류:', err);
+  }
+
   NavStack.init();
   Router.navigate('landing', false);
 
