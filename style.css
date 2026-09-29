@@ -456,43 +456,62 @@ html, body {
   margin: 0 16px;
 }
 
-/* 하단 툴바 */
+/* 하단 툴바: 4분할 제거 ➔ 좌측 정렬 미니멀 아이콘 바 */
 .drawer-bottom-toolbar {
-  height: 60px;
+  height: 54px;
   flex-shrink: 0;
   border-top: 1px solid var(--border-subtle);
-  background-color: var(--bg-secondary);
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  padding: 6px 4px;
+  background-color: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 0 16px;
 }
 
 .toolbar-btn {
   background: none;
   border: none;
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  width: 38px;
+  height: 38px;
   cursor: pointer;
-  border-radius: 8px;
-  transition: background-color 0.15s ease;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  transition: color 0.15s, background-color 0.15s;
 }
 
 .toolbar-btn:active {
-  background-color: var(--btn-warm-hover);
-}
-
-.toolbar-icon {
-  font-size: 1.05rem;
   color: var(--text-primary);
+  background-color: var(--bg-secondary);
 }
 
-.toolbar-label {
-  font-size: 0.72rem;
-  color: var(--text-secondary);
-  font-weight: 500;
+/* 세션 목록 내 우측 액션 버튼 그룹 (수정/삭제) */
+.session-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.session-action-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.session-action-btn:active {
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
 }
 
 /* ==========================================================================
