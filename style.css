@@ -784,3 +784,150 @@ html, body {
   opacity: 0.3;
   cursor: not-allowed;
 }
+
+/* ==========================================================================
+   9. 우측 명식 서랍 & 명식 관리 컴포넌트
+   ========================================================================== */
+.accordion-header-btn {
+  background: none;
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  background-color: var(--bg-card);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.accordion-arrow {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  transition: transform var(--transition-smooth);
+}
+
+.accordion-header-btn.open .accordion-arrow {
+  transform: rotate(180deg);
+}
+
+/* 우측 서랍 위치: 헤더 1 + 헤더 2 아래부터 */
+.drawer-right {
+  top: calc(var(--header-height) + var(--sub-header-height));
+  right: 0;
+  transform: translateX(100%);
+  border-left: 1px solid var(--border-subtle);
+}
+
+.drawer-right.open {
+  transform: translateX(0);
+}
+
+/* 명리학 모드에서 우측 서랍 열릴 때 암전 레이어 위치 조절 */
+.backdrop-overlay.saju-mode-dim {
+  top: calc(var(--header-height) + var(--sub-header-height));
+}
+
+.saju-drawer-header {
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.saju-list-scroll {
+  padding: 12px 14px;
+  gap: 10px;
+}
+
+/* 명식 선택 항목 카드 (누를 때마다 누적 첨부) */
+.saju-profile-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.saju-profile-item:active {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-strong);
+}
+
+.saju-item-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.saju-item-badge {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* 파일 업로드 박스 및 버튼 */
+.file-upload-box {
+  margin-top: 6px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background-color: var(--bg-primary);
+}
+
+.file-select-btn {
+  padding: 8px 16px;
+  border-radius: 10px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.image-preview-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.image-preview-container img {
+  max-width: 120px;
+  max-height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+}
+
+.preview-filename {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.modal-submit-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 14px;
+  background-color: var(--text-primary);
+  color: var(--bg-card);
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.modal-submit-btn:active {
+  opacity: 0.88;
+}
