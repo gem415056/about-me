@@ -373,6 +373,65 @@ html, body {
   padding: 24px 0;
 }
 
+/* 대화 기록 항목 (세션 카드) */
+.chat-session-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.chat-session-item:active {
+  background-color: var(--bg-secondary);
+}
+
+.chat-session-item.active {
+  border-color: var(--border-strong);
+  background-color: var(--bg-secondary);
+}
+
+.session-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  flex: 1;
+}
+
+.session-title {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-date {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.btn-edit-title {
+  background: none;
+  border: none;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  padding: 4px 6px;
+  cursor: pointer;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.btn-edit-title:active {
+  background-color: var(--btn-warm-hover);
+}
+
 .drawer-divider {
   height: 1px;
   background-color: var(--border-subtle);
