@@ -99,6 +99,47 @@ const Router = {
   }
 };
 
+// 3. 서랍 및 오버레이 UI 컨트롤러 (DrawerController)
+const DrawerController = {
+  leftDrawer: document.getElementById('left-drawer'),
+  backdrop: document.getElementById('backdrop-overlay'),
+  isOpenLeft: false,
+
+  openLeft() {
+    if (this.isOpenLeft) return;
+    this.isOpenLeft = true;
+    this.leftDrawer.classList.add('open');
+    this.leftDrawer.setAttribute('aria-hidden', 'false');
+    this.backdrop.classList.remove('hidden');
+    void this.backdrop.offsetWidth;
+    this.backdrop.classList.add('active');
+
+    // 뒤로가기 스택에 서랍 닫기 등록
+    NavStack.push({
+      id: 'left-drawer',
+      onClose: () => this.closeLeft(false)
+    });
+  },
+
+  closeLeft(triggerBack = true) {
+    if (!this.isOpenLeft) return;
+    this.isOpenLeft = false;
+    this.leftDrawer.classList.remove('open');
+    this.leftDrawer.setAttribute('aria-hidden', 'true');
+    this.backdrop.classList.remove('active');
+
+    setTimeout(() => {
+      if (!this.isOpenLeft) {
+        this.backdrop.classList.add('hidden');
+      }
+    }, 280);
+
+    if (triggerBack) {
+      NavStack.pop();
+    }
+  }
+};
+
 // 초기화
 document.addEventListener('DOMContentLoaded', () => {
   NavStack.init();
@@ -117,6 +158,24 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnSaju) {
     btnSaju.addEventListener('click', () => {
       Router.navigate('saju');
+    });
+  }
+
+  // 좌측 서랍 열기 버튼 (헤더 1 햄버거 버튼)
+  const btnOpenLeftDrawer = document.getElementById('btn-open-left-drawer');
+  if (btnOpenLeftDrawer) {
+    btnOpenLeftDrawer.addEventListener('click', () => {
+      DrawerController.openLeft();
+    });
+  }
+
+  // 암전 오버레이 터치 시 서랍 닫기
+  const backdrop = document.getElementById('backdrop-overlay');
+  if (backdrop) {
+    backdrop.addEventListener('click', () => {
+      if (DrawerController.isOpenLeft) {
+        DrawerController.closeLeft(true);
+      }
     });
   }
 });
