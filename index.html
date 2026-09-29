@@ -218,26 +218,31 @@
         </div>
       </div>
 
-      <!-- 3. 명식 추가 모달 (이름 + 만세력 사진) -->
-      <div id="modal-add-saju" class="app-modal hidden" role="dialog" aria-modal="true">
+      <!-- 3. 명식 추가 모달 (닫힐 때 자동 저장) -->
+      <div id="modal-add-saju" class="app-modal modal-saju-add hidden" role="dialog" aria-modal="true">
         <div class="modal-header">
-          <h2 class="modal-title">새 명식 등록</h2>
-          <button type="button" class="btn-close-modal icon-btn" data-target="modal-add-saju">✕</button>
+          <h2 class="modal-title">명식 추가</h2>
+          <button type="button" class="btn-close-modal icon-btn" data-target="modal-add-saju">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
         </div>
-        <div class="modal-body">
-          <label class="input-label" for="saju-profile-name">이름 (구분용)</label>
-          <input type="text" id="saju-profile-name" class="modal-input" placeholder="예: 홍길동 (API에는 전송되지 않음)">
+        <div class="modal-body spacious-body">
+          <div class="form-group-item">
+            <label class="input-label" for="saju-profile-name">이름</label>
+            <input type="text" id="saju-profile-name" class="modal-input" placeholder="이름을 입력하세요">
+          </div>
           
-          <label class="input-label" style="margin-top: 14px;">만세력 사진</label>
-          <div class="file-upload-box" id="saju-file-dropzone">
-            <input type="file" id="saju-image-file" accept="image/*" class="hidden">
-            <button type="button" id="btn-select-saju-image" class="file-select-btn">사진 선택하기</button>
-            <div id="saju-image-preview" class="image-preview-container hidden">
-              <img id="saju-preview-img" src="" alt="만세력 미리보기">
-              <span id="saju-file-name" class="preview-filename"></span>
+          <div class="form-group-item">
+            <label class="input-label">만세력 사진</label>
+            <div class="file-upload-box" id="saju-file-dropzone">
+              <input type="file" id="saju-image-file" accept="image/*" class="hidden">
+              <button type="button" id="btn-select-saju-image" class="file-select-btn">사진 선택하기</button>
+              <div id="saju-image-preview" class="image-preview-container hidden">
+                <img id="saju-preview-img" src="" alt="만세력 미리보기">
+                <span id="saju-file-name" class="preview-filename"></span>
+              </div>
             </div>
           </div>
-          <button type="button" id="btn-save-saju-profile" class="modal-submit-btn" style="margin-top: 20px;">저장하기</button>
         </div>
       </div>
     </div>
