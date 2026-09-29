@@ -136,7 +136,20 @@
     </aside>
 
     <!-- 우측 명식 서랍 메뉴 컨테이너 -->
-    <aside id="right-saju-drawer" class="drawer-container drawer-right"></aside>
+    <!-- 우측 명식 서랍 메뉴 컨테이너 (헤더 2 아래부터 슬라이드) -->
+    <aside id="right-saju-drawer" class="drawer-container drawer-right" aria-hidden="true">
+      <div class="drawer-content">
+        <div class="saju-drawer-header">
+          <span class="drawer-section-title">저장된 명식 목록</span>
+          <button type="button" id="btn-open-add-saju" class="icon-btn" title="명식 추가">
+            <span class="icon-placeholder">+</span>
+          </button>
+        </div>
+        <div id="saju-profiles-list" class="drawer-list-scroll saju-list-scroll">
+          <div class="empty-list-notice">등록된 명식이 없습니다.<br>'+' 버튼으로 만세력을 추가하세요.</div>
+        </div>
+      </div>
+    </aside>
 
     <!-- 공통 팝업/모달 레이어 컨테이너 -->
     <div id="modal-container" class="modal-layer hidden">
@@ -209,6 +222,29 @@
             </div>
             <p class="input-guide">AI의 답변이 화면에 표시되는 방식을 선택합니다.</p>
           </div>
+        </div>
+      </div>
+
+      <!-- 3. 명식 추가 모달 (이름 + 만세력 사진) -->
+      <div id="modal-add-saju" class="app-modal hidden" role="dialog" aria-modal="true">
+        <div class="modal-header">
+          <h2 class="modal-title">새 명식 등록</h2>
+          <button type="button" class="btn-close-modal icon-btn" data-target="modal-add-saju">✕</button>
+        </div>
+        <div class="modal-body">
+          <label class="input-label" for="saju-profile-name">이름 (구분용)</label>
+          <input type="text" id="saju-profile-name" class="modal-input" placeholder="예: 홍길동 (API에는 전송되지 않음)">
+          
+          <label class="input-label" style="margin-top: 14px;">만세력 사진</label>
+          <div class="file-upload-box" id="saju-file-dropzone">
+            <input type="file" id="saju-image-file" accept="image/*" class="hidden">
+            <button type="button" id="btn-select-saju-image" class="file-select-btn">사진 선택하기</button>
+            <div id="saju-image-preview" class="image-preview-container hidden">
+              <img id="saju-preview-img" src="" alt="만세력 미리보기">
+              <span id="saju-file-name" class="preview-filename"></span>
+            </div>
+          </div>
+          <button type="button" id="btn-save-saju-profile" class="modal-submit-btn" style="margin-top: 20px;">저장하기</button>
         </div>
       </div>
     </div>
