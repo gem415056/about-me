@@ -301,7 +301,7 @@ html, body {
   pointer-events: auto;
 }
 
-/* 좌측 서랍 컨테이너 */
+/* 좌우측 서랍: GPU 3D 가속 및 네이티브 감성 버터 트랜지션 */
 .drawer-container {
   position: absolute;
   top: var(--header-height);
@@ -310,8 +310,10 @@ html, body {
   max-width: 320px;
   background-color: var(--bg-card);
   z-index: 200;
-  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.08);
-  transition: transform var(--transition-smooth), visibility var(--transition-smooth);
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.08);
+  will-change: transform;
+  transform: translateZ(0); /* GPU 레이어 강제 생성 */
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1), visibility 0.32s ease;
   visibility: hidden;
   pointer-events: none;
 }
@@ -323,12 +325,12 @@ html, body {
 
 .drawer-left {
   left: 0;
-  transform: translateX(-100%); /* 기본 숨김 상태 */
+  transform: translate3d(-100%, 0, 0); /* 3D GPU 가속 */
   border-right: 1px solid var(--border-subtle);
 }
 
 .drawer-left.open {
-  transform: translateX(0);
+  transform: translate3d(0, 0, 0);
 }
 
 .drawer-content {
@@ -1060,16 +1062,16 @@ html, body {
   transform: rotate(180deg);
 }
 
-/* 우측 서랍 위치: 헤더 1 + 헤더 2 아래부터 */
+/* 우측 서랍: 3D GPU 가속으로 삐걱거림 완전 제거 */
 .drawer-right {
   top: calc(var(--header-height) + var(--sub-header-height));
   right: 0;
-  transform: translateX(100%);
+  transform: translate3d(100%, 0, 0);
   border-left: 1px solid var(--border-subtle);
 }
 
 .drawer-right.open {
-  transform: translateX(0);
+  transform: translate3d(0, 0, 0);
 }
 
 /* 명리학 모드에서 우측 서랍 열릴 때 암전 레이어 위치 조절 */
