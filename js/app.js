@@ -52,11 +52,11 @@ const Router = {
   },
 
   headers: {
-    header1: document.getElementById('header-1'),
-    header2: document.getElementById('header-2'),
-    title: document.getElementById('header-title')
-  },
-
+      header1: document.getElementById('header-1'),
+      title: document.getElementById('header-title'),
+      btnSajuHand: document.getElementById('btn-toggle-saju-drawer')
+    },
+  
   navigate(viewName, pushHistory = true) {
     if (!this.views[viewName]) return;
 
@@ -86,15 +86,15 @@ const Router = {
   updateHeaders(viewName) {
     if (viewName === 'landing') {
       this.headers.header1.classList.add('hidden');
-      this.headers.header2.classList.add('hidden');
+      if (this.headers.btnSajuHand) this.headers.btnSajuHand.classList.add('hidden');
     } else if (viewName === 'psychology') {
       this.headers.header1.classList.remove('hidden');
-      this.headers.header2.classList.add('hidden');
-      this.headers.title.textContent = '𝗔𝗕𝗢𝗨𝗧 𝗠𝗘'; // 심리학에서도 항상 로고 고정
+      if (this.headers.btnSajuHand) this.headers.btnSajuHand.classList.add('hidden'); // 심리학에선 손가락 숨김
+      this.headers.title.textContent = '𝗔𝗕𝗢𝗨𝗧 𝗠𝗘';
     } else if (viewName === 'saju') {
       this.headers.header1.classList.remove('hidden');
-      this.headers.header2.classList.remove('hidden');
-      this.headers.title.textContent = '𝗔𝗕𝗢𝗨𝗧 𝗠𝗘'; // 명리학에서도 항상 로고 고정
+      if (this.headers.btnSajuHand) this.headers.btnSajuHand.classList.remove('hidden'); // 명리학에서만 손가락 노출
+      this.headers.title.textContent = '𝗔𝗕𝗢𝗨𝗧 𝗠𝗘';
     }
   }
 };
@@ -757,6 +757,37 @@ const CloudBackupManager = {
 
 // 12. 대화 세션 및 기록 저장소 관리자 (SessionManager)
 const SessionManager = {
+  deleteMode: { psychology: false, saju: false },
+  selectedForDeletion: { psychology: new Set(), saju: new Set() },
+
+  toggleDeleteMode(category) {
+    const isMode = !this.deleteMode[category];
+    const btn = document.getElementById(category === 'psychology' ? 'btn-delete-mode-psych' : 'btn-delete-mode-saju');
+
+    if (isMode) {
+      this.deleteMode[category] = true;
+      this.selectedForDeletion[category].clear();
+      if (btn) btn.classList.add('active');
+      this.renderSessionList(category);
+    } else {
+      // 삭제 실행
+      const selected = this.selectedForDeletion[category];
+      if (selected.size > 0) {
+        if (confirm(`선택한 ${selected.size}개의 대화를 완전히 삭제하시겠습니까?`)) {
+          selected.forEach(async (id) => {
+            await DB.delete('chat_sessions', id);
+            const msgs = await DB.getByIndex('chat_messages', 'sessionId', id);
+            for (const m of msgs) await DB.delete('chat_messages', m.id);
+          });
+        }
+      }
+      this.deleteMode[category] = false;
+      this.selectedForDeletion[category].clear();
+      if (btn) btn.classList.remove('active');
+      setTimeout(() => this.renderSessionList(category), 100);
+    }
+  },
+  
   // 날짜/시각 기반 기본 세션 제목 생성 (예: 2025. 05. 15. 14:30 대화)
   generateDefaultTitle() {
     const now = new Date();
@@ -861,19 +892,30 @@ const SessionManager = {
           <span class="session-date">${dateStr}</span>
         </div>
         <div class="session-actions">
+          <!-- 카드에는 수정 아이콘만 단정하게 유지 -->
           <button type="button" class="session-action-btn btn-edit-title" title="제목 수정">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pen"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>
-          </button>
-          <button type="button" class="session-action-btn btn-delete-session" title="대화 삭제">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash"><path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           </button>
         </div>
       `;
 
-      // 대화방 불러오기 클릭
-      item.querySelector('.session-info').addEventListener('click', () => {
-        DrawerController.closeLeft(true);
-        this.loadSession(session.id);
+      // 대화방 클릭 시: 삭제 모드면 선택/해제, 일반 모드면 대화방 불러오기
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-edit-title')) return; // 편집 버튼 클릭 시 제외
+
+        if (this.deleteMode[category]) {
+          const selectedSet = this.selectedForDeletion[category];
+          if (selectedSet.has(session.id)) {
+            selectedSet.delete(session.id);
+            item.classList.remove('delete-selected');
+          } else {
+            selectedSet.add(session.id);
+            item.classList.add('delete-selected');
+          }
+        } else {
+          DrawerController.closeLeft(false); // 튕김 없이 서랍만 닫고 로드
+          this.loadSession(session.id);
+        }
       });
 
       // 제목 수정 클릭
@@ -1069,10 +1111,13 @@ const ChatManager = {
 
 // 6. 대화 UI 헬퍼 및 자동 스크롤 (ChatUI)
 const ChatUI = {
-  // 메시지 말풍선 화면 추가 (수정/삭제 액션 버튼 및 인라인 편집 탑재)
+  // 메시지 행 추가 (말풍선 + 외곽 하단 수정/삭제 버튼, 사용자/AI 공통 적용)
   appendMessage(containerId, role, rawContent, msgId = null, isGreeting = false) {
     const container = document.getElementById(containerId);
     if (!container) return null;
+
+    const row = document.createElement('div');
+    row.className = `chat-message-row ${role}`;
 
     const bubble = document.createElement('div');
     bubble.className = `chat-bubble ${role}`;
@@ -1111,20 +1156,22 @@ const ChatUI = {
     renderInnerContent();
     bubble.appendChild(contentDiv);
 
-    // 시스템 첫 인사말이 아닐 때만 수정/삭제 버튼 제공
+    row.appendChild(bubble);
+
+    // [요구사항] 시스템 첫 인사가 아니면 말풍선 아예 끝난 바깥 하단에 액션 버튼 배치 (사용자/AI 공통 적용)
     if (!isGreeting) {
       const actionBar = document.createElement('div');
-      actionBar.className = 'bubble-action-bar';
+      actionBar.className = 'bubble-action-bar-outside';
       actionBar.innerHTML = `
         <button type="button" class="bubble-action-btn btn-edit-msg" title="메시지 수정">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pen-line"><path d="M13 21h8"/><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pen-line"><path d="M13 21h8"/><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>
         </button>
         <button type="button" class="bubble-action-btn btn-delete-msg" title="메시지 삭제">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eraser"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/><path d="m5.082 11.09 8.828 8.828"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eraser"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/><path d="m5.082 11.09 8.828 8.828"/></svg>
         </button>
       `;
 
-      // 수정 클릭 시 인라인 텍스트에어리어 전환
+      // 수정 클릭 시: 기존 카드와 100% 동일한 배경/크기 폼으로 전환
       actionBar.querySelector('.btn-edit-msg').addEventListener('click', () => {
         contentDiv.classList.add('hidden');
         actionBar.classList.add('hidden');
@@ -1134,14 +1181,8 @@ const ChatUI = {
         editForm.innerHTML = `
           <textarea class="bubble-edit-textarea">${currentRaw}</textarea>
           <div class="bubble-edit-actions">
-            <button type="button" class="btn-bubble-cancel">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-              <span>취소</span>
-            </button>
-            <button type="button" class="btn-bubble-confirm">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check"><path d="M20 6 9 17l-5-5"/></svg>
-              <span>확인</span>
-            </button>
+            <button type="button" class="btn-bubble-cancel">취소</button>
+            <button type="button" class="btn-bubble-confirm">확인</button>
           </div>
         `;
 
@@ -1152,7 +1193,7 @@ const ChatUI = {
           actionBar.classList.remove('hidden');
         });
 
-        // 확인 클릭: DB 저장 및 다음 Payload에 완벽 반영
+        // 확인 클릭: DB 저장 및 다음 Payload 완벽 동기화
         editForm.querySelector('.btn-bubble-confirm').addEventListener('click', async () => {
           const updatedText = editForm.querySelector('.bubble-edit-textarea').value.trim();
           if (!updatedText) return;
@@ -1160,7 +1201,6 @@ const ChatUI = {
           currentRaw = updatedText;
           renderInnerContent();
 
-          // 1. IndexedDB 업데이트
           if (msgId) {
             const msgObj = await DB.get('chat_messages', msgId);
             if (msgObj) {
@@ -1169,7 +1209,6 @@ const ChatUI = {
             }
           }
 
-          // 2. [핵심] 활성 메모리 히스토리 동기화 (다음 AI 전송 시 수정본으로 전송!)
           const historyIdx = ChatManager.activeHistory.findIndex(h => h.role === role && h.content === rawContent);
           if (historyIdx !== -1) {
             ChatManager.activeHistory[historyIdx].content = updatedText;
@@ -1189,23 +1228,22 @@ const ChatUI = {
           if (msgId) {
             await DB.delete('chat_messages', msgId);
           }
-          // 메모리 히스토리에서도 즉시 제거
           const historyIdx = ChatManager.activeHistory.findIndex(h => h.role === role && h.content === currentRaw);
           if (historyIdx !== -1) {
             ChatManager.activeHistory.splice(historyIdx, 1);
           }
-          bubble.remove();
+          row.remove();
         }
       });
 
-      bubble.appendChild(actionBar);
+      row.appendChild(actionBar);
     }
 
-    container.appendChild(bubble);
+    container.appendChild(row);
     container.scrollTop = container.scrollHeight;
     return bubble;
   },
-
+  
   // [요구사항] AI의 답변 도착 완료 시 답변 말풍선을 화면 최상단으로 주욱 올리는 부드러운 스크롤 애니메이션
   scrollToMessageTop(bubbleEl) {
     if (!bubbleEl) return;
@@ -1507,22 +1545,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnSaju.addEventListener('click', () => startFreshChat('saju'));
   }
 
-  // 좌측 서랍 내 '+ 새 대화' 버튼
-  const btnNewPsych = document.getElementById('btn-new-psychology-chat');
-  const btnNewSaju = document.getElementById('btn-new-saju-chat');
+  // 좌측 서랍 세션 헤더 '선택 삭제' 휴지통 버튼
+  const btnDeleteModePsych = document.getElementById('btn-delete-mode-psych');
+  const btnDeleteModeSaju = document.getElementById('btn-delete-mode-saju');
 
-  if (btnNewPsych) {
-    btnNewPsych.addEventListener('click', () => {
-      DrawerController.closeLeft(true);
-      startFreshChat('psychology');
-    });
+  if (btnDeleteModePsych) {
+    btnDeleteModePsych.addEventListener('click', () => SessionManager.toggleDeleteMode('psychology'));
   }
-
-  if (btnNewSaju) {
-    btnNewSaju.addEventListener('click', () => {
-      DrawerController.closeLeft(true);
-      startFreshChat('saju');
-    });
+  if (btnDeleteModeSaju) {
+    btnDeleteModeSaju.addEventListener('click', () => SessionManager.toggleDeleteMode('saju'));
   }
 
   // 좌측 서랍 열기 버튼 (헤더 1 햄버거 버튼)
@@ -1559,12 +1590,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // 헤더 2 '명식 선택하기' 아코디언 버튼 토글
+  // 헤더 1 우측 손가락 아이콘 토글 (닫을 때 라우터 튕김 없이 서랍만 쏙 닫히도록 false 전달)
   const btnToggleSaju = document.getElementById('btn-toggle-saju-drawer');
   if (btnToggleSaju) {
     btnToggleSaju.addEventListener('click', () => {
       if (DrawerController.isOpenRight) {
-        DrawerController.closeRight(true);
+        DrawerController.closeRight(false); // [핵심] 첫 화면으로 튕김 원천 차단
       } else {
         DrawerController.openRight();
       }
