@@ -123,6 +123,98 @@ const KeyboardViewportManager = {
   }
 };
 
+// 7. 명리학 명식 관리 및 다중 누적 첨부 (SajuManager)
+const SajuManager = {
+  attachedProfiles: [], // 현재 입력창에 첨부된 명식 목록 [{id, name, imageData}]
+  tempImageData: null,
+
+  // IndexedDB로부터 명식 목록 화면 렌더링
+  async renderProfilesList() {
+    const listEl = document.getElementById('saju-profiles-list');
+    if (!listEl) return;
+
+    const profiles = await DB.getAll('saju_profiles');
+    if (!profiles || profiles.length === 0) {
+      listEl.innerHTML = '<div class="empty-list-notice">등록된 명식이 없습니다.<br>\'+\' 버튼으로 만세력을 추가하세요.</div>';
+      return;
+    }
+
+    listEl.innerHTML = '';
+    profiles.forEach(p => {
+      const item = document.createElement('div');
+      item.className = 'saju-profile-item';
+      item.innerHTML = `
+        <span class="saju-item-name">${p.name}</span>
+        <span class="saju-item-badge">만세력 첨부 +</span>
+      `;
+
+      // [핵심] 인물을 터치할 때 서랍을 닫지 않고 입력창에 누적 첨부!
+      item.addEventListener('click', () => {
+        this.attachProfile(p);
+      });
+
+      listEl.appendChild(item);
+    });
+  },
+
+  // 입력창에 명식 태그 누적 첨부
+  attachProfile(profile) {
+    this.attachedProfiles.push(profile);
+    this.renderAttachedTags();
+  },
+
+  // 첨부된 태그 제거
+  removeProfile(index) {
+    this.attachedProfiles.splice(index, 1);
+    this.renderAttachedTags();
+  },
+
+  // 입력창 상단 태그 칩 렌더링
+  renderAttachedTags() {
+    const container = document.getElementById('saju-attached-tags');
+    if (!container) return;
+
+    if (this.attachedProfiles.length === 0) {
+      container.classList.add('hidden');
+      container.innerHTML = '';
+      return;
+    }
+
+    container.classList.remove('hidden');
+    container.innerHTML = '';
+
+    this.attachedProfiles.forEach((p, idx) => {
+      const chip = document.createElement('div');
+      chip.className = 'saju-tag-chip';
+      chip.innerHTML = `
+        <span>[${p.name}]의 만세력</span>
+        <button type="button" class="saju-tag-remove" data-index="${idx}">✕</button>
+      `;
+      container.appendChild(chip);
+    });
+
+    // 태그 제거 클릭 이벤트 바인딩
+    container.querySelectorAll('.saju-tag-remove').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const idx = parseInt(e.currentTarget.dataset.index, 10);
+        this.removeProfile(idx);
+      });
+    });
+  },
+
+  // 새 명식 등록 처리 (Base64 변환 후 저장)
+  async saveNewProfile(name, base64Data) {
+    if (!name || !base64Data) return false;
+    await DB.set('saju_profiles', {
+      name: name.trim(),
+      imageData: base64Data,
+      createdAt: Date.now()
+    });
+    await this.renderProfilesList();
+    return true;
+  }
+};
+
 // 6. 대화 UI 헬퍼 및 자동 스크롤 (ChatUI)
 const ChatUI = {
   // 메시지 말풍선 화면 추가
@@ -273,8 +365,53 @@ const ModalController = {
 // 3. 서랍 및 오버레이 UI 컨트롤러 (DrawerController)
 const DrawerController = {
   leftDrawer: document.getElementById('left-drawer'),
+  rightDrawer: document.getElementById('right-saju-drawer'),
+  btnToggleSaju: document.getElementById('btn-toggle-saju-drawer'),
   backdrop: document.getElementById('backdrop-overlay'),
   isOpenLeft: false,
+  isOpenRight: false,
+
+  openRight() {
+    if (this.isOpenRight) return;
+    this.isOpenRight = true;
+    this.rightDrawer.classList.add('open');
+    this.btnToggleSaju.classList.add('open');
+    this.rightDrawer.setAttribute('aria-hidden', 'false');
+
+    // 헤더 2 아래부터 암전 적용 클래스 추가
+    this.backdrop.classList.add('saju-mode-dim');
+    this.backdrop.classList.remove('hidden');
+    void this.backdrop.offsetWidth;
+    this.backdrop.classList.add('active');
+
+    // 우측 서랍 열릴 때 최신 명식 목록 자동 로드
+    SajuManager.renderProfilesList();
+
+    NavStack.push({
+      id: 'right-saju-drawer',
+      onClose: () => this.closeRight(false)
+    });
+  },
+
+  closeRight(triggerBack = true) {
+    if (!this.isOpenRight) return;
+    this.isOpenRight = false;
+    this.rightDrawer.classList.remove('open');
+    this.btnToggleSaju.classList.remove('open');
+    this.rightDrawer.setAttribute('aria-hidden', 'true');
+    this.backdrop.classList.remove('active');
+
+    setTimeout(() => {
+      if (!this.isOpenRight && !this.isOpenLeft) {
+        this.backdrop.classList.remove('saju-mode-dim');
+        this.backdrop.classList.add('hidden');
+      }
+    }, 280);
+
+    if (triggerBack) {
+      NavStack.pop();
+    }
+  },
 
   openLeft() {
     if (this.isOpenLeft) return;
@@ -356,15 +493,93 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // 암전 오버레이 터치 시: 모달이 열려있으면 모달 닫기, 서랍이 열려있으면 서랍 닫기
+  // 암전 오버레이 터치 시 열린 창 닫기
   const backdrop = document.getElementById('backdrop-overlay');
   if (backdrop) {
     backdrop.addEventListener('click', () => {
       if (ModalController.activeModalId) {
         ModalController.close(true);
+      } else if (DrawerController.isOpenRight) {
+        DrawerController.closeRight(true);
       } else if (DrawerController.isOpenLeft) {
         DrawerController.closeLeft(true);
       }
+    });
+  }
+
+  // 헤더 2 '명식 선택하기' 아코디언 버튼 토글
+  const btnToggleSaju = document.getElementById('btn-toggle-saju-drawer');
+  if (btnToggleSaju) {
+    btnToggleSaju.addEventListener('click', () => {
+      if (DrawerController.isOpenRight) {
+        DrawerController.closeRight(true);
+      } else {
+        DrawerController.openRight();
+      }
+    });
+  }
+
+  // 명식 서랍 내 '+' 추가 버튼 클릭 시 모달 열기
+  const btnOpenAddSaju = document.getElementById('btn-open-add-saju');
+  if (btnOpenAddSaju) {
+    btnOpenAddSaju.addEventListener('click', () => {
+      DrawerController.closeRight(false);
+      ModalController.open('modal-add-saju');
+    });
+  }
+
+  // 이미지 파일 선택 처리
+  const fileInput = document.getElementById('saju-image-file');
+  const btnSelectImage = document.getElementById('btn-select-saju-image');
+  const previewContainer = document.getElementById('saju-image-preview');
+  const previewImg = document.getElementById('saju-preview-img');
+  const previewFileName = document.getElementById('saju-file-name');
+
+  if (btnSelectImage && fileInput) {
+    btnSelectImage.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        SajuManager.tempImageData = event.target.result;
+        previewImg.src = event.target.result;
+        previewFileName.textContent = file.name;
+        previewContainer.classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // 명식 등록 저장 버튼 이벤트
+  const btnSaveSaju = document.getElementById('btn-save-saju-profile');
+  if (btnSaveSaju) {
+    btnSaveSaju.addEventListener('click', async () => {
+      const nameInput = document.getElementById('saju-profile-name');
+      const name = nameInput.value.trim();
+
+      if (!name) {
+        alert('이름을 입력해 주세요.');
+        return;
+      }
+      if (!SajuManager.tempImageData) {
+        alert('만세력 사진을 선택해 주세요.');
+        return;
+      }
+
+      await SajuManager.saveNewProfile(name, SajuManager.tempImageData);
+
+      // 입력 필드 초기화
+      nameInput.value = '';
+      fileInput.value = '';
+      previewContainer.classList.add('hidden');
+      SajuManager.tempImageData = null;
+
+      // 모달 닫고 우측 서랍 다시 열기
+      await ModalController.close(true);
+      DrawerController.openRight();
     });
   }
 
