@@ -172,21 +172,23 @@ html, body {
 }
 
 /* ==========================================================================
-   5. 랜딩 화면 (Landing View) - 미려한 감성 카드 스타일
+   5. 랜딩 화면 (Landing View) - 가운데 아래쪽 황금비율 배치
    ========================================================================== */
 .landing-container {
   width: 100%;
   height: 100%;
-  padding: 60px 26px 36px 26px;
+  padding: 40px 24px 24px 24px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  background: radial-gradient(circle at 50% 20%, #FAF8F3 0%, var(--bg-primary) 100%);
+  justify-content: center; /* 전체 세로 중앙 정렬 */
+  align-items: center;
+  gap: 32px;
+  background: radial-gradient(circle at 50% 30%, #FAF8F3 0%, var(--bg-primary) 100%);
 }
 
 .landing-header {
-  padding-top: 32px;
   text-align: center;
+  margin-top: -24px; /* 타이틀은 살짝 상단에 균형 있게 배치 */
 }
 
 .landing-title {
@@ -207,10 +209,17 @@ html, body {
 }
 
 .landing-actions {
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-bottom: 16px;
+  margin-bottom: 24px; /* 가운데에서 살짝 아래 느낌 완성 */
+}
+
+/* Lucide SVG 아이콘 공통 정렬 */
+.icon-btn svg, .toolbar-icon svg, .accordion-header-btn svg {
+  display: block;
+  stroke: currentColor;
 }
 
 .landing-btn {
@@ -759,6 +768,96 @@ html, body {
   border-bottom-left-radius: 5px;
 }
 
+/* 말풍선 호버/터치 액션 버튼 바 (수정 / 삭제) */
+.bubble-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(216, 209, 197, 0.5);
+}
+
+.bubble-action-btn {
+  background: none;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.bubble-action-btn:active {
+  color: var(--text-primary);
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* 인라인 메시지 수정 폼 (텍스트에어리어 + 하단 버튼) */
+.bubble-edit-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bubble-edit-textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-strong);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+}
+
+.bubble-edit-textarea:focus {
+  border-color: var(--text-primary);
+}
+
+.bubble-edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.btn-bubble-cancel, .btn-bubble-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border-subtle);
+}
+
+/* 좌측 취소 버튼 */
+.btn-bubble-cancel {
+  background-color: var(--bg-primary);
+  color: var(--text-secondary);
+}
+
+/* 우측 확인 버튼 */
+.btn-bubble-confirm {
+  background-color: var(--text-primary);
+  color: var(--bg-card);
+  border-color: var(--text-primary);
+}
+
+.btn-bubble-confirm:active, .btn-bubble-cancel:active {
+  opacity: 0.85;
+}
 /* 하단 고정 플로팅 입력 바 */
 .chat-input-bar {
   flex-shrink: 0;
