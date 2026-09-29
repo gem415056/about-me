@@ -1,0 +1,8 @@
+{
+  "name": "ABOUT ME",
+  "description": "나를 깊이 이해하는 두 가지 여정: 심리학과 명리학 기반 심층 분석 대화형 웹 애플리케이션",
+  "prompt": "ABOUT ME - 심리학과 명리학 심층 분석 웹 애플리케이션",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

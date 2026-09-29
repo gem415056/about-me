@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ABOUT ME - 디자인 프리뷰 랩 (헤더1 플로팅 & 명식추가 모달)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+    :root {
+      /* 확정된 9. Raw Matcha 팔레트 */
+      --bg-primary: #ECEBE5;
+      --bg-secondary: #DFDED4;
+      --bg-card: #F8F7F3;
+      --bg-card-subtle: #F3F2EC;
+      --text-primary: #3E4236;
+      --text-secondary: #626756;
+      --text-muted: #959A87;
+      --accent: #747B61;
+      --accent-glow: rgba(116, 123, 97, 0.22);
+      --quote-bg: #D6D3C8;
+      --quote-text: #3E4236;
+      --border-subtle: #D1CFC2;
+      --border-strong: #BFBCAE;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", Roboto, sans-serif;
+      background: #14161B;
+      color: #E2E8F0;
+      padding: 24px 16px 80px;
+      line-height: 1.5;
+    }
+    .container { max-width: 1040px; margin: 0 auto; }
+    header.lab-header {
+      margin-bottom: 22px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #282C37;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .lab-title { font-size: 1.4rem; font-weight: 700; color: #F8FAFC; }
+    .lab-desc { font-size: 0.88rem; color: #94A3B8; margin-top: 4px; }
+    .active-badge {
+      background: #202430;
+      border: 1px solid #363D4F;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      color: #C6D4C6;
+      font-weight: 600;
+    }
+
+    /* 상단 네비게이션 탭 */
+    .category-tabs {
+      display: flex;
+      background: #1B1E27;
+      padding: 6px;
+      border-radius: 14px;
+      border: 1px solid #282D3B;
+      gap: 6px;
+      margin-bottom: 22px;
+      flex-wrap: wrap;
+    }
+    .cat-btn {
+      flex: 1;
+      min-width: 180px;
+      text-align: center;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: #94A3B8;
+      transition: all 0.2s ease;
+      background: transparent;
+      border: none;
+    }
+    .cat-btn:hover { color: #E2E8F0; background: #242936; }
+    .cat-btn.active {
+      background: #2F3646;
+      color: #FFFFFF;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+    }
+
+    /* 시뮬레이터 뷰포트 */
+    .simulator-wrapper {
+      display: flex;
+      justify-content: center;
+      margin-top: 10px;
+    }
+    .mobile-screen {
+      width: 100%;
+      max-width: 440px;
+      min-height: 660px;
+      background: var(--bg-primary);
+      border-radius: 36px;
+      border: 6px solid #272A32;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      color: var(--text-primary);
+      position: relative;
+    }
+
+    /* 헤더 1 영역 (서랍 배경과 완벽 일치 & 첫 화면에서는 투명 플로팅) */
+    .screen-header {
+      height: 54px;
+      padding: 0 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-primary);
+      border-bottom: 1px solid rgba(209, 207, 194, 0.45);
+      font-size: 0.95rem;
+      flex-shrink: 0;
+      position: relative;
+      transition: all 0.2s ease;
+    }
+    .screen-header.landing-transparent {
+      background: transparent !important;
+      border-bottom: none !important;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+    }
+    .screen-header-title {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      font-weight: 550;
+      letter-spacing: 0.06em;
+      color: #626756; /* 까만색 완전 배제, 부드러운 소프트 말차 세이지 */
+      white-space: nowrap;
+      user-select: none;
+    }
+    .floating-menu-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      background: rgba(45, 47, 39, 0.05);
+      border: none;
+      color: #626756;
+      transition: background 0.2s ease;
+    }
+    .floating-menu-btn:hover {
+      background: rgba(45, 47, 39, 0.1);
+    }
+
+    .screen-body {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* 1. Celestial Dual Spheres (1번 랜딩 & 정밀 커스텀 SVG) */
+    .landing-celestial-stage {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 30px 24px;
+      text-align: center;
+    }
+    .celestial-orbit-system {
+      margin: 36px 0;
+      position: relative;
+      width: 250px;
+      height: 250px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .orbit-ring {
+      position: absolute;
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      border: 1px dashed var(--border-strong);
+      opacity: 0.65;
+      animation: spinOrbit 45s linear infinite;
+    }
+    @keyframes spinOrbit {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .celestial-orb-btn {
+      position: absolute;
+      width: 116px;
+      height: 116px;
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border: none;
+      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .celestial-orb-btn:hover, .celestial-orb-btn:active {
+      transform: scale(1.05);
+    }
+    .orb-psyche {
+      left: 6px;
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-subtle);
+      box-shadow: 0 10px 28px rgba(45,47,39,0.08), inset 0 1px 0 rgba(255,255,255,0.9);
+    }
+    .orb-saju {
+      right: 6px;
+      background: var(--bg-secondary);
+      border: 1.5px solid var(--border-strong);
+      box-shadow: 0 10px 28px rgba(45,47,39,0.08), inset 0 1px 0 rgba(255,255,255,0.7);
+    }
+    .orb-title {
+      font-size: 0.86rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-top: 6px;
+    }
+    .landing-guide-text {
+      font-size: 0.88rem;
+      line-height: 1.65;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* 2. 서랍 메뉴 (8번 플로팅 시트 + 단일행) */
+    .drawer-floating-canvas {
+      flex: 1;
+      padding: 14px 14px 8px 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: var(--bg-primary);
+    }
+    .floating-sheet-card {
+      background: var(--bg-card);
+      border-radius: 20px;
+      border: 1px solid var(--border-subtle);
+      padding: 16px 14px;
+      box-shadow: 0 8px 24px rgba(45,47,39,0.06);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .sheet-sec-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .sheet-sec-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      letter-spacing: -0.01em;
+    }
+    .compact-session-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: var(--bg-primary);
+      border: 1px solid rgba(209, 207, 194, 0.45);
+      margin-bottom: 6px;
+      cursor: pointer;
+      min-height: 38px;
+    }
+    .compact-session-title {
+      font-size: 0.84rem;
+      font-weight: 550;
+      color: var(--text-primary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      padding-right: 8px;
+    }
+    .drawer-toolbar-right {
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 8px 4px 4px 4px;
+    }
+    .toolbar-dock-btn {
+      background: transparent;
+      border: none;
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-secondary);
+    }
+
+    /* 3. 대화창 (10번 플로팅 버블) */
+    .chat-scroll-area {
+      padding: 18px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      flex: 1;
+    }
+    .bubble {
+      max-width: 88%;
+      padding: 14px 16px;
+      border-radius: 18px;
+      font-size: 0.9rem;
+      line-height: 1.62;
+    }
+    .bubble.user {
+      align-self: flex-end;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-bottom-right-radius: 4px;
+    }
+    .bubble.model {
+      align-self: flex-start;
+      background: var(--bg-secondary);
+      border: 1px solid rgba(209, 207, 194, 0.6);
+      border-bottom-left-radius: 4px;
+    }
+    .dock-style-10 {
+      padding: 0 16px 20px 16px;
+      background: transparent;
+      position: relative;
+    }
+    .dock-style-10 .inner-bar {
+      display: flex;
+      align-items: center;
+      background: var(--bg-card);
+      border-radius: 26px;
+      padding: 8px 10px 8px 18px;
+      box-shadow: 0 8px 24px rgba(45,47,39,0.12);
+      border: 1px solid var(--border-subtle);
+    }
+    .mock-input-text { flex: 1; border: none; background: transparent; outline: none; font-size: 0.88rem; color: var(--text-primary); font-family: inherit; }
+    .mock-send-btn { width: 34px; height: 34px; border-radius: 50%; background: var(--accent); color: #F8F7F3; border: none; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; cursor: pointer; flex-shrink: 0; box-shadow: 0 2px 8px var(--accent-glow); }
+
+    /* 4. 명식 추가 모달 전용 뷰 */
+    .modal-preview-stage {
+      flex: 1;
+      padding: 24px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(35, 38, 30, 0.25);
+    }
+    .modal-mock-box {
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 22px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.12);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-mock-header {
+      height: 50px;
+      padding: 0 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+    }
+    .modal-mock-header::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 20px;
+      right: 20px;
+      height: 1px;
+      background-color: rgba(209, 207, 194, 0.45);
+    }
+    .modal-mock-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+    .modal-mock-body {
+      padding: 16px 22px 24px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .mock-input-field {
+      width: 100%;
+      height: 42px;
+      padding: 0 14px;
+      background: #FCFCFA; /* 정말정말 연하고 깨끗한 소프트 크림 */
+      border: 1px solid rgba(209, 207, 194, 0.65);
+      border-radius: 12px;
+      font-size: 0.88rem;
+      color: var(--text-primary);
+      outline: none;
+    }
+    .mock-photo-viewport {
+      width: 100%;
+      height: 240px;
+      border-radius: 14px;
+      background: #FCFCFA; /* 입력창과 완전히 동일한 정말정말 연한 소프트 크림 */
+      border: 1px solid rgba(209, 207, 194, 0.65);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="lab-header">
+      <div>
+        <h1 class="lab-title">🎨 ABOUT ME 디자인 확정 랩</h1>
+        <p class="lab-desc">첫화면 헤더1 플로팅 투명화, 부드러운 타이틀 색상, 명식추가 팝업의 16px 정밀 간격을 확인해보세요.</p>
+      </div>
+      <div class="active-badge">🌿 9. Raw Matcha | 11. Neumorph Clay</div>
+    </header>
+
+    <!-- 대분류 카테고리 탭 -->
+    <div class="category-tabs">
+      <button class="cat-btn active" onclick="switchCategory('landing')">🏛️ 1. 첫 화면 (헤더1 투명 & 플로팅 버튼)</button>
+      <button class="cat-btn" onclick="switchCategory('drawer')">📂 2. 서랍 메뉴 (8번 플로팅 시트)</button>
+      <button class="cat-btn" onclick="switchCategory('chat')">💬 3. 대화창 (말차 전송버튼 & 소프트 타이틀)</button>
+      <button class="cat-btn" onclick="switchCategory('modal')">🪪 4. 명식 추가 모달 (사진영역 & 16px 간격)</button>
+    </div>
+
+    <!-- 실시간 모바일 뷰 시뮬레이터 -->
+    <div class="simulator-wrapper">
+      <div class="mobile-screen" id="mobile-mockup-frame">
+        <div class="screen-header" id="sim-screen-header">
+          <button type="button" class="floating-menu-btn" title="메뉴">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg>
+          </button>
+          <span class="screen-header-title" id="sim-header-title">𝗔𝗕𝗢𝗨𝗧 𝗠𝗘</span>
+          <span style="width: 40px; display: inline-block;"></span>
+        </div>
+        <div class="screen-body" id="screen-dynamic-body"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentCategory = 'landing';
+
+    function switchCategory(cat) {
+      currentCategory = cat;
+      document.querySelectorAll('.cat-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      renderScreenMockup();
+    }
+
+    function renderScreenMockup() {
+      const header = document.getElementById('sim-screen-header');
+      const headerTitle = document.getElementById('sim-header-title');
+      const body = document.getElementById('screen-dynamic-body');
+      body.innerHTML = '';
+
+      if (currentCategory === 'landing') {
+        // 첫 화면(랜딩): 헤더 배경 제거, 타이틀 숨김, 투명 플로팅 메뉴 버튼만 잔류
+        header.className = 'screen-header landing-transparent';
+        headerTitle.style.display = 'none';
+
+        body.innerHTML = `
+          <div class="landing-celestial-stage">
+            <span style="font-size:0.75rem; letter-spacing:0.18em; text-transform:uppercase; color:var(--text-muted); font-weight:600;">Choose Your Portal</span>
+
+            <div class="celestial-orbit-system">
+              <div class="orbit-ring"></div>
+
+              <div class="celestial-orb-btn orb-psyche">
+                <svg width="42" height="42" viewBox="0 0 48 48" fill="none" stroke="#747B61" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="24" cy="24" r="5" fill="#747B61" fill-opacity="0.14"/>
+                  <path d="M14 24c0-5.523 4.477-10 10-10s10 4.477 10 10"/>
+                  <path d="M8 24c0-8.837 7.163-16 16-16s16 7.163 16 16"/>
+                  <path d="M17 29c1.8 3.5 4.5 5 7 5s5.2-1.5 7-5"/>
+                  <circle cx="24" cy="24" r="1.5" fill="#747B61"/>
+                </svg>
+                <span class="orb-title">심리학</span>
+              </div>
+
+              <div class="celestial-orb-btn orb-saju">
+                <svg width="42" height="42" viewBox="0 0 48 48" fill="none" stroke="#747B61" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="24" cy="24" r="3" fill="#747B61"/>
+                  <ellipse cx="24" cy="24" rx="17" ry="7.5" transform="rotate(-30 24 24)"/>
+                  <ellipse cx="24" cy="24" rx="17" ry="7.5" transform="rotate(50 24 24)"/>
+                  <line x1="24" y1="5" x2="24" y2="8.5"/>
+                  <line x1="24" y1="39.5" x2="24" y2="43"/>
+                  <line x1="5" y1="24" x2="8.5" y2="24"/>
+                  <line x1="39.5" y1="24" x2="43" y2="24"/>
+                  <circle cx="36" cy="17" r="1.8" fill="#747B61"/>
+                </svg>
+                <span class="orb-title">명리학</span>
+              </div>
+            </div>
+
+            <p class="landing-guide-text">
+              내면의 무의식과 타고난 운명의 결,<br>
+              마주하고 싶은 문을 터치하세요.
+            </p>
+          </div>
+        `;
+      } else if (currentCategory === 'drawer') {
+        header.className = 'screen-header';
+        headerTitle.style.display = 'block';
+
+        body.innerHTML = `
+          <div class="drawer-floating-canvas">
+            <div class="floating-sheet-card">
+              <div>
+                <div class="sheet-sec-header">
+                  <span class="sheet-sec-title">심리학 대화 기록</span>
+                  <span style="font-size:0.75rem; color:var(--text-muted);">🗑️</span>
+                </div>
+                <div class="compact-session-row">
+                  <span class="compact-session-title">내면 아이 상처 치유 세션</span>
+                  <span style="font-size:0.75rem; color:var(--text-muted);">✎</span>
+                </div>
+                <div class="compact-session-row">
+                  <span class="compact-session-title">직장 인간관계 번아웃 상담</span>
+                  <span style="font-size:0.75rem; color:var(--text-muted);">✎</span>
+                </div>
+              </div>
+
+              <div style="height:1px; background:var(--border-subtle); margin:4px 0;"></div>
+
+              <div>
+                <div class="sheet-sec-header">
+                  <span class="sheet-sec-title">명리학 대화 기록</span>
+                  <span style="font-size:0.75rem; color:var(--text-muted);">🗑️</span>
+                </div>
+                <div class="compact-session-row">
+                  <span class="compact-session-title">2026 병오년 하반기 대운 흐름 분석</span>
+                  <span style="font-size:0.75rem; color:var(--text-muted);">✎</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="drawer-toolbar-right">
+              <button class="toolbar-dock-btn" title="프롬프트">⚙️</button>
+              <button class="toolbar-dock-btn" title="설정">🔑</button>
+              <button class="toolbar-dock-btn" title="백업">☁️</button>
+              <button class="toolbar-dock-btn" title="복원">📥</button>
+            </div>
+          </div>
+        `;
+      } else if (currentCategory === 'chat') {
+        header.className = 'screen-header';
+        headerTitle.style.display = 'block';
+
+        body.innerHTML = `
+          <div class="chat-scroll-area">
+            <div class="bubble model">
+              안녕하세요! 심리학과 명리학으로 당신의 고유한 결을 함께 찾아볼게요.
+            </div>
+
+            <div class="bubble user">
+              새로운 시작을 앞두고 내면의 불안과 방향성에 대해 이야기 나누고 싶어요.
+            </div>
+
+            <div class="bubble model">
+              <blockquote>
+                불안은 당신이 부족해서가 아니라, 다가올 가능성의 무게를 가장 예민하게 느끼고 있다는 증거입니다.
+              </blockquote>
+              당신의 직관과 사고의 균형점을 짚어가며 이야기를 나누어보겠습니다.
+            </div>
+          </div>
+
+          <div class="dock-style-10">
+            <div class="inner-bar">
+              <input type="text" class="mock-input-text" placeholder="마음속 이야기를 편안하게 남겨주세요..." value="">
+              <button class="mock-send-btn">↑</button>
+            </div>
+          </div>
+        `;
+      } else if (currentCategory === 'modal') {
+        // 명식 추가 모달 전용 뷰 (사진 영역 밝은 크림 & 16px 일치 간격 시연)
+        header.className = 'screen-header';
+        headerTitle.style.display = 'block';
+
+        body.innerHTML = `
+          <div class="modal-preview-stage">
+            <div class="modal-mock-box">
+              <!-- 헤더: 명식추가와 실선 사이 16px 패딩 -->
+              <div class="modal-mock-header">
+                <span class="modal-mock-title">명식 추가</span>
+                <span style="font-size:1rem; cursor:pointer; color:var(--text-muted);">✕</span>
+              </div>
+
+              <!-- 바디: 실선과 이름 사이 정확히 16px 패딩 일치 -->
+              <div class="modal-mock-body">
+                <div>
+                  <label style="font-size:0.8rem; font-weight:600; color:var(--text-secondary); display:block; margin-bottom:6px;">이름</label>
+                  <input type="text" class="mock-input-field" placeholder="이름을 입력하세요" value="홍길동">
+                </div>
+
+                <div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <label style="font-size:0.8rem; font-weight:600; color:var(--text-secondary);">만세력 사진</label>
+                    <span style="font-size:0.8rem; color:var(--accent); text-decoration:underline; font-weight:600; cursor:pointer;">사진 선택하기</span>
+                  </div>
+
+                  <!-- 입력창과 완전히 동일한 밝은 크림 배경의 사진 뷰포트 -->
+                  <div class="mock-photo-viewport" title="터치하여 만세력 사진 선택">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                    <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">터치하여 만세력 캡처 사진 등록</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    renderScreenMockup();
+  </script>
+</body>
+</html>

@@ -1,29 +1,33 @@
 /* ==========================================================================
-   1. 디자인 토큰 (Design Tokens) - 정밀 웜톤 & 포근한 저대비 팔레트
+   1. 디자인 토큰 (Design Tokens) - 9. Raw Matcha (오가닉 말차 린넨) 에디션
    ========================================================================== */
 :root {
-  /* 포근한 프렌치 린넨 & 오트밀 배색 */
-  --bg-primary: #F8F6F0;          /* 최상위 배경: 온화한 크림 샌드 */
-  --bg-secondary: #EFECE4;        /* 2차 배경: 은은한 내추럴 오트밀 */
-  --bg-card: #FFFFFF;             /* 카드/입력창: 부드러운 화이트 */
-  --bg-card-subtle: #FAF8F5;      /* 말풍선 서브: 소프트 아이보리 */
-  --bg-dim: rgba(38, 34, 31, 0.42); /* 눈이 시리지 않은 실크 암전 */
+  /* 9. Raw Matcha (차분한 말차 그린 & 로우 플랙스 린넨) 팔레트 */
+  --bg-primary: #ECEBE5;          /* 온화한 오가닉 말차 린넨 틴트 */
+  --bg-secondary: #DFDED4;        /* 2차 배경: 소프트 로우 플랙스 */
+  --bg-card: #F8F7F3;             /* 카드/말풍선: 단아한 무광 포슬린 아이보리 */
+  --bg-card-subtle: #F3F2EC;      /* 말풍선 서브: 라이트 마차 크림 */
+  --bg-dim: rgba(35, 38, 30, 0.45); /* 눈이 편안한 딥 세이지 실크 암전 */
 
-  /* 저대비 웜 텍스트 (피로도 제로) */
-  --text-primary: #342F2C;        /* 본문: 깊이 있는 웜 에스프레소 */
-  --text-secondary: #7C746E;      /* 보조: 부드러운 웜 토프 */
-  --text-muted: #ABA29B;          /* 비활성: 라이트 샌드 그레이 */
+  /* 눈이 편안한 저대비 딥 마차 텍스트 (피로도 제로, 새까만 블랙 완전 배제) */
+  --text-primary: #3E4236;        /* 본문: 차분하고 부드러운 소프트 말차 슬레이트 차콜 */
+  --text-secondary: #626756;      /* 보조: 차분한 올리브 세이지 */
+  --text-muted: #959A87;          /* 비활성: 라이트 세이지 그레이 */
 
-  /* 인용구(질문) 하이라이트 배색 - 고급 북유럽 다크 웜그레이 */
-  --quote-bg: #322E2B;            /* 편안하고 고급스러운 다크 웜차콜 */
-  --quote-text: #F1ECE4;          /* 미색 크림화이트 */
-  --quote-border: #8E8276;        /* 세련된 토프 보더 포인트 */
+  /* 액센트 컬러: 시그니처 로우 말차 */
+  --accent: #747B61;
+  --accent-glow: rgba(116, 123, 97, 0.22);
+
+  /* 인용구(질문) 하이라이트 배색 */
+  --quote-bg: #D6D3C8;            /* 톤다운된 소프트 말차 스톤 */
+  --quote-text: #3E4236;          /* 부드러운 텍스트 */
+  --quote-border: transparent;    /* 사이드 보더라인 제거 */
 
   /* 미세 웜톤 보더 & 그림자 */
-  --border-subtle: #E8E3DA;
-  --border-strong: #D8D1C5;
-  --shadow-soft: 0 4px 20px rgba(50, 40, 32, 0.05);
-  --shadow-floating: 0 10px 28px rgba(50, 40, 32, 0.08);
+  --border-subtle: #D1CFC2;       /* 우아한 린넨 텍스처 보더 */
+  --border-strong: #BFBCAE;
+  --shadow-soft: 0 4px 20px rgba(45, 47, 39, 0.05);
+  --shadow-floating: 0 10px 28px rgba(45, 47, 39, 0.08);
 
   /* 헤더 치수 */
   --header-height: 56px;
@@ -89,7 +93,7 @@ html, body {
   background-color: var(--bg-primary);
 }
 
-/* 헤더 공통 */
+/* 헤더 공통: 서랍 배경과 완벽 일치 & 날카롭지 않고 부드러운 미세 헤어라인 */
 .app-header {
   position: relative;
   z-index: 100;
@@ -98,12 +102,14 @@ html, body {
   justify-content: space-between;
   padding: 0 16px;
   background-color: var(--bg-primary);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid rgba(209, 207, 194, 0.45);
   flex-shrink: 0;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .header-1 {
   height: var(--header-height);
+  background-color: var(--bg-primary);
 }
 
 .header-2 {
@@ -113,9 +119,58 @@ html, body {
 
 .header-title {
   font-size: 1.15rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  color: var(--text-primary);
+  font-weight: 550;
+  letter-spacing: 0.06em;
+  color: #626756 !important; /* 부드럽고 차분한 소프트 말차 세이지 (까만색 절대 아님!) */
+}
+
+/* 첫 화면(랜딩)에서는 헤더 1의 배경 및 타이틀을 제거하고 버튼만 세련되게 플로팅 */
+body.is-landing-view #header-1 {
+  background: transparent !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+body.is-landing-view #header-1 #header-title {
+  display: none !important;
+}
+
+body.is-landing-view #header-1 #btn-open-left-drawer {
+  pointer-events: auto;
+  background-color: rgba(45, 47, 39, 0.05);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  transition: background-color 0.2s ease;
+}
+
+body.is-landing-view #header-1 #btn-open-left-drawer:active {
+  background-color: rgba(45, 47, 39, 0.1);
+}
+
+/* 헤더 1 제목 정중앙 고정 (우측 버튼 유무에 따른 치우침 완전 방지) */
+.header-1 .header-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: auto;
+  z-index: 1;
+}
+
+.header-1 .icon-btn {
+  position: relative;
+  z-index: 2;
 }
 
 .sub-header-title {
@@ -172,112 +227,99 @@ html, body {
 }
 
 /* ==========================================================================
-   5. 랜딩 화면 (Landing View) - 1.8배 여유 있는 패딩
+   5. 랜딩 화면 (1번 Celestial Orbs & 정밀 커스텀 SVG 듀얼 포털)
    ========================================================================== */
-.landing-container {
+.landing-celestial-stage {
   width: 100%;
   height: 100%;
-  padding: 56px 36px 40px 36px; /* 기존 대비 약 1.8배 확장 */
+  min-height: calc(100vh - var(--header-height));
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 40px;
-  background: radial-gradient(circle at 50% 30%, #FAF8F3 0%, var(--bg-primary) 100%);
-}
-
-.landing-header {
+  padding: 36px 24px;
   text-align: center;
-  margin-top: -24px; /* 타이틀은 살짝 상단에 균형 있게 배치 */
+  background: radial-gradient(circle at 50% 38%, #F7F5EE 0%, var(--bg-primary) 100%);
 }
 
-.landing-title {
-  font-size: 2.4rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  color: var(--text-primary);
-  margin-bottom: 12px;
-  font-feature-settings: "palt";
+.landing-top-badge {
+  font-size: 0.75rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
 }
 
-.landing-subtitle {
-  font-size: 0.96rem;
-  color: var(--text-secondary);
-  font-weight: 400;
-  letter-spacing: 0.03em;
-  opacity: 0.9;
-}
-
-.landing-actions {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 24px; /* 가운데에서 살짝 아래 느낌 완성 */
-}
-
-/* Lucide SVG 아이콘 공통 정렬 */
-.icon-btn svg, .toolbar-icon svg, .accordion-header-btn svg {
-  display: block;
-  stroke: currentColor;
-}
-
-.landing-btn {
-  width: 100%;
-  padding: 24px 24px;
-  border-radius: 22px;
-  background-color: var(--bg-card);
-  border: 1px solid rgba(220, 214, 203, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  box-shadow: var(--shadow-soft);
-  transition: transform 0.2s var(--transition-smooth), box-shadow 0.2s ease, background-color 0.2s ease;
-  text-align: left;
-}
-
-.landing-btn:active {
-  transform: scale(0.975);
-  background-color: var(--bg-secondary);
-  box-shadow: 0 2px 8px rgba(50, 40, 32, 0.04);
-}
-
-.btn-content {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.btn-main-title {
-  font-size: 1.14rem;
-  font-weight: 650;
-  color: var(--text-primary);
-  letter-spacing: -0.01em;
-}
-
-.btn-sub-desc {
-  font-size: 0.83rem;
-  color: var(--text-secondary);
-  line-height: 1.4;
-}
-
-.btn-arrow {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background-color: var(--bg-secondary);
+.celestial-orbit-system {
+  margin: 36px 0;
+  position: relative;
+  width: 250px;
+  height: 250px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
-  color: var(--text-primary);
-  transition: transform 0.2s ease, background-color 0.2s ease;
 }
 
-.landing-btn:active .btn-arrow {
-  transform: translateX(4px);
-  background-color: var(--border-strong);
+.orbit-ring {
+  position: absolute;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  border: 1px dashed var(--border-strong);
+  opacity: 0.65;
+  animation: spinOrbit 45s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes spinOrbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.celestial-orb-btn {
+  position: absolute;
+  width: 116px;
+  height: 116px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease;
+}
+
+.celestial-orb-btn:active {
+  transform: scale(0.96);
+}
+
+.orb-psyche {
+  left: 6px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-subtle);
+  box-shadow: 0 10px 28px rgba(45, 47, 39, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.orb-saju {
+  right: 6px;
+  background: var(--bg-secondary);
+  border: 1.5px solid var(--border-strong);
+  box-shadow: 0 10px 28px rgba(45, 47, 39, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.orb-title {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 6px;
+}
+
+.landing-guide-text {
+  font-size: 0.88rem;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
 /* ==========================================================================
@@ -308,7 +350,7 @@ html, body {
   bottom: 0;
   width: 82%;
   max-width: 320px;
-  background-color: var(--bg-card);
+  background-color: var(--bg-card); /* 명식 서랍 등 기본 서랍 원래의 부드러운 카드 배경 */
   z-index: 200;
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.08);
   will-change: transform;
@@ -325,8 +367,33 @@ html, body {
 
 .drawer-left {
   left: 0;
+  top: var(--header-height);
+  bottom: 0;
+  height: calc(100% - var(--header-height));
   transform: translate3d(-100%, 0, 0); /* 3D GPU 가속 */
-  border-right: 1px solid var(--border-subtle);
+  border-right: 1px solid rgba(209, 207, 194, 0.45);
+  background-color: var(--bg-primary); /* 좌측 서랍만 첫 화면 배경색과 100% 일치 */
+}
+
+#left-drawer {
+  top: var(--header-height) !important;
+  bottom: 0 !important;
+  height: calc(100% - var(--header-height)) !important;
+  background-color: var(--bg-primary) !important;
+}
+
+.drawer-right {
+  right: 0;
+  top: var(--header-height);
+  bottom: 0;
+  height: calc(100% - var(--header-height));
+  transform: translate3d(100%, 0, 0);
+  border-left: 1px solid var(--border-subtle);
+  background-color: var(--bg-card) !important; /* 명식 선택하기 서랍 배경 원래대로 복구 */
+}
+
+#right-saju-drawer {
+  background-color: var(--bg-card) !important;
 }
 
 .drawer-left.open {
@@ -338,29 +405,54 @@ html, body {
   height: 100%;
   display: flex;
   flex-direction: column;
+  padding: 14px 14px 8px 14px;
+  box-sizing: border-box;
 }
 
-/* 상단/중단 대화 기록 섹션 */
-.drawer-section {
+/* 8번 플로팅 시트 카드: 버튼 위까지 확장되어 심리학/명리학 반반 배분 */
+.drawer-floating-sheet {
   flex: 1;
+  background-color: var(--bg-card);
+  border-radius: 20px;
+  border: 1px solid var(--border-subtle);
+  padding: 16px 14px;
+  box-shadow: 0 8px 24px rgba(45, 47, 39, 0.06);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 16px 16px 10px 16px;
+  min-height: 0;
+}
+
+/* 상단/중단 대화 기록 섹션 (대화가 쌓이면 딱 50%까지만 차지) */
+.drawer-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 50%;
+  max-height: 50%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.drawer-inner-divider {
+  height: 1px;
+  background-color: var(--border-subtle);
+  margin: 8px 0;
+  flex-shrink: 0;
 }
 
 .drawer-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
 }
 
 .drawer-section-title {
-  font-size: 0.92rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: 0.02em;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: -0.01em;
 }
 
 .drawer-text-btn {
@@ -383,27 +475,30 @@ html, body {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  padding-right: 2px;
 }
 
 .empty-list-notice {
   font-size: 0.8rem;
   color: var(--text-muted);
   text-align: center;
-  padding: 24px 0;
+  padding: 20px 0;
 }
 
-/* 대화 기록 항목 (세션 카드) */
+/* 컴팩트 단일행 대화 기록 항목 (날짜 제거, X 버튼 없음) */
 .chat-session-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
+  padding: 8px 12px;
   border-radius: 10px;
   background-color: var(--bg-primary);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid rgba(209, 207, 194, 0.45);
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  min-height: 38px;
 }
 
 .chat-session-item:active {
@@ -429,24 +524,42 @@ html, body {
 
 .session-info {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
   overflow: hidden;
   flex: 1;
+  padding-right: 8px;
 }
 
 .session-title {
-  font-size: 0.85rem;
-  font-weight: 500;
+  font-size: 0.84rem;
+  font-weight: 550;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.session-date {
-  font-size: 0.72rem;
+.session-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.session-action-btn {
+  background: none;
+  border: none;
+  font-size: 0.85rem;
   color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s;
+}
+
+.session-action-btn:hover, .session-action-btn:active {
+  color: var(--text-primary);
 }
 
 .btn-edit-title {
@@ -454,37 +567,31 @@ html, body {
   border: none;
   font-size: 0.88rem;
   color: var(--text-secondary);
-  padding: 4px 6px;
+  padding: 2px 4px;
   cursor: pointer;
   border-radius: 6px;
   flex-shrink: 0;
 }
 
-.btn-edit-title:active {
-  background-color: var(--btn-warm-hover);
-}
-
 .drawer-divider {
-  height: 1px;
-  background-color: var(--border-subtle);
-  margin: 0 16px;
+  display: none;
 }
 
-/* 하단 툴바: 4분할 제거 ➔ 좌측 정렬 미니멀 아이콘 바 */
+/* 하단 툴바: 우측 정렬, 선 없는 퓨어 심리스 배경 */
 .drawer-bottom-toolbar {
-  height: 54px;
+  height: 52px;
   flex-shrink: 0;
-  border-top: 1px solid var(--border-subtle);
-  background-color: var(--bg-primary);
+  border-top: none;
+  background: transparent;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: flex-end;
   gap: 10px;
-  padding: 0 16px;
+  padding: 8px 4px 4px 4px;
 }
 
 .toolbar-btn {
-  background: none;
+  background: transparent;
   border: none;
   display: inline-flex;
   align-items: center;
@@ -494,12 +601,12 @@ html, body {
   cursor: pointer;
   border-radius: 10px;
   color: var(--text-secondary);
-  transition: color 0.15s, background-color 0.15s;
+  transition: all 0.15s ease;
 }
 
-.toolbar-btn:active {
+.toolbar-btn:hover, .toolbar-btn:active {
   color: var(--text-primary);
-  background-color: var(--bg-secondary);
+  background-color: rgba(0, 0, 0, 0.04);
 }
 
 /* 세션 목록 내 우측 액션 버튼 그룹 (수정/삭제) */
@@ -599,55 +706,76 @@ html, body {
 }
 
 .modal-header {
-  height: 52px;
-  padding: 0 18px;
+  height: 50px;
+  padding: 0 22px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: none;
+  position: relative;
   flex-shrink: 0;
+}
+
+/* 끝에서 끝까지 가지 않고 패딩을 고려한 얇고 옅은 미세 실선 */
+.modal-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 20px;
+  right: 20px;
+  height: 1px;
+  background-color: rgba(209, 207, 194, 0.45);
 }
 
 .modal-title {
   font-size: 1.05rem;
   font-weight: 600;
   color: var(--text-primary);
+  line-height: 1;
 }
 
+/* [11. Soft Neumorph Clay] 탭 컨테이너 */
 .modal-tabs {
   display: flex;
-  border-bottom: 1px solid var(--border-subtle);
+  gap: 8px;
   background-color: var(--bg-secondary);
+  padding: 6px;
+  border-radius: 14px;
+  margin: 16px 20px 0 20px;
+  border: 1px solid var(--border-subtle);
   flex-shrink: 0;
 }
 
 .tab-btn {
   flex: 1;
-  padding: 12px 6px;
-  background: none;
+  text-align: center;
+  padding: 9px 8px;
+  border-radius: 9px;
+  background: transparent;
   border: none;
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   font-weight: 500;
   color: var(--text-secondary);
   cursor: pointer;
-  border-bottom: 2px solid transparent;
-  transition: color 0.15s, border-color 0.15s;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
 }
 
 .modal-tabs.four-tabs .tab-btn {
-  font-size: 0.78rem;
-  padding: 10px 4px;
+  font-size: 0.8rem;
+  padding: 9px 6px;
 }
 
 .tab-btn.active {
-  color: var(--text-primary);
-  font-weight: 600;
-  border-bottom-color: var(--text-primary);
   background-color: var(--bg-card);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  border-bottom: none;
 }
 
 .modal-body {
-  padding: 18px;
+  padding: 18px 20px 22px 20px;
   flex: 1;
   overflow-y: auto;
   display: flex;
@@ -658,26 +786,36 @@ html, body {
   display: flex;
   flex-direction: column;
   flex: 1;
-  gap: 8px;
+  gap: 0;
+}
+
+.tab-content > div {
+  margin-bottom: 18px;
+}
+
+.tab-content > div:last-child {
+  margin-bottom: 0;
 }
 
 .input-label {
   font-size: 0.82rem;
   font-weight: 600;
   color: var(--text-secondary);
+  margin-bottom: 7px;
+  display: block;
 }
 
 .modal-input, .modal-textarea {
   width: 100%;
   padding: 12px 14px;
   border-radius: 12px;
-  border: 1px solid var(--border-subtle);
-  background-color: var(--bg-primary);
+  border: 1px solid rgba(209, 207, 194, 0.65);
+  background-color: #FCFCFA; /* 촌스러운 말차색/회색 완전 배제, 정말정말 연하고 깨끗한 소프트 크림 */
   color: var(--text-primary);
   font-size: 0.9rem;
   outline: none;
   font-family: inherit;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, background-color 0.2s;
 }
 
 .modal-textarea {
@@ -714,8 +852,8 @@ html, body {
   width: 100%;
   padding: 12px 16px;
   border-radius: 12px;
-  border: 1px solid var(--border-subtle);
-  background-color: var(--bg-primary);
+  border: 1px solid rgba(209, 207, 194, 0.65);
+  background-color: #FCFCFA; /* 정말정말 연한 소프트 크림 */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -919,16 +1057,17 @@ html, body {
   color: var(--text-primary);
 }
 
-/* 하단 고정 플로팅 입력 바 */
+/* 하단 고정 플로팅 입력 바: Style 10 Pure Floating Bubble */
 .chat-input-bar {
   flex-shrink: 0;
-  background-color: var(--bg-primary);
-  border-top: 1px solid var(--border-subtle);
-  padding: 10px 14px 16px 14px;
+  background: transparent;
+  border-top: none;
+  padding: 0 16px 20px 16px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   z-index: 50;
+  position: relative;
 }
 
 /* 첨부된 명식 칩(태그) 컨테이너 */
@@ -969,22 +1108,22 @@ html, body {
   color: var(--text-primary);
 }
 
-/* 입력창 내부 래퍼 */
+/* 입력창 내부 래퍼: Style 10 Pure Floating Bubble */
 .chat-input-inner {
   display: flex;
   align-items: flex-end;
   gap: 8px;
   background-color: var(--bg-card);
-  border: 1px solid var(--border-strong);
-  border-radius: 24px;
-  padding: 7px 8px 7px 18px;
-  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--border-subtle);
+  border-radius: 26px;
+  padding: 8px 10px 8px 18px;
+  box-shadow: 0 8px 24px rgba(45, 47, 39, 0.12);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .chat-input-inner:focus-within {
-  border-color: var(--text-primary);
-  box-shadow: 0 4px 16px rgba(50, 40, 32, 0.08);
+  border-color: var(--accent);
+  box-shadow: 0 8px 28px var(--accent-glow);
 }
 
 .chat-textarea {
@@ -1001,26 +1140,27 @@ html, body {
   font-family: inherit;
 }
 
-/* 전송 버튼: 완벽한 원형(동그라미) & 눈이 편안한 소프트 웜그레이 */
+/* 전송 버튼: 완벽한 원형 & 시그니처 로우 말차 테마 컬러 */
 .btn-send {
   width: 38px;
   height: 38px;
   border-radius: 50% !important; /* 완벽한 원형 */
   border: none;
-  background-color: #7E756C; /* 눈이 시리지 않은 부드러운 소프트 웜그레이 */
-  color: #FAF8F5;
+  background-color: var(--accent); /* 시그니처 로우 말차 #747B61 */
+  color: #F8F7F3;
   font-size: 1.1rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: transform 0.15s ease, background-color 0.15s ease;
+  box-shadow: 0 2px 8px var(--accent-glow);
+  transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .btn-send:active {
   transform: scale(0.92);
-  background-color: #696058;
+  background-color: #5E6350;
 }
 
 /* 명식 삭제 버튼: 추가 버튼(+)과 동일한 은은한 톤 */
@@ -1034,9 +1174,9 @@ html, body {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 1.18rem;
-  letter-spacing: 0.08em;
-  color: var(--text-primary);
+  font-size: 1.15rem;
+  letter-spacing: 0.06em;
+  color: #626756 !important; /* 까만색 완전 배제, 부드러운 소프트 말차 */
   user-select: none;
   pointer-events: auto;
 }
@@ -1185,48 +1325,120 @@ html, body {
   color: var(--text-muted);
 }
 
-/* 파일 업로드 박스 및 버튼 */
-.file-upload-box {
-  margin-top: 6px;
-  border: 1px dashed var(--border-strong);
-  border-radius: 12px;
-  padding: 16px;
+/* 파일 업로드 박스 및 버튼: 명식 추가 모달 전용 레이아웃 */
+.modal-saju-add {
+  height: 540px;
+}
+
+.modal-saju-body {
+  padding: 16px 22px 24px 22px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 16px !important;
+  flex: 1;
+  min-height: 0;
+}
+
+.saju-photo-flex-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.photo-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+/* 사진 선택하기: 배경과 테두리를 완전히 걷어내고 순수 텍스트만 단아하게 */
+.file-text-btn {
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: opacity 0.15s;
+}
+
+.file-text-btn:hover {
+  opacity: 0.85;
+}
+
+/* 팝업창을 꽉 채우는 사진 뷰포트 & 미리보기 (입력창과 동일한 정말정말 연한 소프트 크림) */
+.saju-photo-viewport {
+  flex: 1;
+  width: 100%;
+  border-radius: 14px;
+  background-color: #FCFCFA; /* 입력창과 완전히 동일한 정말정말 연한 소프트 크림 */
+  border: 1px solid rgba(209, 207, 194, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  min-height: 250px;
+  transition: border-color 0.2s;
+}
+
+.saju-photo-viewport:hover {
+  border-color: var(--border-strong);
+}
+
+.upload-placeholder-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  background-color: var(--bg-primary);
+  justify-content: center;
+  color: var(--text-muted);
+  user-select: none;
 }
 
-.file-select-btn {
-  padding: 8px 16px;
-  border-radius: 10px;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  font-size: 0.85rem;
-  color: var(--text-primary);
-  cursor: pointer;
+.placeholder-tip {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
 .image-preview-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
   width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .image-preview-container img {
-  max-width: 120px;
-  max-height: 120px;
-  object-fit: cover;
-  border-radius: 8px;
-  border: 1px solid var(--border-subtle);
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: rgba(0, 0, 0, 0.02);
 }
 
-.preview-filename {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
+.preview-filename-badge {
+  position: absolute;
+  bottom: 10px;
+  left: 12px;
+  right: 12px;
+  background: rgba(35, 38, 30, 0.68);
+  backdrop-filter: blur(8px);
+  color: #F8F7F3;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 0.74rem;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .modal-submit-btn {
@@ -1248,28 +1460,47 @@ html, body {
 /* ==========================================================================
    10. 마크다운 스타일링 (저대비 웜톤 인용구 & 전체화면 보고서)
    ========================================================================== */
-/* [핵심] 질문용 인용구(Blockquote) - 눈이 피로하지 않은 온화한 다크 웜톤 하이라이트 */
+/* [핵심] 질문용 인용구(Blockquote) - 눈이 피로하지 않은 온화한 소프트 웜 쉐이드 (사이드 줄 제거) */
 .chat-bubble blockquote, .report-body-scroll blockquote {
   background-color: var(--quote-bg);
   color: var(--quote-text);
-  border-left: 3px solid var(--quote-border);
+  border: none;
+  border-left: none;
   border-radius: 12px;
-  padding: 12px 16px;
-  margin: 10px 0;
+  padding: 14px 18px;
+  margin: 12px 0;
   font-size: 0.92rem;
   line-height: 1.62;
   font-weight: 500;
   letter-spacing: -0.01em;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
-.chat-bubble strong, .report-body-scroll strong {
-  font-weight: 600;
-  color: var(--text-primary);
+strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .report-body-scroll b {
+  font-weight: 700 !important;
 }
 
-.chat-bubble blockquote strong {
-  color: #FFF9F0; /* 인용구 내부 볼드는 따뜻한 크림화이트 */
+.chat-bubble blockquote strong, .chat-bubble blockquote b {
+  color: #FFF9F0;
+  font-weight: 700 !important;
+}
+
+/* 대화 수정 텍스트에리어 */
+.bubble-edit-textarea {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  min-height: 52px;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+  color: inherit !important;
+  outline: none !important;
+  resize: none !important;
+  overflow: hidden !important;
+  display: block !important;
 }
 
 /* 대화창 내부 '분석 보고서 열기' 축약 카드 */

@@ -2,6 +2,12 @@
  * ABOUT ME - Core Application & Navigation Stack Manager
  */
 
+// 첫 진입 시 화면 전용 초기 안내 메시지 템플릿 (대화가 비어있는 세션에서도 영구 출력 보장)
+const INITIAL_GREETINGS = {
+  psychology: `본격적으로 이야기를 시작하기 전에, 가장 편안한 대화 환경부터 맞춰볼게요!\n\n1. 어떤 대화 톤이 편하신가요?\n- 친구처럼 거침없이 반말로 티키타카 하기\n- 적당히 위트 있고 편안한 존댓말 쓰기\n\n2. 대화하는 동안 제가 어떤 호칭(닉네임)으로 불러드리면 좋을까요?\n\n3. 지금 머릿속에 가장 먼저 떠오르는 이야기 하나만 편하게 꺼내주세요!\n(재밌게 본 영화/드라마/유튜브, 친구나 직장에서 겪은 웃기거나 빡쳤던 일화, 나만의 독특한 취미나 덕질, 요즘 느끼는 인간관계의 피로감이나 고민 등... 어떤 이야기든 좋습니다.)`,
+  saju: `명리학으로 심층 분석할 만세력과 궁금하신 내용을 함께 전송해주세요!`
+};
+
 // 1. 뒤로가기 제스처 1단계 정밀 제어 관리자 (History Stack Manager)
 const NavStack = {
   stack: [],
@@ -84,16 +90,17 @@ const Router = {
   },
 
   updateHeaders(viewName) {
+    this.headers.header1.classList.remove('hidden');
     if (viewName === 'landing') {
-      this.headers.header1.classList.add('hidden');
+      document.body.classList.add('is-landing-view');
       if (this.headers.btnSajuHand) this.headers.btnSajuHand.classList.add('hidden');
-    } else if (viewName === 'psychology') {
-      this.headers.header1.classList.remove('hidden');
-      if (this.headers.btnSajuHand) this.headers.btnSajuHand.classList.add('hidden'); // 심리학에선 손가락 숨김
-      this.headers.title.textContent = '𝗔𝗕𝗢𝗨𝗧 𝗠𝗘';
-    } else if (viewName === 'saju') {
-      this.headers.header1.classList.remove('hidden');
-      if (this.headers.btnSajuHand) this.headers.btnSajuHand.classList.remove('hidden'); // 명리학에서만 손가락 노출
+    } else {
+      document.body.classList.remove('is-landing-view');
+      if (viewName === 'psychology') {
+        if (this.headers.btnSajuHand) this.headers.btnSajuHand.classList.add('hidden'); // 심리학에선 손가락 숨김
+      } else if (viewName === 'saju') {
+        if (this.headers.btnSajuHand) this.headers.btnSajuHand.classList.remove('hidden'); // 명리학에서만 손가락 노출
+      }
       this.headers.title.textContent = '𝗔𝗕𝗢𝗨𝗧 𝗠𝗘';
     }
   }
@@ -366,11 +373,16 @@ const MarkdownParser = {
     processed = processed.replace(/^>\s?(.*)$/gm, '<blockquote>$1</blockquote>');
     processed = processed.replace(/<\/blockquote>\n<blockquote>/g, '<br>');
 
-    // 3. 볼드체 (**텍스트**)
-    processed = processed.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    // 3. 볼드 + 이탤릭 (***텍스트***)
+    processed = processed.replace(/\*\*\*([\s\S]+?)\*\*\*/g, '<strong><em>$1</em></strong>');
 
-    // 4. 이탤릭 (*텍스트*)
-    processed = processed.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    // 4. 볼드체 (**텍스트** 또는 __텍스트__)
+    processed = processed.replace(/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>');
+    processed = processed.replace(/__([\s\S]+?)__/g, '<strong>$1</strong>');
+
+    // 5. 이탤릭 (*텍스트* 또는 _텍스트_)
+    processed = processed.replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, '<em>$1</em>');
+    processed = processed.replace(/(?<!_)_([^_\n]+?)_(?!_)/g, '<em>$1</em>');
 
     // 5. 구분선 (---)
     processed = processed.replace(/^---$/gim, '<hr>');
@@ -440,12 +452,16 @@ const AIEngine = {
       const generalSetting = await DB.get('settings', 'general_settings');
       const promptData = await DB.get('prompts', category);
 
-      const apiKey = geminiSetting?.value?.trim();
+      const apiKey = geminiSetting?.value?.trim() || '';
       const outputMode = generalSetting?.outputMode || 'stream';
-      const systemInstruction = promptData?.content?.trim() || '';
+      let systemInstruction = promptData?.content?.trim() || '';
 
-      if (!apiKey) {
-        throw new Error('Gemini API 키가 설정되지 않았습니다. 좌측 서랍의 [설정] 메뉴에서 API 키를 먼저 입력해 주세요.');
+      if (!systemInstruction) {
+        if (category === 'psychology') {
+          systemInstruction = `당신은 사용자의 심리를 깊이 이해하고 통찰을 제공하는 전문 심리 분석가 'ABOUT ME'입니다. 따뜻하고 편안한 어조로 대화하며, 사용자가 편안하게 자신의 내면, 감정, 무의식, 생각 패턴을 털어놓을 수 있도록 이끌어주세요. 필요 시 [REPORT_START] ... [REPORT_END] 태그를 사용하여 정밀 심리 분석 보고서를 함께 제공할 수 있습니다.`;
+        } else if (category === 'saju') {
+          systemInstruction = `당신은 명리학(만세력 및 사주 원국) 심층 분석 전문가 'ABOUT ME'입니다. 만세력 이미지와 질문을 바탕으로 음양오행의 균형, 십신, 격국, 용신, 대운의 흐름을 전문적이면서도 알기 쉽게 풀이합니다. 필요 시 [REPORT_START] ... [REPORT_END] 태그를 사용하여 구조화된 명식 분석 보고서를 작성하세요.`;
+        }
       }
 
       // 2. 페이로드 생성
@@ -458,6 +474,28 @@ const AIEngine = {
         }
       };
 
+      // 생각 깊이 (Reasoning) 설정 적용
+      const reasoningMode = generalSetting?.reasoning || 'medium';
+      const customBudget = parseInt(generalSetting?.reasoningBudget, 10);
+      let thinkingBudget = 0;
+      if (reasoningMode === 'off') {
+        thinkingBudget = 0;
+      } else if (reasoningMode === 'minimal') {
+        thinkingBudget = 256;
+      } else if (reasoningMode === 'low') {
+        thinkingBudget = 1024;
+      } else if (reasoningMode === 'medium') {
+        thinkingBudget = 2048;
+      } else if (reasoningMode === 'high') {
+        thinkingBudget = 4096;
+      } else if (reasoningMode === 'budget') {
+        thinkingBudget = !isNaN(customBudget) && customBudget > 0 ? customBudget : 2048;
+      }
+
+      payload.generationConfig.thinkingConfig = {
+        thinkingBudget: thinkingBudget
+      };
+
       if (systemInstruction) {
         payload.systemInstruction = {
           parts: [{ text: systemInstruction }]
@@ -465,7 +503,7 @@ const AIEngine = {
       }
 
       // 3. 설정된 모델명 및 안전필터 Payload 결합
-      const modelName = generalSetting?.model || 'gemini-3.1-pro-preview';
+      const modelName = generalSetting?.model || 'gemini-2.5-flash';
       const safety = generalSetting?.safety || {};
 
       payload.safetySettings = [
@@ -475,14 +513,18 @@ const AIEngine = {
         { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: safety.danger || 'BLOCK_NONE' }
       ];
 
-      const endpoint = outputMode === 'stream'
-        ? `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:streamGenerateContent?alt=sse&key=${apiKey}`
-        : `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-
-      const response = await fetch(endpoint, {
+      const isStream = outputMode === 'stream';
+      const response = await fetch('/api/gemini', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        headers: {
+          'Content-Type': 'application/json',
+          ...(apiKey ? { 'x-gemini-key': apiKey } : {})
+        },
+        body: JSON.stringify({
+          modelName: modelName,
+          payload: payload,
+          stream: isStream
+        })
       });
 
       if (!response.ok) {
@@ -491,9 +533,19 @@ const AIEngine = {
       }
 
       // 4-A. 일시 출력 (Batch) 방식
-      if (outputMode === 'batch') {
+      if (!isStream) {
         const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '답변을 생성하지 못했습니다.';
+        const parts = data.candidates?.[0]?.content?.parts || [];
+        let text = '';
+        for (const p of parts) {
+          if (!p.thought && p.text) {
+            text += p.text;
+          }
+        }
+        if (!text && parts.length > 0) {
+          text = parts.map(p => p.text || '').join('');
+        }
+        if (!text) text = '답변을 생성하지 못했습니다.';
         if (onComplete) onComplete(text);
         return;
       }
@@ -519,7 +571,13 @@ const AIEngine = {
             if (jsonStr === '[DONE]') continue;
             try {
               const parsed = JSON.parse(jsonStr);
-              const chunk = parsed.candidates?.[0]?.content?.parts?.[0]?.text || '';
+              const parts = parsed.candidates?.[0]?.content?.parts || [];
+              let chunk = '';
+              for (const p of parts) {
+                if (!p.thought && p.text) {
+                  chunk += p.text;
+                }
+              }
               if (chunk) {
                 accumulatedText += chunk;
                 if (onChunk) onChunk(accumulatedText, chunk);
@@ -842,10 +900,17 @@ const SessionManager = {
     const messages = await DB.getByIndex('chat_messages', 'sessionId', sessionId);
     messages.sort((a, b) => a.timestamp - b.timestamp);
 
-    messages.forEach(msg => {
-      ChatUI.appendMessage(containerId, msg.role, msg.content, msg.id);
-      ChatManager.activeHistory.push({ role: msg.role, content: msg.content });
-    });
+    if (messages.length === 0) {
+      // 대화가 없는 빈 세션인 경우 첫 안내 인사말을 화면에 반드시 출력
+      if (INITIAL_GREETINGS[session.category]) {
+        ChatUI.appendMessage(containerId, 'model', INITIAL_GREETINGS[session.category], null, true);
+      }
+    } else {
+      messages.forEach(msg => {
+        ChatUI.appendMessage(containerId, msg.role, msg.content, msg.id);
+        ChatManager.activeHistory.push({ role: msg.role, content: msg.content });
+      });
+    }
 
     await this.renderSessionList(session.category);
   },
@@ -890,18 +955,13 @@ const SessionManager = {
       const isSelected = this.selectedForDeletion[category].has(session.id);
       item.className = `chat-session-item ${session.id === ChatManager.currentSessionId ? 'active' : ''} ${isSelected ? 'delete-selected' : ''}`;
       
-      const dateStr = new Date(session.updatedAt).toLocaleDateString('ko-KR', {
-        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-      });
-
       item.innerHTML = `
         <div class="session-info">
           <span class="session-title">${session.title}</span>
-          <span class="session-date">${dateStr}</span>
         </div>
         <div class="session-actions">
           <button type="button" class="session-action-btn btn-edit-title" title="제목 수정">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pen"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pen"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>
           </button>
         </div>
       `;
@@ -1158,22 +1218,28 @@ const ChatUI = {
         </button>
       `;
 
-      // 수정 클릭 시: 기존 말풍선 카드 크기 100% 유지 & 바깥 아래쪽에 [취소 SVG] [확인 SVG] 배치
+      // 수정 클릭 시: 대화 카드 그대로 두고 안에 텍스트에리어 생성 및 내용에 맞게 자동 크기 조절
       actionBar.querySelector('.btn-edit-msg').addEventListener('click', () => {
         contentDiv.classList.add('hidden');
         actionBar.classList.add('hidden');
 
-        // 기존 말풍선의 정확한 너비 유지 (쪼그라듬 방지)
-        const currentBubbleWidth = bubble.offsetWidth;
-        if (currentBubbleWidth > 0) {
-          bubble.style.width = `${currentBubbleWidth}px`;
-        }
+        // 카드 그대로 두고, 최소 폭을 확보해 편안하게 입력
+        bubble.classList.add('is-editing');
+        bubble.style.minWidth = 'min(100%, 280px)';
 
         const editArea = document.createElement('textarea');
         editArea.className = 'bubble-edit-textarea';
-        editArea.style.cssText = 'width:100%; min-height:80px; padding:0; border:none; background:transparent; font-family:inherit; font-size:inherit; line-height:inherit; color:inherit; outline:none; resize:none;';
         editArea.value = currentRaw;
         bubble.appendChild(editArea);
+
+        // 텍스트 에리어 크기만큼 자동으로 크기 조절
+        const autoResize = () => {
+          editArea.style.height = 'auto';
+          editArea.style.height = `${editArea.scrollHeight}px`;
+        };
+        autoResize();
+        editArea.addEventListener('input', autoResize);
+        editArea.focus();
 
         // [취소] [확인] 버튼 바는 말풍선 바깥 아래쪽 우측에 배치
         const outsideEditBar = document.createElement('div');
@@ -1194,7 +1260,8 @@ const ChatUI = {
         outsideEditBar.querySelector('.btn-bubble-cancel').addEventListener('click', () => {
           editArea.remove();
           outsideEditBar.remove();
-          bubble.style.width = '';
+          bubble.classList.remove('is-editing');
+          bubble.style.minWidth = '';
           contentDiv.classList.remove('hidden');
           actionBar.classList.remove('hidden');
         });
@@ -1204,6 +1271,7 @@ const ChatUI = {
           const updatedText = editArea.value.trim();
           if (!updatedText) return;
 
+          const oldText = currentRaw;
           currentRaw = updatedText;
           renderInnerContent();
 
@@ -1215,14 +1283,15 @@ const ChatUI = {
             }
           }
 
-          const historyIdx = ChatManager.activeHistory.findIndex(h => h.role === role && h.content === rawContent);
+          const historyIdx = ChatManager.activeHistory.findIndex(h => h.role === role && h.content === oldText);
           if (historyIdx !== -1) {
             ChatManager.activeHistory[historyIdx].content = updatedText;
           }
 
           editArea.remove();
           outsideEditBar.remove();
-          bubble.style.width = '';
+          bubble.classList.remove('is-editing');
+          bubble.style.minWidth = '';
           contentDiv.classList.remove('hidden');
           actionBar.classList.remove('hidden');
         });
@@ -1359,6 +1428,20 @@ const ModalController = {
           if (general.safety.sex) document.getElementById('safety-sex').value = general.safety.sex;
           if (general.safety.danger) document.getElementById('safety-danger').value = general.safety.danger;
         }
+
+        // 생각 깊이 복원
+        const reasoningSelect = document.getElementById('ep-lore-reasoning-select');
+        const reasoningBudgetInput = document.getElementById('ep-lore-reasoning-budget-input');
+        const budgetWrapper = document.getElementById('reasoning-budget-wrapper');
+        if (reasoningSelect) {
+          reasoningSelect.value = general?.reasoning || 'medium';
+          if (budgetWrapper) {
+            budgetWrapper.classList.toggle('hidden', reasoningSelect.value !== 'budget');
+          }
+        }
+        if (reasoningBudgetInput) {
+          reasoningBudgetInput.value = general?.reasoningBudget || 2048;
+        }
       }
     } catch (e) {
       console.error('데이터 로드 실패:', e);
@@ -1391,11 +1474,18 @@ const ModalController = {
           danger: document.getElementById('safety-danger').value
         };
 
+        const reasoningSelect = document.getElementById('ep-lore-reasoning-select');
+        const reasoningBudgetInput = document.getElementById('ep-lore-reasoning-budget-input');
+        const reasoningVal = reasoningSelect ? reasoningSelect.value : 'medium';
+        const reasoningBudget = reasoningBudgetInput ? parseInt(reasoningBudgetInput.value, 10) : 2048;
+
         await DB.set('settings', {
           id: 'general_settings',
           outputMode: outputMode,
           model: selectedModel,
           safety: safetySettings,
+          reasoning: reasoningVal,
+          reasoningBudget: isNaN(reasoningBudget) ? 2048 : reasoningBudget,
           updatedAt: Date.now()
         });
       } else if (modalId === 'modal-add-saju') {
@@ -1407,6 +1497,8 @@ const ModalController = {
           nameInput.value = '';
           const previewContainer = document.getElementById('saju-image-preview');
           if (previewContainer) previewContainer.classList.add('hidden');
+          const placeholder = document.getElementById('saju-upload-placeholder');
+          if (placeholder) placeholder.classList.remove('hidden');
           SajuManager.tempImageData = null;
         }
       }
@@ -1544,12 +1636,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnPsychology = document.getElementById('btn-start-psychology');
   const btnSaju = document.getElementById('btn-start-saju');
 
-  // 첫 진입 시 화면 전용 초기 안내 메시지 템플릿 (Payload 전송에는 포함되지 않음)
-  const INITIAL_GREETINGS = {
-    psychology: `본격적으로 이야기를 시작하기 전에, 가장 편안한 대화 환경부터 맞춰볼게요!\n\n1. 어떤 대화 톤이 편하신가요?\n- 친구처럼 거침없이 반말로 티키타카 하기\n- 적당히 위트 있고 편안한 존댓말 쓰기\n\n2. 대화하는 동안 제가 어떤 호칭(닉네임)으로 불러드리면 좋을까요?\n\n3. 지금 머릿속에 가장 먼저 떠오르는 이야기 하나만 편하게 꺼내주세요!\n(재밌게 본 영화/드라마/유튜브, 친구나 직장에서 겪은 웃기거나 빡쳤던 일화, 나만의 독특한 취미나 덕질, 요즘 느끼는 인간관계의 피로감이나 고민 등... 어떤 이야기든 좋습니다.)`,
-    saju: `명리학으로 심층 분석할 만세력과 궁금하신 내용을 함께 전송해주세요!`
-  };
-
   // 새 대화 시작 함수
   const startFreshChat = async (category) => {
     ChatManager.currentSessionId = null;
@@ -1587,11 +1673,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnDeleteModeSaju.addEventListener('click', () => SessionManager.toggleDeleteMode('saju'));
   }
 
-  // 좌측 서랍 열기 버튼 (헤더 1 햄버거 버튼)
+  // 좌측 서랍 열기/닫기 토글 버튼 (헤더 1 햄버거 버튼)
   const btnOpenLeftDrawer = document.getElementById('btn-open-left-drawer');
   if (btnOpenLeftDrawer) {
     btnOpenLeftDrawer.addEventListener('click', () => {
-      DrawerController.openLeft();
+      if (DrawerController.isOpenLeft) {
+        DrawerController.closeLeft(false);
+      } else {
+        DrawerController.openLeft();
+      }
     });
   }
 
@@ -1654,12 +1744,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 이미지 파일 선택 처리
   const fileInput = document.getElementById('saju-image-file');
   const btnSelectImage = document.getElementById('btn-select-saju-image');
+  const dropzone = document.getElementById('saju-file-dropzone');
   const previewContainer = document.getElementById('saju-image-preview');
   const previewImg = document.getElementById('saju-preview-img');
   const previewFileName = document.getElementById('saju-file-name');
+  const uploadPlaceholder = document.getElementById('saju-upload-placeholder');
 
-  if (btnSelectImage && fileInput) {
-    btnSelectImage.addEventListener('click', () => fileInput.click());
+  if (fileInput) {
+    if (btnSelectImage) {
+      btnSelectImage.addEventListener('click', (e) => {
+        e.stopPropagation();
+        fileInput.click();
+      });
+    }
+    if (dropzone) {
+      dropzone.addEventListener('click', () => fileInput.click());
+    }
 
     fileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
@@ -1671,6 +1771,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         previewImg.src = event.target.result;
         previewFileName.textContent = file.name;
         previewContainer.classList.remove('hidden');
+        if (uploadPlaceholder) uploadPlaceholder.classList.add('hidden');
       };
       reader.readAsDataURL(file);
     });
@@ -1804,6 +1905,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.addEventListener('click', () => {
       dropdownMenu.classList.add('hidden');
       dropdownBtn.classList.remove('open');
+    });
+  }
+
+  // 생각 깊이 (Reasoning) 예산 입력 필드 표시 토글
+  const reasoningSelect = document.getElementById('ep-lore-reasoning-select');
+  const reasoningBudgetWrapper = document.getElementById('reasoning-budget-wrapper');
+  if (reasoningSelect && reasoningBudgetWrapper) {
+    reasoningSelect.addEventListener('change', () => {
+      reasoningBudgetWrapper.classList.toggle('hidden', reasoningSelect.value !== 'budget');
     });
   }
 });
