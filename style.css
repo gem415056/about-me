@@ -1077,12 +1077,50 @@ html, body {
   top: calc(var(--header-height) + var(--sub-header-height));
 }
 
+/* 미니멀 아이콘 버튼 공통 */
+.icon-btn-minimal {
+  background: none;
+  border: none;
+  padding: 6px;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.icon-btn-minimal:active {
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
+}
+
 .saju-drawer-header {
-  padding: 14px 16px;
+  padding: 12px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--border-subtle);
+}
+
+.saju-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 삭제 모드 활성화 시 버튼 강조 */
+#btn-toggle-delete-saju.active {
+  color: #B4463D !important;
+  background-color: rgba(180, 70, 61, 0.08);
+  border-radius: 8px;
+}
+
+/* 삭제 모드 시 명식 카드 선택 피드백 */
+.saju-profile-item.delete-selected {
+  border-color: #B4463D !important;
+  background-color: rgba(180, 70, 61, 0.05) !important;
 }
 
 .saju-list-scroll {
