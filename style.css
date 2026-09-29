@@ -959,21 +959,40 @@ html, body {
   font-family: inherit;
 }
 
+/* 전송 버튼: 쨍한 블랙 배제 ➔ 눈이 편안한 은은한 웜 그레이톤 */
 .btn-send {
   width: 36px;
   height: 36px;
-  border-radius: 50%;
-  border: none;
-  background-color: var(--text-primary);
-  color: var(--bg-card);
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  background-color: #5A534C;
+  color: #F7F5F0;
   font-size: 1.15rem;
-  font-weight: bold;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: transform 0.15s ease, opacity 0.15s ease;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.btn-send:active {
+  transform: scale(0.92);
+  background-color: #433D37;
+}
+
+/* 헤더 로고 */
+.header-logo {
+  font-size: 1.18rem;
+  letter-spacing: 0.08em;
+  color: var(--text-primary);
+  user-select: none;
+}
+
+/* 헤더 2 아이콘 및 명식 추가 아이콘 부드러운 톤 완화 */
+#btn-toggle-saju-drawer svg, #btn-open-add-saju svg {
+  color: var(--text-secondary);
+  opacity: 0.85;
 }
 
 .btn-send:active {
