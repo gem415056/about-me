@@ -59,10 +59,28 @@
       </section>
 
       <!-- 2. 심리학 검사 대화방 섹션 -->
-      <section id="view-psychology" class="view-section hidden"></section>
+      <section id="view-psychology" class="view-section chat-view hidden">
+        <div id="psychology-chat-messages" class="chat-messages-container"></div>
+        <div class="chat-input-bar">
+          <div class="chat-input-inner">
+            <textarea id="psychology-input" class="chat-textarea" rows="1" placeholder="답변을 입력하세요..."></textarea>
+            <button type="button" id="btn-send-psychology" class="btn-send" aria-label="전송">↑</button>
+          </div>
+        </div>
+      </section>
 
       <!-- 3. 명리학 분석 대화방 섹션 -->
-      <section id="view-saju" class="view-section hidden"></section>
+      <section id="view-saju" class="view-section chat-view hidden">
+        <div id="saju-chat-messages" class="chat-messages-container"></div>
+        <div class="chat-input-bar">
+          <!-- 명식 선택 시 누적 첨부될 태그 칩 컨테이너 -->
+          <div id="saju-attached-tags" class="attached-tags-container hidden"></div>
+          <div class="chat-input-inner">
+            <textarea id="saju-input" class="chat-textarea" rows="1" placeholder="사주 질문을 입력하세요..."></textarea>
+            <button type="button" id="btn-send-saju" class="btn-send" aria-label="전송">↑</button>
+          </div>
+        </div>
+      </section>
     </main>
 
     <!-- 배경 암전(Dim Layer) 오버레이 -->
