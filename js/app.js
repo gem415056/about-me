@@ -1411,6 +1411,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // 헤더 1 로고 터치 시 어디서든 홈(랜딩 화면)으로 복귀
+  const headerLogo = document.getElementById('header-title');
+  if (headerLogo) {
+    headerLogo.addEventListener('click', () => {
+      // 열린 서랍이나 모달이 있다면 닫고
+      if (DrawerController.isOpenLeft) DrawerController.closeLeft(false);
+      if (DrawerController.isOpenRight) DrawerController.closeRight(false);
+      if (ModalController.activeModalId) ModalController.close(false);
+      Router.navigate('landing');
+    });
+  }
+
   // 헤더 2 '명식 선택하기' 아코디언 버튼 토글
   const btnToggleSaju = document.getElementById('btn-toggle-saju-drawer');
   if (btnToggleSaju) {
