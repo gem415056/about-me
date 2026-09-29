@@ -1,38 +1,36 @@
 /* ==========================================================================
-   1. 디자인 토큰 (Design Tokens) - 웜톤 & 저대비 팔레트
+   1. 디자인 토큰 (Design Tokens) - 정밀 웜톤 & 포근한 저대비 팔레트
    ========================================================================== */
 :root {
-  /* 웜톤 배경 색상 (눈이 시리지 않는 미색 및 온화한 그레이) */
-  --bg-primary: #F9F8F5;       /* 기본 배경: 따뜻한 크림빛 화이트 */
-  --bg-secondary: #F2EFE9;     /* 2차 배경: 포근한 라이트 오트밀 */
-  --bg-card: #FFFFFF;          /* 카드/버블 배경: 깨끗한 오프화이트 */
-  --bg-accent: #E8E2D8;        /* 강조 영역 배경: 웜 샌드 */
-  --bg-dim: rgba(45, 41, 38, 0.45); /* 눈부심 없는 연한 소프트 암전 레이어 */
+  /* 포근한 프렌치 린넨 & 오트밀 배색 */
+  --bg-primary: #F8F6F0;          /* 최상위 배경: 온화한 크림 샌드 */
+  --bg-secondary: #EFECE4;        /* 2차 배경: 은은한 내추럴 오트밀 */
+  --bg-card: #FFFFFF;             /* 카드/입력창: 부드러운 화이트 */
+  --bg-card-subtle: #FAF8F5;      /* 말풍선 서브: 소프트 아이보리 */
+  --bg-dim: rgba(38, 34, 31, 0.42); /* 눈이 시리지 않은 실크 암전 */
 
-  /* 웜톤 텍스트 색상 (새까만 블랙 배제) */
-  --text-primary: #2C2825;     /* 기본 본문: 부드러운 다크 웜차콜 */
-  --text-secondary: #746C65;   /* 서브 텍스트: 차분한 브라운 그레이 */
-  --text-muted: #A39B92;       /* 비활성 텍스트: 라이트 웜그레이 */
+  /* 저대비 웜 텍스트 (피로도 제로) */
+  --text-primary: #342F2C;        /* 본문: 깊이 있는 웜 에스프레소 */
+  --text-secondary: #7C746E;      /* 보조: 부드러운 웜 토프 */
+  --text-muted: #ABA29B;          /* 비활성: 라이트 샌드 그레이 */
 
-  /* 인용구(질문) 특수 다크 웜톤 하이라이트 배색 */
-  --quote-bg: #383430;         /* 너무 어둡지 않은 다크 웜그레이 */
-  --quote-text: #EDE8E1;       /* 눈이 편안한 미색 웜화이트 */
+  /* 인용구(질문) 하이라이트 배색 - 고급 북유럽 다크 웜그레이 */
+  --quote-bg: #322E2B;            /* 편안하고 고급스러운 다크 웜차콜 */
+  --quote-text: #F1ECE4;          /* 미색 크림화이트 */
+  --quote-border: #8E8276;        /* 세련된 토프 보더 포인트 */
 
-  /* 테두리 및 구분선 */
-  --border-subtle: #E6E1D8;
-  --border-strong: #D5CEBF;
+  /* 미세 웜톤 보더 & 그림자 */
+  --border-subtle: #E8E3DA;
+  --border-strong: #D8D1C5;
+  --shadow-soft: 0 4px 20px rgba(50, 40, 32, 0.05);
+  --shadow-floating: 0 10px 28px rgba(50, 40, 32, 0.08);
 
-  /* 포인트/버튼 웜 톤 */
-  --btn-warm-surface: #EFEBE4;
-  --btn-warm-border: #DCD5C9;
-  --btn-warm-hover: #E5DFD4;
+  /* 헤더 치수 */
+  --header-height: 56px;
+  --sub-header-height: 46px;
 
-  /* 헤더 높이 토큰 */
-  --header-height: 54px;
-  --sub-header-height: 44px;
-
-  /* 전환 속도 */
-  --transition-smooth: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  /* 스프링 커브 트랜지션 */
+  --transition-smooth: 0.26s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ==========================================================================
@@ -174,92 +172,103 @@ html, body {
 }
 
 /* ==========================================================================
-   5. 랜딩 화면 (Landing View) 스타일
+   5. 랜딩 화면 (Landing View) - 미려한 감성 카드 스타일
    ========================================================================== */
 .landing-container {
   width: 100%;
   height: 100%;
-  padding: 48px 24px;
+  padding: 60px 26px 36px 26px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  background-color: var(--bg-primary);
+  background: radial-gradient(circle at 50% 20%, #FAF8F3 0%, var(--bg-primary) 100%);
 }
 
 .landing-header {
-  padding-top: 40px;
+  padding-top: 32px;
   text-align: center;
 }
 
 .landing-title {
-  font-size: 2.2rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: 2.4rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
   color: var(--text-primary);
   margin-bottom: 12px;
+  font-feature-settings: "palt";
 }
 
 .landing-subtitle {
-  font-size: 0.95rem;
+  font-size: 0.96rem;
   color: var(--text-secondary);
   font-weight: 400;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
+  opacity: 0.9;
 }
 
 .landing-actions {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-bottom: 24px;
+  padding-bottom: 16px;
 }
 
 .landing-btn {
   width: 100%;
-  padding: 20px 22px;
-  border-radius: 18px;
+  padding: 24px 24px;
+  border-radius: 22px;
   background-color: var(--bg-card);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid rgba(220, 214, 203, 0.7);
   display: flex;
   align-items: center;
   justify-content: space-between;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(44, 40, 37, 0.04);
-  transition: transform 0.15s ease, background-color 0.2s ease, border-color 0.2s ease;
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.2s var(--transition-smooth), box-shadow 0.2s ease, background-color 0.2s ease;
   text-align: left;
 }
 
 .landing-btn:active {
-  transform: scale(0.98);
-  background-color: var(--btn-warm-surface);
-  border-color: var(--border-strong);
+  transform: scale(0.975);
+  background-color: var(--bg-secondary);
+  box-shadow: 0 2px 8px rgba(50, 40, 32, 0.04);
 }
 
 .btn-content {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .btn-main-title {
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-size: 1.14rem;
+  font-weight: 650;
   color: var(--text-primary);
+  letter-spacing: -0.01em;
 }
 
 .btn-sub-desc {
-  font-size: 0.82rem;
+  font-size: 0.83rem;
   color: var(--text-secondary);
+  line-height: 1.4;
 }
 
 .btn-arrow {
-  font-size: 1.2rem;
-  color: var(--text-muted);
-  transition: transform 0.2s ease, color 0.2s ease;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  color: var(--text-primary);
+  transition: transform 0.2s ease, background-color 0.2s ease;
 }
 
 .landing-btn:active .btn-arrow {
   transform: translateX(4px);
-  color: var(--text-primary);
+  background-color: var(--border-strong);
 }
 
 /* ==========================================================================
@@ -708,21 +717,22 @@ html, body {
   -webkit-overflow-scrolling: touch;
 }
 
-/* 말풍선 기본 공통 */
+/* 말풍선 기본 공통 - 부드러운 곡률 및 넉넉한 줄간격 */
 .chat-bubble {
-  max-width: 86%;
-  padding: 13px 16px;
-  border-radius: 18px;
-  font-size: 0.92rem;
-  line-height: 1.58;
+  max-width: 88%;
+  padding: 15px 18px;
+  border-radius: 20px;
+  font-size: 0.94rem;
+  line-height: 1.66;
+  letter-spacing: -0.01em;
   word-break: break-word;
-  animation: bubbleFadeIn 0.2s ease-out;
+  animation: bubbleFadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes bubbleFadeIn {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -730,35 +740,35 @@ html, body {
   }
 }
 
-/* 사용자 말풍선 (우측, 부드러운 웜베이지 카드톤) */
+/* 사용자 말풍선 (우측: 포근한 오프화이트 카드) */
 .chat-bubble.user {
   align-self: flex-end;
   background-color: var(--bg-card);
   color: var(--text-primary);
   border: 1px solid var(--border-subtle);
-  border-bottom-right-radius: 4px;
-  box-shadow: 0 2px 6px rgba(44, 40, 37, 0.04);
+  border-bottom-right-radius: 5px;
+  box-shadow: var(--shadow-soft);
 }
 
-/* AI 말풍선 (좌측, 눈이 편안한 오트밀 톤) */
+/* AI 말풍선 (좌측: 따뜻한 내추럴 오트밀 톤) */
 .chat-bubble.model {
   align-self: flex-start;
   background-color: var(--bg-secondary);
   color: var(--text-primary);
-  border-bottom-left-radius: 4px;
+  border: 1px solid rgba(220, 214, 203, 0.5);
+  border-bottom-left-radius: 5px;
 }
 
-/* 하단 고정 입력 바 (가상 키보드 자석 부착 타겟) */
+/* 하단 고정 플로팅 입력 바 */
 .chat-input-bar {
   flex-shrink: 0;
   background-color: var(--bg-primary);
   border-top: 1px solid var(--border-subtle);
-  padding: 10px 14px 14px 14px;
+  padding: 10px 14px 16px 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   z-index: 50;
-  transition: transform 0.1s ease-out;
 }
 
 /* 첨부된 명식 칩(태그) 컨테이너 */
@@ -805,10 +815,16 @@ html, body {
   align-items: flex-end;
   gap: 8px;
   background-color: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 22px;
-  padding: 6px 8px 6px 16px;
-  box-shadow: 0 2px 8px rgba(44, 40, 37, 0.03);
+  border: 1px solid var(--border-strong);
+  border-radius: 24px;
+  padding: 7px 8px 7px 18px;
+  box-shadow: var(--shadow-soft);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.chat-input-inner:focus-within {
+  border-color: var(--text-primary);
+  box-shadow: 0 4px 16px rgba(50, 40, 32, 0.08);
 }
 
 .chat-textarea {
@@ -816,30 +832,34 @@ html, body {
   background: transparent;
   border: none;
   outline: none;
-  font-size: 0.92rem;
-  line-height: 1.45;
+  font-size: 0.94rem;
+  line-height: 1.48;
   color: var(--text-primary);
   resize: none;
-  max-height: 110px;
+  max-height: 120px;
   padding: 6px 0;
   font-family: inherit;
 }
 
 .btn-send {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: none;
   background-color: var(--text-primary);
   color: var(--bg-card);
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   font-weight: bold;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: opacity 0.15s, transform 0.1s;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.btn-send:active {
+  transform: scale(0.9);
 }
 
 .btn-send:active {
@@ -1001,18 +1021,19 @@ html, body {
 /* ==========================================================================
    10. 마크다운 스타일링 (저대비 웜톤 인용구 & 전체화면 보고서)
    ========================================================================== */
-/* [핵심] 질문용 인용구(Blockquote) - 눈이 피로하지 않은 온화한 다크 웜톤 */
+/* [핵심] 질문용 인용구(Blockquote) - 눈이 피로하지 않은 온화한 다크 웜톤 하이라이트 */
 .chat-bubble blockquote, .report-body-scroll blockquote {
   background-color: var(--quote-bg);
   color: var(--quote-text);
-  border-left: 3px solid #8C7F72;
-  border-radius: 8px;
-  padding: 10px 14px;
-  margin: 8px 0;
-  font-size: 0.9rem;
-  line-height: 1.55;
+  border-left: 3px solid var(--quote-border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin: 10px 0;
+  font-size: 0.92rem;
+  line-height: 1.62;
   font-weight: 500;
-  letter-spacing: 0.01em;
+  letter-spacing: -0.01em;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
 .chat-bubble strong, .report-body-scroll strong {
