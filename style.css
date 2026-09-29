@@ -415,6 +415,18 @@ html, body {
   background-color: var(--bg-secondary);
 }
 
+/* 세션 삭제 모드 시 선택된 카드 하이라이트 */
+.chat-session-item.delete-selected {
+  border-color: #B4463D !important;
+  background-color: rgba(180, 70, 61, 0.06) !important;
+}
+
+/* 세션 헤더 휴지통 활성화 시 피드백 */
+.icon-btn-minimal.active {
+  color: #B4463D !important;
+  background-color: rgba(180, 70, 61, 0.08);
+}
+
 .session-info {
   display: flex;
   flex-direction: column;
@@ -1019,10 +1031,14 @@ html, body {
 
 /* 헤더 로고 */
 .header-logo {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   font-size: 1.18rem;
   letter-spacing: 0.08em;
   color: var(--text-primary);
   user-select: none;
+  pointer-events: auto;
 }
 
 /* 헤더 2 아이콘 및 명식 추가 아이콘 부드러운 톤 완화 */
@@ -1084,9 +1100,9 @@ html, body {
   transform: translate3d(0, 0, 0);
 }
 
-/* 명리학 모드에서 우측 서랍 열릴 때 암전 레이어 위치 조절 */
+/* 암전 레이어는 항상 헤더 1 바로 아래부터 시작 */
 .backdrop-overlay.saju-mode-dim {
-  top: calc(var(--header-height) + var(--sub-header-height));
+  top: var(--header-height);
 }
 
 /* 미니멀 아이콘 버튼 공통 */
