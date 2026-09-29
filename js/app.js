@@ -251,51 +251,138 @@ const SajuManager = {
   }
 };
 
-// 8. 경량 마크다운 파서 & 보고서 감지 엔진 (MarkdownParser)
+// 8. 경량 마크다운 파서 & 안전화된 보고서 감지 & 게이지 비주얼 렌더러 (MarkdownParser)
 const MarkdownParser = {
-  parse(text) {
-    if (!text) return '';
-
-    // HTML 특수문자 이스케이프
-    let html = text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-
-    // 1. 인용구 (> 문장) 처리 - 다크 웜톤 박스
-    html = html.replace(/^&gt;\s?(.*)$/gm, '<blockquote>$1</blockquote>');
-    // 연속된 blockquote 병합
-    html = html.replace(/<\/blockquote>\n<blockquote>/g, '<br>');
-
-    // 2. 볼드체 (**텍스트**)
-    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-
-    // 3. 이탤릭 (*텍스트*)
-    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
-
-    // 4. 줄바꿈 (\n)
-    html = html.replace(/\n/g, '<br>');
-
-    return html;
-  },
-
-  // 보고서 태그 분리 및 검출
+  // [핵심 1] 안전화된 보고서 분리 추출기 (태그 엔터 누락 or 태그 완전 누락 대비)
   extractReport(rawText) {
-    const reportRegex = /\[REPORT_START\]([\s\S]*?)\[REPORT_END\]/;
-    const match = rawText.match(reportRegex);
+    if (!rawText) return { hasReport: false, reportContent: '', chatContent: '' };
 
-    if (match) {
+    // 패턴 A: [REPORT_START] ... [REPORT_END] (엔터 유무 무관, 닫는 태그 생략도 포괄)
+    const explicitRegex = /\[REPORT_START\]([\s\S]*?)(?:\[REPORT_END\]|$)/i;
+    const explicitMatch = rawText.match(explicitRegex);
+
+    if (explicitMatch) {
       return {
         hasReport: true,
-        reportContent: match[1].trim(),
-        chatContent: rawText.replace(reportRegex, '').trim()
+        reportContent: explicitMatch[1].trim(),
+        chatContent: rawText.replace(explicitRegex, '').trim()
       };
     }
+
+    // 패턴 B: AI가 실수로 [REPORT_START] 태그를 빼먹고 '# 1부'로 바로 시작한 경우 자동 안전 구출!
+    const implicitRegex = /(#\s*1부[\s\S]*)/i;
+    const implicitMatch = rawText.match(implicitRegex);
+
+    if (implicitMatch) {
+      const reportStartIdx = implicitMatch.index;
+      return {
+        hasReport: true,
+        reportContent: rawText.substring(reportStartIdx).trim(),
+        chatContent: rawText.substring(0, reportStartIdx).trim()
+      };
+    }
+
     return {
       hasReport: false,
       reportContent: '',
       chatContent: rawText
     };
+  },
+
+  // [핵심 2] 마크다운 테이블 내 아스키 게이지(░)를 자로 잰 듯 일렬 정렬된 게이지 바로 변환
+  parseGaugeTable(tableMarkdown) {
+    const lines = tableMarkdown.trim().split('\n').filter(l => l.trim().startsWith('|'));
+    if (lines.length < 2) return tableMarkdown;
+
+    const headerLine = lines[0];
+    const headers = headerLine.split('|').map(s => s.trim()).filter(Boolean);
+    const dataLines = lines.slice(2); // 구분선 제외 데이터 행
+
+    const isFourCol = headers.length === 4; // 융의 인지기능 위계(4열) 여부
+
+    let tableHtml = `<table class="report-gauge-table">`;
+    tableHtml += `<thead><tr>`;
+    headers.forEach((h, idx) => {
+      let colClass = '';
+      if (idx === 0) colClass = 'col-label';
+      else if (isFourCol && idx === 1) colClass = 'col-sub-label';
+      else if ((isFourCol && idx === 2) || (!isFourCol && idx === 1)) colClass = 'col-gauge-track';
+      else colClass = 'col-percent';
+      tableHtml += `<th class="${colClass}">${h}</th>`;
+    });
+    tableHtml += `</tr></thead><tbody>`;
+
+    dataLines.forEach(line => {
+      const cells = line.split('|').map(s => s.trim()).filter(Boolean);
+      if (cells.length < headers.length) return;
+
+      tableHtml += `<tr>`;
+      cells.forEach((cell, idx) => {
+        // 게이지 열 감지: ░ 또는 █ 가 포함된 열
+        if (cell.includes('░') || cell.includes('█')) {
+          // 마지막 열이나 인접 열에서 퍼센트 수치 추출
+          const percentMatch = line.match(/(\d+)%/);
+          const percentVal = percentMatch ? Math.min(100, Math.max(0, parseInt(percentMatch[1], 10))) : 0;
+
+          tableHtml += `<td class="col-gauge-track">
+            <div class="gauge-visual-track">
+              <div class="gauge-visual-bar" style="width: ${percentVal}%;"></div>
+            </div>
+          </td>`;
+        } else if (/^\d+%$/.test(cell.replace(/\s/g, ''))) {
+          // 수치 열
+          tableHtml += `<td class="col-percent">${cell}</td>`;
+        } else {
+          // 레이블 열
+          const labelClass = idx === 0 ? 'col-label' : 'col-sub-label';
+          tableHtml += `<td class="${labelClass}">${cell}</td>`;
+        }
+      });
+      tableHtml += `</tr>`;
+    });
+
+    tableHtml += `</tbody></table>`;
+    return tableHtml;
+  },
+
+  // 전체 마크다운 파서 본체
+  parse(text) {
+    if (!text) return '';
+
+    // 테이블 블록 먼저 감지 및 변환
+    let processed = text.replace(/(\|.+?\|\n\|[-:\s|]+?\n(?:\|.+?\|\n?)+)/g, (match) => {
+      if (match.includes('░') || match.includes('█') || match.includes('%')) {
+        return this.parseGaugeTable(match);
+      }
+      return match;
+    });
+
+    // 1. 헤더 (1px 단위 미세 밸런스)
+    processed = processed.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+    processed = processed.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+    processed = processed.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+    // 2. 인용구 (> 문장) - 웜 다크 하이라이트
+    processed = processed.replace(/^>\s?(.*)$/gm, '<blockquote>$1</blockquote>');
+    processed = processed.replace(/<\/blockquote>\n<blockquote>/g, '<br>');
+
+    // 3. 볼드체 (**텍스트**)
+    processed = processed.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+    // 4. 이탤릭 (*텍스트*)
+    processed = processed.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+    // 5. 구분선 (---)
+    processed = processed.replace(/^---$/gim, '<hr>');
+
+    // 6. 줄바꿈 (테이블 태그 내부 제외 자연스러운 br 변환)
+    const parts = processed.split(/(<table[\s\S]*?<\/table>)/g);
+    processed = parts.map(part => {
+      if (part.startsWith('<table')) return part;
+      return part.replace(/\n/g, '<br>');
+    }).join('');
+
+    return processed;
   }
 };
 
