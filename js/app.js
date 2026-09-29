@@ -103,4 +103,20 @@ const Router = {
 document.addEventListener('DOMContentLoaded', () => {
   NavStack.init();
   Router.navigate('landing', false);
+
+  // 랜딩 화면 버튼 이벤트 바인딩
+  const btnPsychology = document.getElementById('btn-start-psychology');
+  const btnSaju = document.getElementById('btn-start-saju');
+
+  if (btnPsychology) {
+    btnPsychology.addEventListener('click', () => {
+      Router.navigate('psychology');
+    });
+  }
+
+  if (btnSaju) {
+    btnSaju.addEventListener('click', () => {
+      Router.navigate('saju');
+    });
+  }
 });
