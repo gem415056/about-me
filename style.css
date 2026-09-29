@@ -293,7 +293,14 @@ html, body {
   background-color: var(--bg-card);
   z-index: 200;
   box-shadow: 4px 0 20px rgba(0, 0, 0, 0.08);
-  transition: transform var(--transition-smooth);
+  transition: transform var(--transition-smooth), visibility var(--transition-smooth);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.drawer-container.open {
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .drawer-left {
