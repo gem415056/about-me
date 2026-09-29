@@ -249,8 +249,14 @@
       </div>
     </div>
 
-    <!-- 전체화면 최종 분석 보고서 오버레이 -->
-    <div id="report-fullscreen-view" class="report-fullscreen hidden"></div>
+    <!-- 전체화면 최종 분석 보고서 오버레이 (헤더 1 제외 전체 덮기) -->
+    <div id="report-fullscreen-view" class="report-fullscreen hidden" role="dialog" aria-modal="true">
+      <div class="report-header">
+        <h2 id="report-modal-title" class="report-header-title">심층 분석 보고서</h2>
+        <button type="button" id="btn-close-report" class="icon-btn" aria-label="보고서 닫기">✕</button>
+      </div>
+      <div id="report-body-content" class="report-body-scroll"></div>
+    </div>
   </div>
 
   <script src="js/db.js"></script>
