@@ -441,6 +441,197 @@ const ReportController = {
   }
 };
 
+// 13. Firestore 1MB 슬라이스 분할 백업/복원 엔진 (CloudBackupManager)
+const CloudBackupManager = {
+  // 사용자가 입력한 Firebase Config 텍스트에서 projectId와 apiKey 추출
+  parseFirebaseConfig(configStr) {
+    if (!configStr) return null;
+    try {
+      // 1. 순수 JSON 형식 시도
+      const parsed = JSON.parse(configStr);
+      if (parsed.projectId && parsed.apiKey) return parsed;
+    } catch (e) {
+      // 2. JS 객체 리터럴 형식 정규식 추출 시도
+      const projectIdMatch = configStr.match(/projectId\s*:\s*["']([^"']+)["']/);
+      const apiKeyMatch = configStr.match(/apiKey\s*:\s*["']([^"']+)["']/);
+      if (projectIdMatch && apiKeyMatch) {
+        return {
+          projectId: projectIdMatch[1],
+          apiKey: apiKeyMatch[1]
+        };
+      }
+    }
+    return null;
+  },
+
+  // 전체 IndexedDB 데이터 패키징 (API 설정, 프롬프트, 명식 이미지, 대화 내역 전체)
+  async exportFullDatabase() {
+    const dump = {
+      prompts: await DB.getAll('prompts'),
+      settings: await DB.getAll('settings'),
+      saju_profiles: await DB.getAll('saju_profiles'),
+      chat_sessions: await DB.getAll('chat_sessions'),
+      chat_messages: await DB.getAll('chat_messages'),
+      exportedAt: Date.now()
+    };
+    return JSON.stringify(dump);
+  },
+
+  // 1MB 제한 극복: 문자열을 800KB(약 800,000자) 안전 크기로 분할
+  sliceIntoChunks(str, chunkSize = 750000) {
+    const chunks = [];
+    let i = 0;
+    while (i < str.length) {
+      chunks.push(str.slice(i, i + chunkSize));
+      i += chunkSize;
+    }
+    return chunks;
+  },
+
+  // 클라우드 백업 실행
+  async backup() {
+    const firestoreSetting = await DB.get('settings', 'firestore_config');
+    const config = this.parseFirebaseConfig(firestoreSetting?.value);
+
+    if (!config || !config.projectId || !config.apiKey) {
+      alert('Firestore 설정이 비어있거나 올바르지 않습니다.\n좌측 서랍 ➔ [설정] ➔ [Firestore] 탭에 Firebase Config를 먼저 입력해 주세요.');
+      return;
+    }
+
+    const backupKey = prompt('백업에 사용할 고유 복원 코드(비밀번호)를 입력하세요.\n(다른 기기에서 이 코드로 복원합니다):');
+    if (!backupKey || !backupKey.trim()) return;
+    const cleanKey = encodeURIComponent(backupKey.trim());
+
+    try {
+      // 1. 전체 로컬 DB 패키징 및 슬라이스 분할
+      const fullJson = await this.exportFullDatabase();
+      const chunks = this.sliceIntoChunks(fullJson);
+      const baseUrl = `https://firestore.googleapis.com/v1/projects/${config.projectId}/databases/(default)/documents`;
+
+      // 2. 메타데이터 문서 저장
+      const metaUrl = `${baseUrl}/about_me_backups/${cleanKey}?key=${config.apiKey}`;
+      const metaPayload = {
+        fields: {
+          totalChunks: { integerValue: chunks.length.toString() },
+          totalBytes: { integerValue: fullJson.length.toString() },
+          createdAt: { timestampValue: new Date().toISOString() }
+        }
+      };
+
+      const metaRes = await fetch(metaUrl, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(metaPayload)
+      });
+
+      if (!metaRes.ok) {
+        throw new Error(`메타데이터 저장 실패 (상태 코드: ${metaRes.status})`);
+      }
+
+      // 3. 분할된 청크 순차 업로드
+      for (let idx = 0; idx < chunks.length; idx++) {
+        const chunkUrl = `${baseUrl}/about_me_backups/${cleanKey}/chunks/part_${idx}?key=${config.apiKey}`;
+        const chunkPayload = {
+          fields: {
+            chunkIndex: { integerValue: idx.toString() },
+            data: { stringValue: chunks[idx] }
+          }
+        };
+
+        const chunkRes = await fetch(chunkUrl, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(chunkPayload)
+        });
+
+        if (!chunkRes.ok) {
+          throw new Error(`청크 ${idx + 1}/${chunks.length} 업로드 실패`);
+        }
+      }
+
+      alert(`✅ 백업이 성공적으로 완료되었습니다!\n총 ${chunks.length}개의 조각으로 안전하게 분할 저장되었습니다.\n복원 코드: ${backupKey.trim()}`);
+    } catch (err) {
+      console.error('[백업 오류]:', err);
+      alert(`⚠️ 백업 실패: ${err.message}`);
+    }
+  },
+
+  // 클라우드 복원 실행
+  async restore() {
+    const firestoreSetting = await DB.get('settings', 'firestore_config');
+    const config = this.parseFirebaseConfig(firestoreSetting?.value);
+
+    if (!config || !config.projectId || !config.apiKey) {
+      alert('Firestore 설정이 비어있거나 올바르지 않습니다.\n좌측 서랍 ➔ [설정] ➔ [Firestore] 탭에 Firebase Config를 먼저 입력해 주세요.');
+      return;
+    }
+
+    const backupKey = prompt('복원할 백업 고유 코드(비밀번호)를 입력하세요:');
+    if (!backupKey || !backupKey.trim()) return;
+    const cleanKey = encodeURIComponent(backupKey.trim());
+
+    try {
+      const baseUrl = `https://firestore.googleapis.com/v1/projects/${config.projectId}/databases/(default)/documents`;
+
+      // 1. 메타데이터 조회
+      const metaUrl = `${baseUrl}/about_me_backups/${cleanKey}?key=${config.apiKey}`;
+      const metaRes = await fetch(metaUrl);
+
+      if (!metaRes.ok) {
+        throw new Error('해당 복원 코드의 백업 데이터를 찾을 수 없습니다.');
+      }
+
+      const metaData = await metaRes.json();
+      const totalChunks = parseInt(metaData.fields?.totalChunks?.integerValue || '1', 10);
+
+      // 2. 분할 청크 순차 다운로드 및 병합
+      let reconstructedJson = '';
+      for (let idx = 0; idx < totalChunks; idx++) {
+        const chunkUrl = `${baseUrl}/about_me_backups/${cleanKey}/chunks/part_${idx}?key=${config.apiKey}`;
+        const chunkRes = await fetch(chunkUrl);
+
+        if (!chunkRes.ok) {
+          throw new Error(`청크 ${idx + 1}/${totalChunks} 복원 실패`);
+        }
+
+        const chunkData = await chunkRes.json();
+        const partText = chunkData.fields?.data?.stringValue || '';
+        reconstructedJson += partText;
+      }
+
+      // 3. JSON 역직렬화 및 IndexedDB 트랜잭션 복원
+      const restored = JSON.parse(reconstructedJson);
+
+      if (restored.prompts) {
+        for (const item of restored.prompts) await DB.set('prompts', item);
+      }
+      if (restored.settings) {
+        for (const item of restored.settings) await DB.set('settings', item);
+      }
+      if (restored.saju_profiles) {
+        for (const item of restored.saju_profiles) await DB.set('saju_profiles', item);
+      }
+      if (restored.chat_sessions) {
+        for (const item of restored.chat_sessions) await DB.set('chat_sessions', item);
+      }
+      if (restored.chat_messages) {
+        for (const item of restored.chat_messages) await DB.set('chat_messages', item);
+      }
+
+      // 4. UI 최신화
+      await SajuManager.renderProfilesList();
+      await SessionManager.renderSessionList('psychology');
+      await SessionManager.renderSessionList('saju');
+
+      alert('🎉 모든 데이터(API 설정, 프롬프트, 만세력 사진, 대화 기록)가 완벽하게 복원되었습니다!');
+      location.reload(); // 복원된 최신 환경으로 완전 새로고침
+    } catch (err) {
+      console.error('[복원 오류]:', err);
+      alert(`⚠️ 복원 실패: ${err.message}`);
+    }
+  }
+};
+
 // 12. 대화 세션 및 기록 저장소 관리자 (SessionManager)
 const SessionManager = {
   // 날짜/시각 기반 기본 세션 제목 생성 (예: 2025. 05. 15. 14:30 대화)
@@ -1157,6 +1348,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnOpenApi.addEventListener('click', () => {
       DrawerController.closeLeft(false); // 서랍 닫고
       ModalController.open('modal-settings'); // 설정 팝업 열기
+    });
+  }
+
+  // 클라우드 백업 버튼
+  const btnBackup = document.getElementById('btn-cloud-backup');
+  if (btnBackup) {
+    btnBackup.addEventListener('click', () => {
+      DrawerController.closeLeft(true);
+      CloudBackupManager.backup();
+    });
+  }
+
+  // 클라우드 복원 버튼
+  const btnRestore = document.getElementById('btn-cloud-restore');
+  if (btnRestore) {
+    btnRestore.addEventListener('click', () => {
+      DrawerController.closeLeft(true);
+      CloudBackupManager.restore();
     });
   }
 
