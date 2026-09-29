@@ -90,11 +90,11 @@ const Router = {
     } else if (viewName === 'psychology') {
       this.headers.header1.classList.remove('hidden');
       this.headers.header2.classList.add('hidden');
-      this.headers.title.textContent = '심리학으로 알아보기';
+      this.headers.title.textContent = '𝗔𝗕𝗢𝗨𝗧 𝗠𝗘'; // 심리학에서도 항상 로고 고정
     } else if (viewName === 'saju') {
       this.headers.header1.classList.remove('hidden');
       this.headers.header2.classList.remove('hidden');
-      this.headers.title.textContent = 'ABOUT ME';
+      this.headers.title.textContent = '𝗔𝗕𝗢𝗨𝗧 𝗠𝗘'; // 명리학에서도 항상 로고 고정
     }
   }
 };
@@ -1204,6 +1204,17 @@ const ModalController = {
         await DB.set('settings', { id: 'vertex_config', value: vertexVal, updatedAt: Date.now() });
         await DB.set('settings', { id: 'firestore_config', value: firestoreVal, updatedAt: Date.now() });
         await DB.set('settings', { id: 'general_settings', outputMode: outputMode, updatedAt: Date.now() });
+      } else if (modalId === 'modal-add-saju') {
+        // [요구사항] 명식 추가 창이 닫힐 때 이름과 이미지가 있으면 자동 저장!
+        const nameInput = document.getElementById('saju-profile-name');
+        const name = nameInput ? nameInput.value.trim() : '';
+        if (name && SajuManager.tempImageData) {
+          await SajuManager.saveNewProfile(name, SajuManager.tempImageData);
+          nameInput.value = '';
+          const previewContainer = document.getElementById('saju-image-preview');
+          if (previewContainer) previewContainer.classList.add('hidden');
+          SajuManager.tempImageData = null;
+        }
       }
     } catch (e) {
       console.error('데이터 저장 실패:', e);
