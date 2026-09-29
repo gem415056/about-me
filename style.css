@@ -618,3 +618,169 @@ html, body {
   background-color: var(--bg-secondary);
   font-weight: 600;
 }
+
+/* ==========================================================================
+   8. 대화방 (Chat View) & 자석 하단 입력창 & 말풍선 스타일
+   ========================================================================== */
+.chat-view {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* 대화 메시지 스크롤 영역 */
+.chat-messages-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 16px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 말풍선 기본 공통 */
+.chat-bubble {
+  max-width: 86%;
+  padding: 13px 16px;
+  border-radius: 18px;
+  font-size: 0.92rem;
+  line-height: 1.58;
+  word-break: break-word;
+  animation: bubbleFadeIn 0.2s ease-out;
+}
+
+@keyframes bubbleFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 사용자 말풍선 (우측, 부드러운 웜베이지 카드톤) */
+.chat-bubble.user {
+  align-self: flex-end;
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-bottom-right-radius: 4px;
+  box-shadow: 0 2px 6px rgba(44, 40, 37, 0.04);
+}
+
+/* AI 말풍선 (좌측, 눈이 편안한 오트밀 톤) */
+.chat-bubble.model {
+  align-self: flex-start;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border-bottom-left-radius: 4px;
+}
+
+/* 하단 고정 입력 바 (가상 키보드 자석 부착 타겟) */
+.chat-input-bar {
+  flex-shrink: 0;
+  background-color: var(--bg-primary);
+  border-top: 1px solid var(--border-subtle);
+  padding: 10px 14px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 50;
+  transition: transform 0.1s ease-out;
+}
+
+/* 첨부된 명식 칩(태그) 컨테이너 */
+.attached-tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 72px;
+  overflow-y: auto;
+  padding: 2px 0;
+}
+
+.saju-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: 20px;
+  padding: 4px 10px 4px 12px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.saju-tag-remove {
+  background: none;
+  border: none;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 2px;
+  display: flex;
+  align-items: center;
+}
+
+.saju-tag-remove:active {
+  color: var(--text-primary);
+}
+
+/* 입력창 내부 래퍼 */
+.chat-input-inner {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 22px;
+  padding: 6px 8px 6px 16px;
+  box-shadow: 0 2px 8px rgba(44, 40, 37, 0.03);
+}
+
+.chat-textarea {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--text-primary);
+  resize: none;
+  max-height: 110px;
+  padding: 6px 0;
+  font-family: inherit;
+}
+
+.btn-send {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background-color: var(--text-primary);
+  color: var(--bg-card);
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.btn-send:active {
+  transform: scale(0.92);
+}
+
+.btn-send:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
