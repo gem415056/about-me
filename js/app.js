@@ -1160,7 +1160,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   KeyboardViewportManager.init(); // 가상 키보드 자석 고정 초기화
   Router.navigate('landing', false);
 
-  // 텍스트에어리어 자동 줄바꿈 및 Enter 전송 바인딩 (Shift+Enter는 줄바꿈)
+  // 전송 버튼 클릭 바인딩 (엔터키는 전송하지 않고 순수 줄바꿈으로 유지)
   const psychInput = document.getElementById('psychology-input');
   const sajuInput = document.getElementById('saju-input');
   const btnSendPsych = document.getElementById('btn-send-psychology');
@@ -1168,22 +1168,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (psychInput && btnSendPsych) {
     btnSendPsych.addEventListener('click', () => ChatManager.sendMessage('psychology'));
-    psychInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        ChatManager.sendMessage('psychology');
-      }
-    });
   }
 
   if (sajuInput && btnSendSaju) {
     btnSendSaju.addEventListener('click', () => ChatManager.sendMessage('saju'));
-    sajuInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        ChatManager.sendMessage('saju');
-      }
-    });
   }
 
   document.querySelectorAll('.chat-textarea').forEach(textarea => {
@@ -1244,16 +1232,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // 암전 오버레이 터치 시 열린 창 닫기
+  // 암전 오버레이 터치 시: 대화방을 이탈하지 않고 오직 열린 서랍/모달만 닫기
   const backdrop = document.getElementById('backdrop-overlay');
   if (backdrop) {
     backdrop.addEventListener('click', () => {
       if (ModalController.activeModalId) {
-        ModalController.close(true);
+        ModalController.close(false); // 라우터 이탈 없이 모달만 안전하게 닫기
       } else if (DrawerController.isOpenRight) {
-        DrawerController.closeRight(true);
+        DrawerController.closeRight(false); // 서랍만 닫기
       } else if (DrawerController.isOpenLeft) {
-        DrawerController.closeLeft(true);
+        DrawerController.closeLeft(false); // 서랍만 닫기
       }
     });
   }
