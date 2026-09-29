@@ -99,6 +99,62 @@ const Router = {
   }
 };
 
+// 5. 모바일 가상 키보드 자석 고정 관리자 (KeyboardViewportManager)
+const KeyboardViewportManager = {
+  container: document.getElementById('app-container'),
+
+  init() {
+    if (!window.visualViewport) return;
+
+    const onResize = () => {
+      // visualViewport 높이에 맞춰 컨테이너의 가시 영역을 정확히 일치시킴
+      const currentHeight = window.visualViewport.height;
+      this.container.style.height = `${currentHeight}px`;
+
+      // 활성화된 대화방의 스크롤을 맨 아래로 자연스럽게 유지
+      const activeChatScroll = document.querySelector('.view-section.active .chat-messages-container');
+      if (activeChatScroll) {
+        activeChatScroll.scrollTop = activeChatScroll.scrollHeight;
+      }
+    };
+
+    window.visualViewport.addEventListener('resize', onResize);
+    window.visualViewport.addEventListener('scroll', onResize);
+  }
+};
+
+// 6. 대화 UI 헬퍼 및 자동 스크롤 (ChatUI)
+const ChatUI = {
+  // 메시지 말풍선 화면 추가
+  appendMessage(containerId, role, content) {
+    const container = document.getElementById(containerId);
+    if (!container) return null;
+
+    const bubble = document.createElement('div');
+    bubble.className = `chat-bubble ${role}`;
+    bubble.textContent = content; // 마크다운 파서는 8단계에서 바인딩
+    container.appendChild(bubble);
+
+    // 새 메시지 추가 시 기본 스크롤 다운
+    container.scrollTop = container.scrollHeight;
+    return bubble;
+  },
+
+  // [요구사항] AI의 답변 도착 완료 시 답변 말풍선을 화면 최상단으로 주욱 올리는 부드러운 스크롤 애니메이션
+  scrollToMessageTop(bubbleEl) {
+    if (!bubbleEl) return;
+    const container = bubbleEl.closest('.chat-messages-container');
+    if (!container) return;
+
+    // 해당 말풍선의 container 기준 상대 offset 계산
+    const bubbleTop = bubbleEl.offsetTop - 12; // 상단 여백 12px 확보
+    container.scrollTo({
+      top: bubbleTop,
+      behavior: 'smooth'
+    });
+  }
+};
+
 // 4. 모달 관리자 & 닫힘 시 일괄 저장 (ModalController)
 const ModalController = {
   container: document.getElementById('modal-container'),
@@ -265,7 +321,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   NavStack.init();
+  KeyboardViewportManager.init(); // 가상 키보드 자석 고정 초기화
   Router.navigate('landing', false);
+
+  // 텍스트에어리어 입력 시 내용에 맞춰 높이 자동 조절
+  document.querySelectorAll('.chat-textarea').forEach(textarea => {
+    textarea.addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = (this.scrollHeight) + 'px';
+    });
+  });
 
   // 랜딩 화면 버튼 이벤트 바인딩
   const btnPsychology = document.getElementById('btn-start-psychology');
