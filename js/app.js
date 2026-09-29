@@ -880,7 +880,8 @@ const SessionManager = {
     listEl.innerHTML = '';
     filtered.forEach(session => {
       const item = document.createElement('div');
-      item.className = `chat-session-item ${session.id === ChatManager.currentSessionId ? 'active' : ''}`;
+      const isSelected = this.selectedForDeletion && this.selectedForDeletion[category] && this.selectedForDeletion[category].has(session.id);
+      item.className = `chat-session-item ${session.id === ChatManager.currentSessionId ? 'active' : ''} ${isSelected ? 'delete-selected' : ''}`;
       
       const dateStr = new Date(session.updatedAt).toLocaleDateString('ko-KR', {
         month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -892,7 +893,6 @@ const SessionManager = {
           <span class="session-date">${dateStr}</span>
         </div>
         <div class="session-actions">
-          <!-- 카드에는 수정 아이콘만 단정하게 유지 -->
           <button type="button" class="session-action-btn btn-edit-title" title="제목 수정">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pen"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>
           </button>
@@ -901,9 +901,9 @@ const SessionManager = {
 
       // 대화방 클릭 시: 삭제 모드면 선택/해제, 일반 모드면 대화방 불러오기
       item.addEventListener('click', (e) => {
-        if (e.target.closest('.btn-edit-title')) return; // 편집 버튼 클릭 시 제외
+        if (e.target.closest('.btn-edit-title')) return;
 
-        if (this.deleteMode[category]) {
+        if (this.deleteMode && this.deleteMode[category]) {
           const selectedSet = this.selectedForDeletion[category];
           if (selectedSet.has(session.id)) {
             selectedSet.delete(session.id);
@@ -913,43 +913,26 @@ const SessionManager = {
             item.classList.add('delete-selected');
           }
         } else {
-          DrawerController.closeLeft(false); // 튕김 없이 서랍만 닫고 로드
+          DrawerController.closeLeft(false);
           this.loadSession(session.id);
         }
       });
 
       // 제목 수정 클릭
-      item.querySelector('.btn-edit-title').addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const newTitle = prompt('대화방 제목을 입력하세요:', session.title);
-        if (newTitle && newTitle.trim()) {
-          session.title = newTitle.trim();
-          session.isCustomTitle = true; // 사용자가 직접 수정한 제목 표시 플래그
-          session.updatedAt = Date.now();
-          await DB.set('chat_sessions', session);
-          await this.renderSessionList(category);
-        }
-      });
-
-      // 대화방 삭제 클릭
-      item.querySelector('.btn-delete-session').addEventListener('click', async (e) => {
-        e.stopPropagation();
-        if (confirm('이 대화 기록을 완전히 삭제하시겠습니까?')) {
-          // 세션 및 메시지 DB 삭제
-          await DB.delete('chat_sessions', session.id);
-          const msgs = await DB.getByIndex('chat_messages', 'sessionId', session.id);
-          for (const m of msgs) {
-            await DB.delete('chat_messages', m.id);
-          }
-
-          // 현재 열려있던 대화방이면 새 대화로 초기화
-          if (ChatManager.currentSessionId === session.id) {
-            startFreshChat(category);
-          } else {
+      const btnEdit = item.querySelector('.btn-edit-title');
+      if (btnEdit) {
+        btnEdit.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const newTitle = prompt('대화방 제목을 입력하세요:', session.title);
+          if (newTitle && newTitle.trim()) {
+            session.title = newTitle.trim();
+            session.isCustomTitle = true;
+            session.updatedAt = Date.now();
+            await DB.set('chat_sessions', session);
             await this.renderSessionList(category);
           }
-        }
-      });
+        });
+      }
 
       listEl.appendChild(item);
     });
