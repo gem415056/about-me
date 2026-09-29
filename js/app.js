@@ -263,6 +263,151 @@ const MarkdownParser = {
   }
 };
 
+// 10. AI 멀티모달 통신 엔진 (AIEngine)
+const AIEngine = {
+  // Base64 Data URL에서 MIME 타입과 순수 바이너리 데이터 추출
+  extractBase64(dataUrl) {
+    const matches = dataUrl.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+    if (matches) {
+      return { mimeType: matches[1], data: matches[2] };
+    }
+    return { mimeType: 'image/jpeg', data: dataUrl };
+  },
+
+  // 멀티모달 페이로드 빌더 (프라이버시 엄수: 이름 제외, 이미지만 패키징)
+  buildContents(history, userText, attachedProfiles = []) {
+    const contents = [];
+
+    // 이전 대화 내역 포맷팅
+    history.forEach(msg => {
+      contents.push({
+        role: msg.role === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.content }]
+      });
+    });
+
+    // 현재 사용자 턴 조립
+    const currentParts = [];
+
+    // [핵심] 첨부된 명식 이미지가 있는 경우 이름은 완전히 제외하고 순수 이미지 바이너리만 첨부
+    if (attachedProfiles && attachedProfiles.length > 0) {
+      attachedProfiles.forEach(profile => {
+        const { mimeType, data } = this.extractBase64(profile.imageData);
+        currentParts.push({
+          inlineData: {
+            mimeType: mimeType,
+            data: data
+          }
+        });
+      });
+    }
+
+    // 사용자 텍스트 질문 추가
+    currentParts.push({ text: userText });
+    contents.push({ role: 'user', parts: currentParts });
+
+    return contents;
+  },
+
+  // AI 응답 요청 실행
+  async sendRequest({ category, userText, history, attachedProfiles, onChunk, onComplete, onError }) {
+    try {
+      // 1. 설정 및 프롬프트 로드
+      const geminiSetting = await DB.get('settings', 'gemini_api_key');
+      const generalSetting = await DB.get('settings', 'general_settings');
+      const promptData = await DB.get('prompts', category);
+
+      const apiKey = geminiSetting?.value?.trim();
+      const outputMode = generalSetting?.outputMode || 'stream';
+      const systemInstruction = promptData?.content?.trim() || '';
+
+      if (!apiKey) {
+        throw new Error('Gemini API 키가 설정되지 않았습니다. 좌측 서랍의 [설정] 메뉴에서 API 키를 먼저 입력해 주세요.');
+      }
+
+      // 2. 페이로드 생성
+      const contents = this.buildContents(history, userText, attachedProfiles);
+      const payload = {
+        contents: contents,
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 8192
+        }
+      };
+
+      if (systemInstruction) {
+        payload.systemInstruction = {
+          parts: [{ text: systemInstruction }]
+        };
+      }
+
+      // 3. 모드별 API 엔드포인트 분기 (스트리밍 vs 일시 출력)
+      const modelName = 'gemini-1.5-flash';
+      const endpoint = outputMode === 'stream'
+        ? `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:streamGenerateContent?alt=sse&key=${apiKey}`
+        : `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `통신 오류 (상태 코드: ${response.status})`);
+      }
+
+      // 4-A. 일시 출력 (Batch) 방식
+      if (outputMode === 'batch') {
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '답변을 생성하지 못했습니다.';
+        if (onComplete) onComplete(text);
+        return;
+      }
+
+      // 4-B. 스트리밍 (Stream SSE) 방식
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let accumulatedText = '';
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // 미완성된 마지막 줄 보존
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ')) {
+            const jsonStr = trimmed.substring(6);
+            if (jsonStr === '[DONE]') continue;
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const chunk = parsed.candidates?.[0]?.content?.parts?.[0]?.text || '';
+              if (chunk) {
+                accumulatedText += chunk;
+                if (onChunk) onChunk(accumulatedText, chunk);
+              }
+            } catch (err) {
+              // 불완전 JSON 패킷 무시
+            }
+          }
+        }
+      }
+
+      if (onComplete) onComplete(accumulatedText);
+
+    } catch (error) {
+      console.error('[AIEngine 오류]:', error);
+      if (onError) onError(error.message || '요청 처리 중 오류가 발생했습니다.');
+    }
+  }
+};
+
 // 9. 전체화면 보고서 오버레이 관리자 (ReportController)
 const ReportController = {
   view: document.getElementById('report-fullscreen-view'),
@@ -293,6 +438,116 @@ const ReportController = {
     if (triggerBack) {
       NavStack.pop();
     }
+  }
+};
+
+// 11. 대화 세션 및 메시지 송수신 매니저 (ChatManager)
+const ChatManager = {
+  currentSessionId: null,
+  activeHistory: [],
+  isGenerating: false,
+
+  // 메시지 전송 프로세스
+  async sendMessage(category) {
+    if (this.isGenerating) return;
+
+    const isPsychology = category === 'psychology';
+    const inputEl = document.getElementById(isPsychology ? 'psychology-input' : 'saju-input');
+    const sendBtn = document.getElementById(isPsychology ? 'btn-send-psychology' : 'btn-send-saju');
+    const containerId = isPsychology ? 'psychology-chat-messages' : 'saju-chat-messages';
+
+    const text = inputEl.value.trim();
+    const attachedProfiles = isPsychology ? [] : [...SajuManager.attachedProfiles];
+
+    // 입력값 유효성 검사 (명리학의 경우 이미지만 첨부하고 질문하는 것도 허용)
+    if (!text && attachedProfiles.length === 0) return;
+
+    // 1. 전송 UI 상태 잠금
+    this.isGenerating = true;
+    sendBtn.disabled = true;
+    inputEl.value = '';
+    inputEl.style.height = 'auto';
+
+    // 2. 사용자 말풍선 표시
+    let displayUserText = text;
+    if (!isPsychology && attachedProfiles.length > 0) {
+      const tagPrefix = attachedProfiles.map(p => `[${p.name}의 만세력]`).join(' ');
+      displayUserText = `${tagPrefix}\n${text}`.trim();
+    }
+    ChatUI.appendMessage(containerId, 'user', displayUserText);
+
+    // 3. 첨부 태그 컨테이너 초기화 (전송 완료 후 비우기)
+    if (!isPsychology) {
+      SajuManager.attachedProfiles = [];
+      SajuManager.renderAttachedTags();
+    }
+
+    // 4. AI 답변 말풍선 미리 생성 (로딩/스트리밍 표시용)
+    const modelBubble = ChatUI.appendMessage(containerId, 'model', '생각하는 중...');
+    let hasScrolledToTop = false;
+
+    // 5. AI 통신 호출
+    await AIEngine.sendRequest({
+      category: category,
+      userText: text || '만세력을 바탕으로 사주를 분석해 주세요.',
+      history: this.activeHistory,
+      attachedProfiles: attachedProfiles,
+
+      // 스트리밍 청크 수신 시
+      onChunk: (accumulatedText) => {
+        // [요구사항] AI 응답이 생성되기 시작하면 말풍선을 화면 최상단으로 주욱 올리는 애니메이션 1회 실행
+        if (!hasScrolledToTop) {
+          ChatUI.scrollToMessageTop(modelBubble);
+          hasScrolledToTop = true;
+        }
+
+        const extracted = MarkdownParser.extractReport(accumulatedText);
+        modelBubble.innerHTML = MarkdownParser.parse(extracted.chatContent || '답변 작성 중...');
+      },
+
+      // 통신 완료 시 (일시 출력 & 스트리밍 완료 공통)
+      onComplete: async (finalText) => {
+        // 일시 출력 모드일 때 스크롤 애니메이션 실행
+        if (!hasScrolledToTop) {
+          ChatUI.scrollToMessageTop(modelBubble);
+        }
+
+        // 최종 마크다운 및 보고서 카드 렌더링
+        const extracted = MarkdownParser.extractReport(finalText);
+        modelBubble.innerHTML = MarkdownParser.parse(extracted.chatContent || '');
+
+        if (extracted.hasReport) {
+          const reportCard = document.createElement('div');
+          reportCard.className = 'report-card-summary';
+          reportCard.innerHTML = `
+            <div class="report-card-info">
+              <span class="report-card-title">심층 분석 보고서</span>
+              <span class="report-card-desc">전문 분석 결과가 도착했습니다.</span>
+            </div>
+            <button type="button" class="btn-open-report">분석 보고서 열기</button>
+          `;
+          reportCard.querySelector('.btn-open-report').addEventListener('click', () => {
+            ReportController.open(extracted.reportContent);
+          });
+          modelBubble.appendChild(reportCard);
+        }
+
+        // 메모리 히스토리 업데이트
+        this.activeHistory.push({ role: 'user', content: displayUserText });
+        this.activeHistory.push({ role: 'model', content: finalText });
+
+        // 잠금 해제
+        this.isGenerating = false;
+        sendBtn.disabled = false;
+      },
+
+      // 오류 발생 시
+      onError: (errMsg) => {
+        modelBubble.innerHTML = `<span style="color: #9C413D;">⚠️ ${errMsg}</span>`;
+        this.isGenerating = false;
+        sendBtn.disabled = false;
+      }
+    });
   }
 };
 
@@ -570,7 +825,32 @@ document.addEventListener('DOMContentLoaded', async () => {
   KeyboardViewportManager.init(); // 가상 키보드 자석 고정 초기화
   Router.navigate('landing', false);
 
-  // 텍스트에어리어 입력 시 내용에 맞춰 높이 자동 조절
+  // 텍스트에어리어 자동 줄바꿈 및 Enter 전송 바인딩 (Shift+Enter는 줄바꿈)
+  const psychInput = document.getElementById('psychology-input');
+  const sajuInput = document.getElementById('saju-input');
+  const btnSendPsych = document.getElementById('btn-send-psychology');
+  const btnSendSaju = document.getElementById('btn-send-saju');
+
+  if (psychInput && btnSendPsych) {
+    btnSendPsych.addEventListener('click', () => ChatManager.sendMessage('psychology'));
+    psychInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        ChatManager.sendMessage('psychology');
+      }
+    });
+  }
+
+  if (sajuInput && btnSendSaju) {
+    btnSendSaju.addEventListener('click', () => ChatManager.sendMessage('saju'));
+    sajuInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        ChatManager.sendMessage('saju');
+      }
+    });
+  }
+
   document.querySelectorAll('.chat-textarea').forEach(textarea => {
     textarea.addEventListener('input', function() {
       this.style.height = 'auto';
