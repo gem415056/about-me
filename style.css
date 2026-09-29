@@ -535,18 +535,42 @@ html, body {
   pointer-events: auto;
 }
 
+/* 팝업 모달: 출렁거림 없는 고정 규격 */
 .app-modal {
   width: 100%;
   max-width: 440px;
-  max-height: 85%;
+  height: 520px; /* Firebase 스크립트 기준 고정 높이 */
   background-color: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: 20px;
+  border-radius: 22px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.12);
   overflow: hidden;
   animation: modalScaleUp 0.22s ease-out;
+}
+
+/* 프롬프트 모달: 넉넉한 개방감 (높이 600px 확장) */
+#modal-prompts {
+  height: 600px;
+}
+
+#modal-prompts .modal-textarea {
+  min-height: 380px;
+}
+
+/* 폼 그룹 간격 여유화 */
+.spacious-body {
+  display: flex;
+  flex-direction: column;
+  gap: 22px !important;
+  padding: 24px 20px !important;
+}
+
+.form-group-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 @keyframes modalScaleUp {
