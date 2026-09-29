@@ -69,7 +69,53 @@
     <div id="backdrop-overlay" class="backdrop-overlay hidden"></div>
 
     <!-- 좌측 글로벌 서랍 메뉴 컨테이너 -->
-    <aside id="left-drawer" class="drawer-container drawer-left"></aside>
+    <aside id="left-drawer" class="drawer-container drawer-left" aria-hidden="true">
+      <div class="drawer-content">
+        <!-- 1. 심리학 대화 기록 섹션 -->
+        <section class="drawer-section">
+          <div class="drawer-section-header">
+            <span class="drawer-section-title">심리학 대화 기록</span>
+            <button type="button" id="btn-new-psychology-chat" class="drawer-text-btn">+ 새 대화</button>
+          </div>
+          <div id="psychology-chat-list" class="drawer-list-scroll">
+            <div class="empty-list-notice">기록된 대화가 없습니다.</div>
+          </div>
+        </section>
+
+        <div class="drawer-divider"></div>
+
+        <!-- 2. 명리학 대화 기록 섹션 -->
+        <section class="drawer-section">
+          <div class="drawer-section-header">
+            <span class="drawer-section-title">명리학 대화 기록</span>
+            <button type="button" id="btn-new-saju-chat" class="drawer-text-btn">+ 새 대화</button>
+          </div>
+          <div id="saju-chat-list" class="drawer-list-scroll">
+            <div class="empty-list-notice">기록된 대화가 없습니다.</div>
+          </div>
+        </section>
+
+        <!-- 3. 하단 툴바 (프롬프트, API설정, 백업, 복원) -->
+        <div class="drawer-bottom-toolbar">
+          <button type="button" id="btn-open-prompts-modal" class="toolbar-btn" title="프롬프트 설정">
+            <span class="toolbar-icon">✎</span>
+            <span class="toolbar-label">프롬프트</span>
+          </button>
+          <button type="button" id="btn-open-api-modal" class="toolbar-btn" title="API 및 설정">
+            <span class="toolbar-icon">⚙</span>
+            <span class="toolbar-label">설정</span>
+          </button>
+          <button type="button" id="btn-cloud-backup" class="toolbar-btn" title="클라우드 백업">
+            <span class="toolbar-icon">☁↑</span>
+            <span class="toolbar-label">백업</span>
+          </button>
+          <button type="button" id="btn-cloud-restore" class="toolbar-btn" title="클라우드 복원">
+            <span class="toolbar-icon">☁↓</span>
+            <span class="toolbar-label">복원</span>
+          </button>
+        </div>
+      </div>
+    </aside>
 
     <!-- 우측 명식 서랍 메뉴 컨테이너 -->
     <aside id="right-saju-drawer" class="drawer-container drawer-right"></aside>
