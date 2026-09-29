@@ -172,17 +172,17 @@ html, body {
 }
 
 /* ==========================================================================
-   5. 랜딩 화면 (Landing View) - 가운데 아래쪽 황금비율 배치
+   5. 랜딩 화면 (Landing View) - 1.8배 여유 있는 패딩
    ========================================================================== */
 .landing-container {
   width: 100%;
   height: 100%;
-  padding: 40px 24px 24px 24px;
+  padding: 56px 36px 40px 36px; /* 기존 대비 약 1.8배 확장 */
   display: flex;
   flex-direction: column;
-  justify-content: center; /* 전체 세로 중앙 정렬 */
+  justify-content: center;
   align-items: center;
-  gap: 32px;
+  gap: 40px;
   background: radial-gradient(circle at 50% 30%, #FAF8F3 0%, var(--bg-primary) 100%);
 }
 
@@ -759,14 +759,14 @@ html, body {
   overflow: hidden;
 }
 
-/* 대화 메시지 스크롤 영역 */
+/* 대화 메시지 스크롤 영역: 1.8배 확장 패딩 */
 .chat-messages-container {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 16px 20px 16px;
+  padding: 24px 26px 32px 26px; /* 1.8배 시원한 여백 */
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 20px;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
 }
@@ -813,96 +813,100 @@ html, body {
   border-bottom-left-radius: 5px;
 }
 
-/* 말풍선 호버/터치 액션 버튼 바 (수정 / 삭제) */
-.bubble-action-bar {
+/* 메시지 래퍼 (말풍선 + 외곽 하단 액션 버튼 그룹) */
+.chat-message-row {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.chat-message-row.user {
+  align-items: flex-end;
+}
+
+.chat-message-row.model {
+  align-items: flex-start;
+}
+
+/* 말풍선 아예 끝난 바깥 하단 액션 버튼 바 */
+.bubble-action-bar-outside {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-  margin-top: 8px;
-  padding-top: 6px;
-  border-top: 1px solid rgba(216, 209, 197, 0.5);
+  gap: 8px;
+  margin-top: 4px;
+  padding: 0 4px;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
+
+.bubble-action-bar-outside:hover {
+  opacity: 1;
 }
 
 .bubble-action-btn {
   background: none;
   border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 3px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
-  border-radius: 6px;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: color 0.15s, background-color 0.15s;
+  border-radius: 4px;
 }
 
 .bubble-action-btn:active {
   color: var(--text-primary);
-  background-color: rgba(0, 0, 0, 0.05);
 }
 
-/* 인라인 메시지 수정 폼 (텍스트에어리어 + 하단 버튼) */
+/* 수정 폼: 기존 카드와 100% 동일한 배경과 크기 유지 */
 .bubble-edit-form {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .bubble-edit-textarea {
   width: 100%;
-  min-height: 80px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--border-strong);
-  background-color: var(--bg-primary);
+  min-height: 72px;
+  padding: 0;
+  border: none;
+  background: transparent; /* 카드 배경과 100% 일치 */
   color: var(--text-primary);
-  font-size: 0.92rem;
-  line-height: 1.5;
+  font-size: 0.94rem;
+  line-height: 1.66;
   font-family: inherit;
   outline: none;
   resize: vertical;
 }
 
-.bubble-edit-textarea:focus {
-  border-color: var(--text-primary);
-}
-
+/* 취소 & 확인: 촌스러운 배경 박스 전면 제거, 둘 다 우측 정렬 */
 .bubble-edit-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end; /* 둘 다 오른쪽 정렬 */
+  gap: 14px;
+  padding-top: 4px;
 }
 
 .btn-bubble-cancel, .btn-bubble-confirm {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-  border-radius: 10px;
-  font-size: 0.82rem;
+  background: none !important;
+  border: none !important;
+  color: var(--text-secondary); /* 동일한 은은한 텍스트 컬러 */
+  font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
-  border: 1px solid var(--border-subtle);
+  padding: 2px 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
-/* 좌측 취소 버튼 */
-.btn-bubble-cancel {
-  background-color: var(--bg-primary);
-  color: var(--text-secondary);
+.btn-bubble-cancel:active, .btn-bubble-confirm:active {
+  color: var(--text-primary);
 }
 
-/* 우측 확인 버튼 */
-.btn-bubble-confirm {
-  background-color: var(--text-primary);
-  color: var(--bg-card);
-  border-color: var(--text-primary);
-}
-
-.btn-bubble-confirm:active, .btn-bubble-cancel:active {
-  opacity: 0.85;
-}
 /* 하단 고정 플로팅 입력 바 */
 .chat-input-bar {
   flex-shrink: 0;
@@ -985,15 +989,15 @@ html, body {
   font-family: inherit;
 }
 
-/* 전송 버튼: 쨍한 블랙 배제 ➔ 눈이 편안한 은은한 웜 그레이톤 */
+/* 전송 버튼: 완벽한 원형(동그라미) & 눈이 편안한 소프트 웜그레이 */
 .btn-send {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  border: 1px solid var(--border-subtle);
-  background-color: #5A534C;
-  color: #F7F5F0;
-  font-size: 1.15rem;
+  width: 38px;
+  height: 38px;
+  border-radius: 50% !important; /* 완벽한 원형 */
+  border: none;
+  background-color: #7E756C; /* 눈이 시리지 않은 부드러운 소프트 웜그레이 */
+  color: #FAF8F5;
+  font-size: 1.1rem;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1004,7 +1008,13 @@ html, body {
 
 .btn-send:active {
   transform: scale(0.92);
-  background-color: #433D37;
+  background-color: #696058;
+}
+
+/* 명식 삭제 버튼: 추가 버튼(+)과 동일한 은은한 톤 */
+#btn-toggle-delete-saju svg {
+  color: var(--text-secondary);
+  opacity: 0.85;
 }
 
 /* 헤더 로고 */
@@ -1062,9 +1072,9 @@ html, body {
   transform: rotate(180deg);
 }
 
-/* 우측 서랍: 3D GPU 가속으로 삐걱거림 완전 제거 */
+/* 우측 서랍: 헤더 1 바로 아래부터 열림 */
 .drawer-right {
-  top: calc(var(--header-height) + var(--sub-header-height));
+  top: var(--header-height);
   right: 0;
   transform: translate3d(100%, 0, 0);
   border-left: 1px solid var(--border-subtle);
