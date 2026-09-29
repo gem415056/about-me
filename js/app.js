@@ -464,8 +464,17 @@ const AIEngine = {
         };
       }
 
-      // 3. 모드별 API 엔드포인트 분기 (스트리밍 vs 일시 출력)
-      const modelName = 'gemini-1.5-flash';
+      // 3. 설정된 모델명 및 안전필터 Payload 결합
+      const modelName = generalSetting?.model || 'gemini-3.1-pro-preview';
+      const safety = generalSetting?.safety || {};
+
+      payload.safetySettings = [
+        { category: 'HARM_CATEGORY_HARASSMENT', threshold: safety.harassment || 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: safety.hate || 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: safety.sex || 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: safety.danger || 'BLOCK_NONE' }
+      ];
+
       const endpoint = outputMode === 'stream'
         ? `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:streamGenerateContent?alt=sse&key=${apiKey}`
         : `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
@@ -1149,31 +1158,50 @@ const ChatUI = {
         </button>
       `;
 
-      // 수정 클릭 시: 기존 카드와 100% 동일한 배경/크기 폼으로 전환
+      // 수정 클릭 시: 기존 말풍선 카드 크기 100% 유지 & 바깥 아래쪽에 [취소 SVG] [확인 SVG] 배치
       actionBar.querySelector('.btn-edit-msg').addEventListener('click', () => {
         contentDiv.classList.add('hidden');
         actionBar.classList.add('hidden');
 
-        const editForm = document.createElement('div');
-        editForm.className = 'bubble-edit-form';
-        editForm.innerHTML = `
-          <textarea class="bubble-edit-textarea">${currentRaw}</textarea>
-          <div class="bubble-edit-actions">
-            <button type="button" class="btn-bubble-cancel">취소</button>
-            <button type="button" class="btn-bubble-confirm">확인</button>
-          </div>
+        // 기존 말풍선의 정확한 너비 유지 (쪼그라듬 방지)
+        const currentBubbleWidth = bubble.offsetWidth;
+        if (currentBubbleWidth > 0) {
+          bubble.style.width = `${currentBubbleWidth}px`;
+        }
+
+        const editArea = document.createElement('textarea');
+        editArea.className = 'bubble-edit-textarea';
+        editArea.style.cssText = 'width:100%; min-height:80px; padding:0; border:none; background:transparent; font-family:inherit; font-size:inherit; line-height:inherit; color:inherit; outline:none; resize:none;';
+        editArea.value = currentRaw;
+        bubble.appendChild(editArea);
+
+        // [취소] [확인] 버튼 바는 말풍선 바깥 아래쪽 우측에 배치
+        const outsideEditBar = document.createElement('div');
+        outsideEditBar.className = 'bubble-action-bar-outside';
+        outsideEditBar.style.cssText = 'display:flex; justify-content:flex-end; gap:12px; margin-top:6px;';
+        outsideEditBar.innerHTML = `
+          <button type="button" class="btn-bubble-cancel" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; display:inline-flex; align-items:center; gap:4px; font-size:0.8rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            <span>취소</span>
+          </button>
+          <button type="button" class="btn-bubble-confirm" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; display:inline-flex; align-items:center; gap:4px; font-size:0.8rem; font-weight:600;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check"><path d="M20 6 9 17l-5-5"/></svg>
+            <span>확인</span>
+          </button>
         `;
 
         // 취소 클릭
-        editForm.querySelector('.btn-bubble-cancel').addEventListener('click', () => {
-          editForm.remove();
+        outsideEditBar.querySelector('.btn-bubble-cancel').addEventListener('click', () => {
+          editArea.remove();
+          outsideEditBar.remove();
+          bubble.style.width = '';
           contentDiv.classList.remove('hidden');
           actionBar.classList.remove('hidden');
         });
 
         // 확인 클릭: DB 저장 및 다음 Payload 완벽 동기화
-        editForm.querySelector('.btn-bubble-confirm').addEventListener('click', async () => {
-          const updatedText = editForm.querySelector('.bubble-edit-textarea').value.trim();
+        outsideEditBar.querySelector('.btn-bubble-confirm').addEventListener('click', async () => {
+          const updatedText = editArea.value.trim();
           if (!updatedText) return;
 
           currentRaw = updatedText;
@@ -1192,12 +1220,14 @@ const ChatUI = {
             ChatManager.activeHistory[historyIdx].content = updatedText;
           }
 
-          editForm.remove();
+          editArea.remove();
+          outsideEditBar.remove();
+          bubble.style.width = '';
           contentDiv.classList.remove('hidden');
           actionBar.classList.remove('hidden');
         });
 
-        bubble.appendChild(editForm);
+        row.appendChild(outsideEditBar);
       });
 
       // 삭제 클릭
@@ -1320,6 +1350,15 @@ const ModalController = {
         document.querySelectorAll('#dropdown-output-menu .dropdown-item').forEach(item => {
           item.classList.toggle('selected', item.dataset.value === outputMode);
         });
+
+        // 모델 및 안전필터 복원
+        if (general?.model) document.getElementById('select-gemini-model').value = general.model;
+        if (general?.safety) {
+          if (general.safety.harassment) document.getElementById('safety-harassment').value = general.safety.harassment;
+          if (general.safety.hate) document.getElementById('safety-hate').value = general.safety.hate;
+          if (general.safety.sex) document.getElementById('safety-sex').value = general.safety.sex;
+          if (general.safety.danger) document.getElementById('safety-danger').value = general.safety.danger;
+        }
       }
     } catch (e) {
       console.error('데이터 로드 실패:', e);
@@ -1344,7 +1383,21 @@ const ModalController = {
         await DB.set('settings', { id: 'gemini_api_key', value: geminiVal, updatedAt: Date.now() });
         await DB.set('settings', { id: 'vertex_config', value: vertexVal, updatedAt: Date.now() });
         await DB.set('settings', { id: 'firestore_config', value: firestoreVal, updatedAt: Date.now() });
-        await DB.set('settings', { id: 'general_settings', outputMode: outputMode, updatedAt: Date.now() });
+        const selectedModel = document.getElementById('select-gemini-model').value;
+        const safetySettings = {
+          harassment: document.getElementById('safety-harassment').value,
+          hate: document.getElementById('safety-hate').value,
+          sex: document.getElementById('safety-sex').value,
+          danger: document.getElementById('safety-danger').value
+        };
+
+        await DB.set('settings', {
+          id: 'general_settings',
+          outputMode: outputMode,
+          model: selectedModel,
+          safety: safetySettings,
+          updatedAt: Date.now()
+        });
       } else if (modalId === 'modal-add-saju') {
         // [요구사항] 명식 추가 창이 닫힐 때 이름과 이미지가 있으면 자동 저장!
         const nameInput = document.getElementById('saju-profile-name');
