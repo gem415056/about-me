@@ -1752,14 +1752,17 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   white-space: nowrap;
 }
 
-/* 슬릭 게이지 프로그레스 바 트랙 */
+/* 슬릭 게이지 프로그레스 바 트랙 (시작부터 채우는 막대형) */
 .gauge-visual-track {
   width: 100%;
   height: 8px;
   background-color: #E8E3D9;
   border-radius: 999px;
-  overflow: hidden;
   position: relative;
+}
+
+.gauge-type-bar {
+  overflow: hidden;
 }
 
 .gauge-visual-bar {
@@ -1767,4 +1770,22 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   background: linear-gradient(90deg, #5A524A 0%, #352F2B 100%);
   border-radius: 999px;
   transition: width 0.3s ease;
+}
+
+/* 스펙트럼 포인터 게이지 트랙 (중간 지점 슬라이더 썸 형태) */
+.gauge-type-pointer {
+  overflow: visible;
+}
+
+.gauge-pointer-thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #3E4236;
+  border: 2.5px solid #F8F7F3;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
+  transition: left 0.3s ease;
 }
