@@ -11,12 +11,19 @@ const INITIAL_GREETINGS = {
 // 1. 뒤로가기 제스처 1단계 정밀 제어 관리자 (History Stack Manager)
 const NavStack = {
   stack: [],
+  isProgrammaticBack: false,
 
   init() {
     // 최초 상태 저장
     history.replaceState({ depth: 0, view: 'landing' }, '');
 
     window.addEventListener('popstate', (e) => {
+      // 닫기 버튼 등으로 인한 프로그램적 history.back()인 경우 라우터 이동 방지
+      if (this.isProgrammaticBack) {
+        this.isProgrammaticBack = false;
+        return;
+      }
+
       if (this.stack.length > 0) {
         // 스택에 열려있는 모달/서랍/오버레이가 있다면 가장 최근 것 하나만 닫기
         const topItem = this.stack.pop();
@@ -42,6 +49,7 @@ const NavStack = {
   pop() {
     if (this.stack.length > 0) {
       this.stack.pop();
+      this.isProgrammaticBack = true;
       history.back();
     }
   }
@@ -319,7 +327,7 @@ const SajuManager = {
 
 // 8. 경량 마크다운 파서 & 안전화된 보고서 감지 & 게이지 비주얼 렌더러 (MarkdownParser)
 const MarkdownParser = {
-  // [핵심 1] 안전화된 보고서 분리 추출기 (태그 엔터 누락 or 태그 완전 누락 대비)
+  // [핵심 1] 안전화된 보고서 분리 추출기 (보고서 발견 시 대화창에는 일체 텍스트 미노출, 순수 버튼만)
   extractReport(rawText) {
     if (!rawText) return { hasReport: false, reportContent: '', chatContent: '' };
 
@@ -329,12 +337,10 @@ const MarkdownParser = {
 
     if (explicitMatch) {
       const reportText = explicitMatch[1].trim();
-      // 채팅 말풍선에는 태그만 제거한 전체 텍스트를 온전히 표시하여 중간 끊김 방지!
-      const cleanedChat = rawText.replace(/\[REPORT_START\]/gi, '').replace(/\[REPORT_END\]/gi, '').trim();
       return {
         hasReport: true,
         reportContent: reportText,
-        chatContent: cleanedChat
+        chatContent: ''
       };
     }
 
@@ -347,7 +353,7 @@ const MarkdownParser = {
       return {
         hasReport: true,
         reportContent: rawText.substring(reportStartIdx).trim(),
-        chatContent: rawText.trim()
+        chatContent: ''
       };
     }
 
@@ -358,103 +364,138 @@ const MarkdownParser = {
     };
   },
 
-  // [핵심 2] 마크다운 테이블 내 아스키 게이지(░)를 자로 잰 듯 일렬 정렬된 게이지 바로 변환
-  parseGaugeTable(tableMarkdown) {
-    const lines = tableMarkdown.trim().split('\n').filter(l => l.trim().startsWith('|'));
-    if (lines.length < 2) return tableMarkdown;
+  // [핵심 2] 마크다운 테이블 파서 (아스키 게이지 바 ░░█ 자동 시각화 포함)
+  parseMarkdownTable(text) {
+    return text.replace(/(?:^[ \t]*\|[^\n]+\|[ \t]*(?:\n|$)){2,}/gm, (tableMarkdown) => {
+      const lines = tableMarkdown.trim().split('\n').map(l => l.trim()).filter(l => l.startsWith('|'));
+      if (lines.length < 2) return tableMarkdown;
 
-    const headerLine = lines[0];
-    const headers = headerLine.split('|').map(s => s.trim()).filter(Boolean);
-    const dataLines = lines.slice(2); // 구분선 제외 데이터 행
+      // 구분선 행 확인 (예: | :--- | :--- | :---: |)
+      const separatorIdx = lines.findIndex((l, idx) => idx > 0 && /^[|:\s-]+$/.test(l));
+      if (separatorIdx === -1) return tableMarkdown;
 
-    const isFourCol = headers.length === 4; // 융의 인지기능 위계(4열) 여부
+      const headerLine = lines[0];
+      const headers = headerLine.split('|').map(s => s.trim()).filter(Boolean);
+      const dataLines = lines.filter((l, idx) => idx !== 0 && idx !== separatorIdx);
 
-    let tableHtml = `<table class="report-gauge-table">`;
-    tableHtml += `<thead><tr>`;
-    headers.forEach((h, idx) => {
-      let colClass = '';
-      if (idx === 0) colClass = 'col-label';
-      else if (isFourCol && idx === 1) colClass = 'col-sub-label';
-      else if ((isFourCol && idx === 2) || (!isFourCol && idx === 1)) colClass = 'col-gauge-track';
-      else colClass = 'col-percent';
-      tableHtml += `<th class="${colClass}">${h}</th>`;
-    });
-    tableHtml += `</tr></thead><tbody>`;
+      const hasGauge = tableMarkdown.includes('░') || tableMarkdown.includes('█') || lines.some(l => l.includes('%'));
 
-    dataLines.forEach(line => {
-      const cells = line.split('|').map(s => s.trim()).filter(Boolean);
-      if (cells.length < headers.length) return;
-
-      tableHtml += `<tr>`;
-      cells.forEach((cell, idx) => {
-        // 게이지 열 감지: ░ 또는 █ 가 포함된 열
-        if (cell.includes('░') || cell.includes('█')) {
-          // 마지막 열이나 인접 열에서 퍼센트 수치 추출
-          const percentMatch = line.match(/(\d+)%/);
-          const percentVal = percentMatch ? Math.min(100, Math.max(0, parseInt(percentMatch[1], 10))) : 0;
-
-          tableHtml += `<td class="col-gauge-track">
-            <div class="gauge-visual-track">
-              <div class="gauge-visual-bar" style="width: ${percentVal}%;"></div>
-            </div>
-          </td>`;
-        } else if (/^\d+%$/.test(cell.replace(/\s/g, ''))) {
-          // 수치 열
-          tableHtml += `<td class="col-percent">${cell}</td>`;
-        } else {
-          // 레이블 열
-          const labelClass = idx === 0 ? 'col-label' : 'col-sub-label';
-          tableHtml += `<td class="${labelClass}">${cell}</td>`;
+      let tableHtml = `<div class="report-table-wrapper"><table class="${hasGauge ? 'report-gauge-table' : 'report-standard-table'}">`;
+      tableHtml += `<thead><tr>`;
+      headers.forEach((h, idx) => {
+        let colClass = '';
+        if (hasGauge) {
+          if (idx === 0) colClass = 'col-label';
+          else if (headers.length === 4 && idx === 1) colClass = 'col-sub-label';
+          else if ((headers.length === 4 && idx === 2) || (headers.length === 3 && idx === 1)) colClass = 'col-gauge-track';
+          else colClass = 'col-percent';
         }
+        tableHtml += `<th class="${colClass}">${h}</th>`;
       });
-      tableHtml += `</tr>`;
-    });
+      tableHtml += `</tr></thead><tbody>`;
 
-    tableHtml += `</tbody></table>`;
-    return tableHtml;
+      dataLines.forEach(line => {
+        const cells = line.split('|').map(s => s.trim());
+        if (cells.length > 0 && cells[0] === '') cells.shift();
+        if (cells.length > 0 && cells[cells.length - 1] === '') cells.pop();
+        if (cells.length === 0) return;
+
+        tableHtml += `<tr>`;
+        cells.forEach((cell, idx) => {
+          if (cell.includes('░') || cell.includes('█')) {
+            const percentMatch = line.match(/(\d+)%/);
+            const percentVal = percentMatch ? Math.min(100, Math.max(0, parseInt(percentMatch[1], 10))) : 0;
+            tableHtml += `<td class="col-gauge-track">
+              <div class="gauge-visual-track">
+                <div class="gauge-visual-bar" style="width: ${percentVal}%;"></div>
+              </div>
+            </td>`;
+          } else if (/^\d+%$/.test(cell.replace(/\s/g, ''))) {
+            tableHtml += `<td class="col-percent">${cell}</td>`;
+          } else {
+            let colClass = '';
+            if (hasGauge) {
+              colClass = idx === 0 ? 'col-label' : 'col-sub-label';
+            }
+            tableHtml += `<td class="${colClass}">${cell}</td>`;
+          }
+        });
+        tableHtml += `</tr>`;
+      });
+
+      tableHtml += `</tbody></table></div>`;
+      return tableHtml;
+    });
   },
 
-  // 전체 마크다운 파서 본체
+  // [핵심 3] 불릿 및 순서 목록 파서 (하위 들여쓰기 설명문 완벽 통합)
+  parseLists(text) {
+    // 1. 번호 매겨진 목록 (1. 2. 3.)
+    text = text.replace(/(?:^[ \t]*\d+\.[ \t]+.+?(?:\n[ \t]{2,}.+?)*(\n|$))+/gm, (match) => {
+      const rawItems = match.trim().split(/\n(?=[ \t]*\d+\.[ \t]+)/);
+      const items = rawItems.map(item => {
+        const cleaned = item.replace(/^[ \t]*\d+\.[ \t]+/, '').replace(/\n[ \t]{2,}/g, ' ');
+        return `<li>${cleaned.trim()}</li>`;
+      }).join('');
+      return `<ol>${items}</ol>`;
+    });
+
+    // 2. 불릿 목록 (- or *)
+    text = text.replace(/(?:^[ \t]*[-*][ \t]+.+?(?:\n[ \t]{2,}.+?)*(\n|$))+/gm, (match) => {
+      const rawItems = match.trim().split(/\n(?=[ \t]*[-*][ \t]+)/);
+      const items = rawItems.map(item => {
+        const cleaned = item.replace(/^[ \t]*[-*][ \t]+/, '').replace(/\n[ \t]{2,}/g, ' ');
+        return `<li>${cleaned.trim()}</li>`;
+      }).join('');
+      return `<ul>${items}</ul>`;
+    });
+
+    return text;
+  },
+
+  // [핵심 4] 마크다운 본체 파서
   parse(text) {
     if (!text) return '';
 
-    // 테이블 블록 먼저 감지 및 변환
-    let processed = text.replace(/(\|.+?\|\n\|[-:\s|]+?\n(?:\|.+?\|\n?)+)/g, (match) => {
-      if (match.includes('░') || match.includes('█') || match.includes('%')) {
-        return this.parseGaugeTable(match);
-      }
-      return match;
-    });
+    // 1. CRLF 개행 표준화
+    let processed = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
-    // 1. 헤더 (1px 단위 미세 밸런스)
+    // 2. 마크다운 테이블 변환
+    processed = this.parseMarkdownTable(processed);
+
+    // 3. 헤더 변환
     processed = processed.replace(/^### (.*$)/gim, '<h3>$1</h3>');
     processed = processed.replace(/^## (.*$)/gim, '<h2>$1</h2>');
     processed = processed.replace(/^# (.*$)/gim, '<h1>$1</h1>');
 
-    // 2. 인용구 (> 문장) - 웜 다크 하이라이트
+    // 4. 인용구 (> 문장)
     processed = processed.replace(/^>\s?(.*)$/gm, '<blockquote>$1</blockquote>');
     processed = processed.replace(/<\/blockquote>\n<blockquote>/g, '<br>');
 
-    // 3. 볼드 + 이탤릭 (***텍스트***)
+    // 5. 볼드체 및 이탤릭체
     processed = processed.replace(/\*\*\*([\s\S]+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-
-    // 4. 볼드체 (**텍스트** 또는 __텍스트__)
     processed = processed.replace(/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>');
     processed = processed.replace(/__([\s\S]+?)__/g, '<strong>$1</strong>');
-
-    // 5. 이탤릭 (*텍스트* 또는 _텍스트_)
     processed = processed.replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, '<em>$1</em>');
     processed = processed.replace(/(?<!_)_([^_\n]+?)_(?!_)/g, '<em>$1</em>');
 
-    // 5. 구분선 (---)
+    // 6. 구분선
     processed = processed.replace(/^---$/gim, '<hr>');
 
-    // 6. 줄바꿈 (테이블 태그 내부 제외 자연스러운 br 변환)
-    const parts = processed.split(/(<table[\s\S]*?<\/table>)/g);
-    processed = parts.map(part => {
-      if (part.startsWith('<table')) return part;
-      return part.replace(/\n/g, '<br>');
-    }).join('');
+    // 7. 목록(List) 변환
+    processed = this.parseLists(processed);
+
+    // 8. 단락(<p>) 및 자연스러운 여백 처리 (과도한 <br> 누적 방지)
+    const blocks = processed.split(/\n{2,}/);
+    processed = blocks.map(block => {
+      const trimmed = block.trim();
+      if (!trimmed) return '';
+      // 이미 블록 레벨 태그로 시작하는 경우 p 태그로 감싸지 않음
+      if (/^<(h[1-6]|table|div|ul|ol|blockquote|hr)/i.test(trimmed)) {
+        return trimmed;
+      }
+      return `<p>${trimmed.replace(/\n/g, '<br>')}</p>`;
+    }).filter(Boolean).join('');
 
     return processed;
   }
@@ -666,8 +707,7 @@ const VertexManager = {
     const modelConfig = {
       model: cleanModel,
       generationConfig: {
-        temperature: payload.generationConfig?.temperature ?? 0.7,
-        maxOutputTokens: payload.generationConfig?.maxOutputTokens ?? 8192
+        temperature: payload.generationConfig?.temperature ?? 0.7
       },
       safetySettings: payload.safetySettings || []
     };
@@ -831,8 +871,7 @@ const AIEngine = {
       const payload = {
         contents: contents,
         generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 8192
+          temperature: 0.7
         }
       };
 
@@ -1137,6 +1176,12 @@ const ReportController = {
     this.isOpen = false;
     this.view.classList.add('hidden');
     this.body.innerHTML = '';
+
+    // 이전 대화 뷰 화면 표시 유지 보장
+    if (Router.currentView === 'chat') {
+      const chatView = document.getElementById('view-chat');
+      if (chatView) chatView.classList.remove('hidden');
+    }
 
     if (triggerBack) {
       NavStack.pop();
@@ -1682,22 +1727,24 @@ const ChatUI = {
     const renderInnerContent = () => {
       if (role === 'model') {
         const extracted = MarkdownParser.extractReport(currentRaw);
-        contentDiv.innerHTML = MarkdownParser.parse(extracted.chatContent || '');
-
         if (extracted.hasReport) {
+          // 사용자 명확한 요구사항: 보고서 생성 시 대화창에는 본문 없이 오직 열기 버튼만 노출
+          contentDiv.innerHTML = '';
           const reportCard = document.createElement('div');
           reportCard.className = 'report-card-summary';
           reportCard.innerHTML = `
             <div class="report-card-info">
               <span class="report-card-title">심층 분석 보고서</span>
-              <span class="report-card-desc">전문 분석 결과가 도착했습니다.</span>
+              <span class="report-card-desc">전문 분석 보고서 생성이 완료되었습니다.</span>
             </div>
-            <button type="button" class="btn-open-report">분석 보고서 열기</button>
+            <button type="button" class="btn-open-report">심층 분석 보고서 열기</button>
           `;
           reportCard.querySelector('.btn-open-report').addEventListener('click', () => {
             ReportController.open(extracted.reportContent);
           });
           contentDiv.appendChild(reportCard);
+        } else {
+          contentDiv.innerHTML = MarkdownParser.parse(currentRaw);
         }
       } else {
         contentDiv.innerHTML = MarkdownParser.parse(currentRaw);
