@@ -598,9 +598,34 @@ const VertexManager = {
     return { app, vertex, appCheck: this.appCheckInstance };
   },
 
+  // App Check 토큰 발급 및 진단
+  async getAppCheckToken() {
+    if (!this.appCheckInstance) return null;
+    try {
+      const { getToken } = await import("https://www.gstatic.com/firebasejs/11.4.0/firebase-app-check.js");
+      const tokenResult = await getToken(this.appCheckInstance, false);
+      if (tokenResult?.token) {
+        console.log('[Firebase App Check] 유효한 토큰 획득 성공');
+        return tokenResult.token;
+      }
+      return null;
+    } catch (err) {
+      console.warn('[Firebase App Check 토큰 발급 오류]:', err);
+      const msg = err.message || '';
+      if (msg.includes('domain') || msg.includes('Domain') || msg.includes('origin') || msg.includes('Origin') || msg.includes('network') || msg.includes('recaptcha')) {
+        throw new Error(`reCAPTCHA 도메인 불일치: 현재 접속 주소(${window.location.hostname})가 Google reCAPTCHA 콘솔의 [도메인 허용 목록]에 등록되어 있지 않습니다. reCAPTCHA 콘솔에서 '${window.location.hostname}' (또는 'run.app')을 도메인 목록에 추가해 주세요.`);
+      }
+      throw err;
+    }
+  },
+
   // Firebase Vertex AI 통신 요청 (스트리밍 및 배치 공통 지원)
   async sendRequest({ config, modelName, payload, isStream, onChunk, onComplete }) {
     const { vertex } = await this.init(config);
+    // App Check 토큰 발급 확인 (오류 시 정확한 진단 메시지 발생)
+    if (config.recaptchaSiteKey) {
+      await this.getAppCheckToken();
+    }
     const { getGenerativeModel } = await import("https://www.gstatic.com/firebasejs/11.4.0/firebase-vertexai.js");
 
     const cleanModel = modelName.replace(/^models\//, '');
@@ -837,28 +862,43 @@ const AIEngine = {
         } catch (vertexErr) {
           console.warn('[Firebase Vertex AI 호출 실패]:', vertexErr);
           const vMsg = vertexErr.message || '';
-          if (vMsg.includes('blocked') || vMsg.includes('AppCheck') || vMsg.includes('app-check') || vMsg.includes('GenerativeService.GenerateContent')) {
-            throw new Error(`Firebase App Check 인증이 필요합니다. [설정] ➔ [Firebase Vertex AI & App Check] 탭에서 reCAPTCHA 사이트 키(6L...)를 입력해 주세요. (현재 접속 주소: ${window.location.hostname})`);
+          if (vMsg.includes('reCAPTCHA') || vMsg.includes('도메인')) {
+            throw vertexErr;
           }
 
           // 만약 Firebase SDK 호출이 실패했으나 firebaseConfig 안에 apiKey가 있는 경우 Google Direct Gemini API로 완벽 폴백
           if (parsedVertexConfig.apiKey) {
             console.log('[AIEngine] Firebase Config 내 apiKey로 Google API 직접 통신을 재시도합니다.');
             const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:${action}${sep}key=${parsedVertexConfig.apiKey}`;
+            const reqHeaders = {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': parsedVertexConfig.apiKey
+            };
+
+            const appCheckToken = await VertexManager.getAppCheckToken().catch(() => null);
+            if (appCheckToken) {
+              reqHeaders['X-Firebase-AppCheck'] = appCheckToken;
+            }
+
             const directRes = await fetch(directUrl, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: reqHeaders,
               body: JSON.stringify(payload)
             });
+
             if (directRes.ok) {
               response = directRes;
             } else {
               const errData = await directRes.json().catch(() => ({}));
               const dMsg = errData.error?.message || '';
               if (dMsg.includes('blocked') || dMsg.includes('GenerativeService.GenerateContent')) {
-                throw new Error(`Firebase App Check 차단: 프로젝트에 App Check 보안이 적용되어 있어 토큰이 필수입니다. [설정] 메뉴의 [App Check reCAPTCHA Site Key] 입력란에 reCAPTCHA 사이트 키(6L...)를 등록해 주세요.`);
+                if (!appCheckToken) {
+                  throw new Error(`Firebase App Check 인증 실패: reCAPTCHA 토큰이 발급되지 않아 Google API에서 차단되었습니다. 현재 접속 주소(${window.location.hostname})가 Google reCAPTCHA 콘솔의 [도메인 허용 목록]에 등록되어 있는지 확인해 주세요. (GitHub Pages에 배포 후 접속 시에는 정상 통과됩니다)`);
+                } else {
+                  throw new Error(`Firebase App Check 인증 거부: 발급된 토큰이 Firebase 프로젝트에서 승인되지 않았습니다. Firebase 콘솔의 [App Check]에 등록된 reCAPTCHA 키와 사이트 키가 일치하는지 확인해 주세요.`);
+                }
               }
-              throw new Error(dMsg || `Firebase Vertex AI 통신 실패: ${vertexErr.message}`);
+              throw new Error(dMsg || `Firebase 통신 실패: ${vertexErr.message}`);
             }
           } else {
             throw new Error(`Firebase Vertex AI 통신 실패: ${vertexErr.message}`);
@@ -2401,6 +2441,43 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (reasoningSelect && reasoningBudgetWrapper) {
     reasoningSelect.addEventListener('change', () => {
       reasoningBudgetWrapper.classList.toggle('hidden', reasoningSelect.value !== 'budget');
+    });
+  }
+
+  // App Check 토큰 발급 실시간 진단 테스트 버튼
+  const btnTestAppCheck = document.getElementById('btn-test-appcheck');
+  const appCheckResultEl = document.getElementById('appcheck-test-result');
+  if (btnTestAppCheck && appCheckResultEl) {
+    btnTestAppCheck.addEventListener('click', async () => {
+      appCheckResultEl.innerHTML = '<span style="color: var(--text-secondary);">⏳ App Check 토큰 발급 테스트 중...</span>';
+      btnTestAppCheck.disabled = true;
+
+      try {
+        const vertexConfigVal = document.getElementById('setting-vertex-config')?.value || '';
+        const siteKeyVal = document.getElementById('setting-recaptcha-sitekey')?.value || '';
+        const typeVal = document.querySelector('input[name="recaptcha-type"]:checked')?.value || 'enterprise';
+
+        const config = VertexManager.parseConfig(vertexConfigVal, siteKeyVal, typeVal);
+        if (!config || !config.projectId) {
+          throw new Error('상단의 Firebase Config(projectId 및 apiKey)를 먼저 입력해 주세요.');
+        }
+        if (!config.recaptchaSiteKey) {
+          throw new Error('reCAPTCHA 사이트 키(6L...)를 입력해 주세요.');
+        }
+
+        await VertexManager.init(config);
+        const token = await VertexManager.getAppCheckToken();
+        if (token) {
+          appCheckResultEl.innerHTML = `<span style="color: #4CAF50; font-weight: 600;">✅ App Check 토큰 발급 성공!</span><br><span style="color: var(--text-secondary); word-break: break-all;">(토큰: ${token.substring(0, 16)}... 정상 인증됨. 현재 도메인: ${window.location.hostname})</span>`;
+        } else {
+          appCheckResultEl.innerHTML = `<span style="color: #E57373;">⚠️ 토큰이 반환되지 않았습니다. 사이트 키와 도메인(${window.location.hostname}) 설정을 확인하세요.</span>`;
+        }
+      } catch (err) {
+        console.error('[App Check 테스트 실패]:', err);
+        appCheckResultEl.innerHTML = `<span style="color: #E57373; font-weight: 600;">❌ 발급 실패:</span> <span style="color: var(--text-primary); font-size: 0.78rem;">${err.message}</span>`;
+      } finally {
+        btnTestAppCheck.disabled = false;
+      }
     });
   }
 });

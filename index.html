@@ -7,7 +7,7 @@
   <meta name="description" content="나를 깊이 이해하는 두 가지 여정: 심리학과 명리학 기반 심층 분석 대화형 웹 애플리케이션">
   <meta property="og:title" content="ABOUT ME">
   <meta property="og:description" content="나를 깊이 이해하는 두 가지 여정: 심리학과 명리학 기반 심층 분석 대화형 웹 애플리케이션">
-  <link rel="stylesheet" href="style.css?v=20260930_3">
+  <link rel="stylesheet" href="style.css?v=20260930_4">
 </head>
 <body>
   <!-- 모바일 메인 뷰포트 컨테이너 -->
@@ -238,6 +238,11 @@
                 <input type="radio" name="recaptcha-type" value="v3" id="recaptcha-type-v3"> v3
               </label>
             </div>
+
+            <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 6px;">
+              <button type="button" id="btn-test-appcheck" style="align-self: flex-start; padding: 6px 14px; font-size: 0.8rem; font-weight: 500; border: 1px solid var(--border-color); background: rgba(255,255,255,0.05); color: var(--text-primary); border-radius: 6px; cursor: pointer;">🔍 App Check 토큰 발급 테스트</button>
+              <div id="appcheck-test-result" style="font-size: 0.78rem; min-height: 18px; line-height: 1.4;"></div>
+            </div>
           </div>
 
           <!-- 탭 3: Firestore 백업 설정 -->
@@ -381,7 +386,7 @@
     </div>
   </div>
 
-  <script src="js/db.js?v=20260930_3"></script>
-  <script src="js/app.js?v=20260930_3"></script>
+  <script src="js/db.js?v=20260930_4"></script>
+  <script src="js/app.js?v=20260930_4"></script>
 </body>
 </html>
