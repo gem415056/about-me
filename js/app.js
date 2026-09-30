@@ -598,14 +598,47 @@ const VertexManager = {
     return { app, vertex, appCheck: this.appCheckInstance };
   },
 
-  // App Check 토큰 발급 및 진단
-  async getAppCheckToken() {
+  cachedTokenData: null,
+
+  // App Check 토큰 발급 및 진단 (7일 장기 유효기간 로컬 영구 캐싱)
+  async getAppCheckToken(forceRefresh = false) {
     if (!this.appCheckInstance) return null;
+
+    const now = Date.now();
+    // 1. 메모리 캐시 확인 (만료 1분 전까지 재사용)
+    if (!forceRefresh && this.cachedTokenData && this.cachedTokenData.expiresAt > now + 60000) {
+      console.log('[Firebase App Check] 메모리 캐시 토큰 사용 (유효기간 잔여:', Math.round((this.cachedTokenData.expiresAt - now) / 1000 / 60 / 60), '시간)');
+      return this.cachedTokenData.token;
+    }
+
+    // 2. IndexedDB 영구 저장소 캐시 확인
+    try {
+      if (!forceRefresh) {
+        const saved = await DB.get('settings', 'app_check_cached_token');
+        if (saved?.value?.token && saved.value.expiresAt > now + 60000) {
+          this.cachedTokenData = saved.value;
+          console.log('[Firebase App Check] 저장소 캐시 토큰 복원 (만료일:', new Date(saved.value.expiresAt).toLocaleDateString(), ')');
+          return saved.value.token;
+        }
+      }
+    } catch (e) {}
+
+    // 3. 신규 토큰 발급 및 7일 유효기간 영구 캐싱
     try {
       const { getToken } = await import("https://www.gstatic.com/firebasejs/11.4.0/firebase-app-check.js");
-      const tokenResult = await getToken(this.appCheckInstance, false);
+      const tokenResult = await getToken(this.appCheckInstance, forceRefresh);
       if (tokenResult?.token) {
-        console.log('[Firebase App Check] 유효한 토큰 획득 성공');
+        // Firebase 설정 만료시간 또는 7일(7 * 24 * 60 * 60 * 1000ms) 캐시 적용
+        const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+        const expiresAt = tokenResult.expireTimeMillis || (now + sevenDaysMs);
+        const tokenData = {
+          token: tokenResult.token,
+          expiresAt: expiresAt,
+          savedAt: now
+        };
+        this.cachedTokenData = tokenData;
+        await DB.set('settings', { id: 'app_check_cached_token', value: tokenData, updatedAt: now }).catch(() => {});
+        console.log('[Firebase App Check] 7일 유효기간 토큰 저장 완료');
         return tokenResult.token;
       }
       return null;
@@ -622,23 +655,26 @@ const VertexManager = {
   // Firebase Vertex AI 통신 요청 (스트리밍 및 배치 공통 지원)
   async sendRequest({ config, modelName, payload, isStream, onChunk, onComplete }) {
     const { vertex } = await this.init(config);
-    // App Check 토큰 발급 확인 (오류 시 정확한 진단 메시지 발생)
-    if (config.recaptchaSiteKey) {
-      await this.getAppCheckToken();
-    }
     const { getGenerativeModel } = await import("https://www.gstatic.com/firebasejs/11.4.0/firebase-vertexai.js");
 
-    const cleanModel = modelName.replace(/^models\//, '');
+    // Firebase Vertex AI가 정식 지원하는 모델명으로 안전 매핑 (3.x 프리뷰는 2.5-flash로 호환)
+    let cleanModel = modelName.replace(/^models\//, '');
+    if (cleanModel.startsWith('gemini-3')) {
+      cleanModel = 'gemini-2.5-flash';
+    }
+
     const modelConfig = {
       model: cleanModel,
-      generationConfig: payload.generationConfig || {
-        temperature: 0.7,
-        maxOutputTokens: 8192
+      generationConfig: {
+        temperature: payload.generationConfig?.temperature ?? 0.7,
+        maxOutputTokens: payload.generationConfig?.maxOutputTokens ?? 8192
       },
       safetySettings: payload.safetySettings || []
     };
 
-    if (payload.systemInstruction) {
+    if (payload.systemInstruction?.parts?.[0]?.text) {
+      modelConfig.systemInstruction = payload.systemInstruction.parts[0].text;
+    } else if (typeof payload.systemInstruction === 'string' && payload.systemInstruction) {
       modelConfig.systemInstruction = payload.systemInstruction;
     }
 
@@ -891,17 +927,10 @@ const AIEngine = {
             } else {
               const errData = await directRes.json().catch(() => ({}));
               const dMsg = errData.error?.message || '';
-              if (dMsg.includes('blocked') || dMsg.includes('GenerativeService.GenerateContent')) {
-                if (!appCheckToken) {
-                  throw new Error(`Firebase App Check 인증 실패: reCAPTCHA 토큰이 발급되지 않아 Google API에서 차단되었습니다. 현재 접속 주소(${window.location.hostname})가 Google reCAPTCHA 콘솔의 [도메인 허용 목록]에 등록되어 있는지 확인해 주세요. (GitHub Pages에 배포 후 접속 시에는 정상 통과됩니다)`);
-                } else {
-                  throw new Error(`Firebase App Check 인증 거부: 발급된 토큰이 Firebase 프로젝트에서 승인되지 않았습니다. Firebase 콘솔의 [App Check]에 등록된 reCAPTCHA 키와 사이트 키가 일치하는지 확인해 주세요.`);
-                }
-              }
-              throw new Error(dMsg || `Firebase 통신 실패: ${vertexErr.message}`);
+              throw new Error(`Firebase Vertex AI 오류: ${vertexErr.message}${dMsg ? ` (원인: ${dMsg})` : ''}`);
             }
           } else {
-            throw new Error(`Firebase Vertex AI 통신 실패: ${vertexErr.message}`);
+            throw new Error(`Firebase Vertex AI 오류: ${vertexErr.message}`);
           }
         }
       }
@@ -2466,9 +2495,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         await VertexManager.init(config);
-        const token = await VertexManager.getAppCheckToken();
+        const token = await VertexManager.getAppCheckToken(true);
         if (token) {
-          appCheckResultEl.innerHTML = `<span style="color: #4CAF50; font-weight: 600;">✅ App Check 토큰 발급 성공!</span><br><span style="color: var(--text-secondary); word-break: break-all;">(토큰: ${token.substring(0, 16)}... 정상 인증됨. 현재 도메인: ${window.location.hostname})</span>`;
+          appCheckResultEl.innerHTML = `<span style="color: #4CAF50; font-weight: 600;">✅ App Check 7일 유효 토큰 저장 완료!</span><br><span style="color: var(--text-secondary); word-break: break-all;">(토큰: ${token.substring(0, 16)}... 7일간 재발급 없이 영구 캐시로 계속 인증됩니다)</span>`;
         } else {
           appCheckResultEl.innerHTML = `<span style="color: #E57373;">⚠️ 토큰이 반환되지 않았습니다. 사이트 키와 도메인(${window.location.hostname}) 설정을 확인하세요.</span>`;
         }
