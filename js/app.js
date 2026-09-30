@@ -460,6 +460,194 @@ const MarkdownParser = {
   }
 };
 
+// 9-B. Firebase Vertex AI (AI Logic) & App Check 연동 엔진 (VertexManager)
+const VertexManager = {
+  appInstance: null,
+  vertexInstance: null,
+  appCheckInstance: null,
+  currentConfigKey: null,
+
+  // 사용자가 입력한 다양한 포맷(JSON, JS 리터럴, <script> 스니펫 등)에서 설정값 지능형 추출
+  parseConfig(configStr) {
+    if (!configStr || typeof configStr !== 'string') return null;
+    const str = configStr.trim();
+    if (!str) return null;
+
+    let parsed = {};
+    try {
+      if (str.startsWith('{') && str.endsWith('}')) {
+        parsed = JSON.parse(str);
+      }
+    } catch (e) {}
+
+    const extract = (key) => {
+      if (parsed[key]) return String(parsed[key]).trim();
+      const m = str.match(new RegExp(`["']?${key}["']?\\s*:\\s*["']([^"']+)["']`, 'i'));
+      return m ? m[1].trim() : '';
+    };
+
+    const apiKey = extract('apiKey') || extract('api_key');
+    const projectId = extract('projectId') || extract('project_id');
+    const appId = extract('appId') || extract('app_id');
+    const authDomain = extract('authDomain');
+    const storageBucket = extract('storageBucket');
+    const messagingSenderId = extract('messagingSenderId');
+    const location = extract('location') || 'us-central1';
+
+    // reCAPTCHA Enterprise / v3 키 감지 (App Check)
+    let recaptchaSiteKey = extract('recaptchaSiteKey') || extract('siteKey') || extract('recaptchaKey');
+    let isEnterprise = true;
+
+    const entMatch = str.match(/ReCaptchaEnterpriseProvider\s*\(\s*["']([^"']+)["']/i);
+    const v3Match = str.match(/ReCaptchaV3Provider\s*\(\s*["']([^"']+)["']/i);
+    const rawKeyMatch = str.match(/["'](6L[a-zA-Z0-9_-]{38})["']/);
+
+    if (entMatch) {
+      recaptchaSiteKey = entMatch[1].trim();
+      isEnterprise = true;
+    } else if (v3Match) {
+      recaptchaSiteKey = v3Match[1].trim();
+      isEnterprise = false;
+    } else if (rawKeyMatch && !recaptchaSiteKey) {
+      recaptchaSiteKey = rawKeyMatch[1].trim();
+      isEnterprise = !str.includes('ReCaptchaV3Provider');
+    }
+
+    if (!projectId && !apiKey) return null;
+
+    return {
+      apiKey,
+      projectId,
+      appId,
+      authDomain,
+      storageBucket,
+      messagingSenderId,
+      location,
+      recaptchaSiteKey,
+      isEnterprise
+    };
+  },
+
+  // Firebase 및 App Check 초기화
+  async init(config) {
+    if (!config || !config.projectId) {
+      throw new Error('Firebase Project ID를 찾을 수 없습니다. Vertex AI 스크립트 또는 설정을 확인해 주세요.');
+    }
+
+    const configKey = `${config.projectId}_${config.apiKey}_${config.recaptchaSiteKey || ''}`;
+    if (this.vertexInstance && this.currentConfigKey === configKey) {
+      return { app: this.appInstance, vertex: this.vertexInstance, appCheck: this.appCheckInstance };
+    }
+
+    const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js");
+    const { initializeAppCheck, ReCaptchaEnterpriseProvider, ReCaptchaV3Provider } = await import("https://www.gstatic.com/firebasejs/11.4.0/firebase-app-check.js");
+    const { getVertexAI } = await import("https://www.gstatic.com/firebasejs/11.4.0/firebase-vertexai.js");
+
+    const appName = 'AboutMeVertexApp';
+    let app;
+    const existingApps = getApps();
+    const found = existingApps.find(a => a.name === appName);
+    if (found) {
+      app = found;
+    } else {
+      const firebaseConfig = {
+        apiKey: config.apiKey,
+        projectId: config.projectId,
+        appId: config.appId || `1:${config.messagingSenderId || '123'}:web:aboutme`,
+        authDomain: config.authDomain || `${config.projectId}.firebaseapp.com`,
+        storageBucket: config.storageBucket || `${config.projectId}.appspot.com`,
+        messagingSenderId: config.messagingSenderId || ''
+      };
+      app = initializeApp(firebaseConfig, appName);
+    }
+
+    // App Check 연동 (사용자가 설정한 reCAPTCHA 키 활성화)
+    let appCheck = null;
+    if (config.recaptchaSiteKey && !this.appCheckInstance) {
+      try {
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+        }
+        const provider = config.isEnterprise !== false
+          ? new ReCaptchaEnterpriseProvider(config.recaptchaSiteKey)
+          : new ReCaptchaV3Provider(config.recaptchaSiteKey);
+
+        appCheck = initializeAppCheck(app, {
+          provider: provider,
+          isTokenAutoRefreshEnabled: true
+        });
+        this.appCheckInstance = appCheck;
+        console.log('[Firebase App Check] 초기화 완료:', config.recaptchaSiteKey.substring(0, 8) + '...');
+      } catch (acErr) {
+        console.warn('[Firebase App Check 초기화 경고]:', acErr);
+      }
+    }
+
+    const vertex = getVertexAI(app, { location: config.location || 'us-central1' });
+    this.appInstance = app;
+    this.vertexInstance = vertex;
+    this.currentConfigKey = configKey;
+
+    return { app, vertex, appCheck: this.appCheckInstance };
+  },
+
+  // Firebase Vertex AI 통신 요청 (스트리밍 및 배치 공통 지원)
+  async sendRequest({ config, modelName, payload, isStream, onChunk, onComplete }) {
+    const { vertex } = await this.init(config);
+    const { getGenerativeModel } = await import("https://www.gstatic.com/firebasejs/11.4.0/firebase-vertexai.js");
+
+    const cleanModel = modelName.replace(/^models\//, '');
+    const modelConfig = {
+      model: cleanModel,
+      generationConfig: payload.generationConfig || {
+        temperature: 0.7,
+        maxOutputTokens: 8192
+      },
+      safetySettings: payload.safetySettings || []
+    };
+
+    if (payload.systemInstruction) {
+      modelConfig.systemInstruction = payload.systemInstruction;
+    }
+
+    const model = getGenerativeModel(vertex, modelConfig);
+
+    if (isStream) {
+      const result = await model.generateContentStream({ contents: payload.contents });
+      let accumulatedText = '';
+      for await (const chunk of result.stream) {
+        let text = '';
+        try {
+          text = chunk.text();
+        } catch (e) {
+          const parts = chunk.candidates?.[0]?.content?.parts || [];
+          for (const p of parts) {
+            if (!p.thought && p.text) text += p.text;
+          }
+        }
+        if (text) {
+          accumulatedText += text;
+          if (onChunk) onChunk(accumulatedText, text);
+        }
+      }
+      if (onComplete) onComplete(accumulatedText);
+      return accumulatedText;
+    } else {
+      const result = await model.generateContent({ contents: payload.contents });
+      let finalText = '';
+      try {
+        finalText = result.response.text();
+      } catch (e) {
+        const parts = result.response?.candidates?.[0]?.content?.parts || [];
+        finalText = parts.map(p => p.text || '').join('');
+      }
+      if (!finalText) finalText = '답변을 생성하지 못했습니다.';
+      if (onComplete) onComplete(finalText);
+      return finalText;
+    }
+  }
+};
+
 // 10. AI 멀티모달 통신 엔진 (AIEngine)
 const AIEngine = {
   // Base64 Data URL에서 MIME 타입과 순수 바이너리 데이터 안전 추출
@@ -547,10 +735,13 @@ const AIEngine = {
     try {
       // 1. 설정 및 프롬프트 로드
       const geminiSetting = await DB.get('settings', 'gemini_api_key');
+      const vertexSetting = await DB.get('settings', 'vertex_config');
       const generalSetting = await DB.get('settings', 'general_settings');
       const promptData = await DB.get('prompts', category);
 
       const apiKey = geminiSetting?.value?.trim() || '';
+      const vertexConfigStr = vertexSetting?.value?.trim() || '';
+      const parsedVertexConfig = VertexManager.parseConfig(vertexConfigStr);
       const outputMode = generalSetting?.outputMode || 'stream';
       let systemInstruction = promptData?.content?.trim() || '';
 
@@ -618,7 +809,43 @@ const AIEngine = {
 
       let response;
 
-      // 1. API 키가 등록되어 있는 경우: 프록시 우선 시도 후 404/405/네트워크 오류 시 Google 다이렉트 API로 완벽 폴백
+      // [핵심 분기 1] Gemini API 키가 없고 Firebase Vertex AI (AI Logic) 설정이 입력되어 있는 경우
+      if (!apiKey && parsedVertexConfig) {
+        try {
+          console.log('[AIEngine] Firebase Vertex AI & App Check 모드로 응답을 생성합니다.');
+          await VertexManager.sendRequest({
+            config: parsedVertexConfig,
+            modelName: cleanModel,
+            payload: payload,
+            isStream: isStream,
+            onChunk: onChunk,
+            onComplete: onComplete
+          });
+          return;
+        } catch (vertexErr) {
+          console.warn('[Firebase Vertex AI 호출 실패]:', vertexErr);
+          // 만약 Firebase SDK 호출이 실패했으나 firebaseConfig 안에 apiKey가 있는 경우 Google Direct Gemini API로 완벽 폴백
+          if (parsedVertexConfig.apiKey) {
+            console.log('[AIEngine] Firebase Config 내 apiKey로 Google API 직접 통신을 재시도합니다.');
+            const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:${action}${sep}key=${parsedVertexConfig.apiKey}`;
+            const directRes = await fetch(directUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            if (directRes.ok) {
+              response = directRes;
+            } else {
+              const errData = await directRes.json().catch(() => ({}));
+              throw new Error(errData.error?.message || `Firebase Vertex AI 통신 실패: ${vertexErr.message}`);
+            }
+          } else {
+            throw new Error(`Firebase Vertex AI 통신 실패: ${vertexErr.message}`);
+          }
+        }
+      }
+
+      // [핵심 분기 2] Gemini API 키가 등록되어 있는 경우: 프록시 우선 시도 후 404/405/네트워크 오류 시 Google 다이렉트 API로 완벽 폴백
       if (apiKey) {
         try {
           response = await fetch('/api/gemini', {
@@ -652,8 +879,8 @@ const AIEngine = {
             body: JSON.stringify(payload)
           });
         }
-      } else {
-        // 2. API 키가 로컬에 없는 경우 서버 프록시 호출
+      } else if (!parsedVertexConfig) {
+        // [핵심 분기 3] API 키도 없고 Vertex AI 설정도 없는 경우: 서버 프록시 호출 시도 또는 친절한 안내
         try {
           response = await fetch('/api/gemini', {
             method: 'POST',
@@ -667,11 +894,11 @@ const AIEngine = {
             })
           });
         } catch (proxyErr) {
-          throw new Error('서버와 통신할 수 없습니다. 좌측 서랍의 [설정] 메뉴에서 Gemini API 키를 직접 등록해 주세요.');
+          throw new Error('대화를 시작하려면 좌측 [설정] 메뉴에서 Gemini API 키 또는 Firebase Vertex AI 스크립트를 입력해 주세요.');
         }
 
-        if (response.status === 405) {
-          throw new Error('공유 환경에서는 API 키 직접 입력이 필요합니다. 좌측 메뉴의 [설정]에서 본인의 Gemini API 키를 입력해 주세요.');
+        if (response.status === 405 || response.status === 404) {
+          throw new Error('대화를 시작하려면 좌측 [설정] 메뉴에서 Gemini API 키 또는 Firebase Vertex AI 스크립트를 입력해 주세요.');
         }
       }
 
