@@ -18,10 +18,11 @@
   --accent: #747B61;
   --accent-glow: rgba(116, 123, 97, 0.22);
 
-  /* 인용구(질문) 하이라이트 배색 */
-  --quote-bg: #D6D3C8;            /* 톤다운된 소프트 말차 스톤 */
-  --quote-text: #3E4236;          /* 부드러운 텍스트 */
-  --quote-border: transparent;    /* 사이드 보더라인 제거 */
+  /* 인용구(질문) 하이라이트 배색 (말차 테마 기반 저대비 다크 세이지) */
+  --quote-bg: #444A3D;            /* 톤다운된 벨벳 다크 세이지 (부드러운 다크 웜톤) */
+  --quote-text: #E8E6DA;          /* 편안하고 포근한 라이트 린넨 텍스트 */
+  --quote-bold: #FFFDF5;          /* 또렷하고 선명하게 돋보이는 웜 아이보리 볼드 */
+  --quote-border: #7A826C;        /* 세련된 세이지 액센트 */
 
   /* 미세 웜톤 보더 & 그림자 */
   --border-subtle: #D1CFC2;       /* 우아한 린넨 텍스처 보더 */
@@ -1460,12 +1461,12 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
 /* ==========================================================================
    10. 마크다운 스타일링 (저대비 웜톤 인용구 & 전체화면 보고서)
    ========================================================================== */
-/* [핵심] 질문용 인용구(Blockquote) - 눈이 피로하지 않은 온화한 소프트 웜 쉐이드 (사이드 줄 제거) */
+/* [핵심] 질문용 인용구(Blockquote) - 말차 감성 저대비 다크 세이지 & 라이트 텍스트 */
 .chat-bubble blockquote, .report-body-scroll blockquote {
   background-color: var(--quote-bg);
   color: var(--quote-text);
   border: none;
-  border-left: none;
+  border-left: 3px solid var(--quote-border);
   border-radius: 12px;
   padding: 14px 18px;
   margin: 12px 0;
@@ -1473,14 +1474,16 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   line-height: 1.62;
   font-weight: 500;
   letter-spacing: -0.01em;
+  box-shadow: 0 3px 12px rgba(35, 38, 30, 0.1);
 }
 
 strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .report-body-scroll b {
   font-weight: 700 !important;
 }
 
-.chat-bubble blockquote strong, .chat-bubble blockquote b {
-  color: #FFF9F0;
+.chat-bubble blockquote strong, .chat-bubble blockquote b,
+.report-body-scroll blockquote strong, .report-body-scroll blockquote b {
+  color: var(--quote-bold) !important;
   font-weight: 700 !important;
 }
 

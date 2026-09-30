@@ -245,6 +245,65 @@ const SajuManager = {
     });
   },
 
+  // 이미지 스마트 압축기 (초고해상도 폰 카메라 사진 10MB -> 200KB 최적화)
+  compressImage(file, maxDim = 1200, quality = 0.82) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => resolve(e.target.result);
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  },
+
+  compressDataUrl(dataUrl, maxDim = 1200, quality = 0.82) {
+    if (!dataUrl || dataUrl.length < 500000) return Promise.resolve(dataUrl);
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  },
+
   // 새 명식 등록 처리 (Base64 변환 후 저장)
   async saveNewProfile(name, base64Data) {
     if (!name || !base64Data) return false;
@@ -269,10 +328,13 @@ const MarkdownParser = {
     const explicitMatch = rawText.match(explicitRegex);
 
     if (explicitMatch) {
+      const reportText = explicitMatch[1].trim();
+      // 채팅 말풍선에는 태그만 제거한 전체 텍스트를 온전히 표시하여 중간 끊김 방지!
+      const cleanedChat = rawText.replace(/\[REPORT_START\]/gi, '').replace(/\[REPORT_END\]/gi, '').trim();
       return {
         hasReport: true,
-        reportContent: explicitMatch[1].trim(),
-        chatContent: rawText.replace(explicitRegex, '').trim()
+        reportContent: reportText,
+        chatContent: cleanedChat
       };
     }
 
@@ -285,7 +347,7 @@ const MarkdownParser = {
       return {
         hasReport: true,
         reportContent: rawText.substring(reportStartIdx).trim(),
-        chatContent: rawText.substring(0, reportStartIdx).trim()
+        chatContent: rawText.trim()
       };
     }
 
@@ -400,17 +462,20 @@ const MarkdownParser = {
 
 // 10. AI 멀티모달 통신 엔진 (AIEngine)
 const AIEngine = {
-  // Base64 Data URL에서 MIME 타입과 순수 바이너리 데이터 추출
+  // Base64 Data URL에서 MIME 타입과 순수 바이너리 데이터 안전 추출
   extractBase64(dataUrl) {
-    const matches = dataUrl.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
-    if (matches) {
-      return { mimeType: matches[1], data: matches[2] };
+    if (!dataUrl) return { mimeType: 'image/jpeg', data: '' };
+    const commaIdx = dataUrl.indexOf(',');
+    if (commaIdx !== -1 && dataUrl.startsWith('data:')) {
+      const mime = dataUrl.slice(5, commaIdx).split(';')[0] || 'image/jpeg';
+      const base64 = dataUrl.slice(commaIdx + 1).replace(/\s/g, '');
+      return { mimeType: mime, data: base64 };
     }
-    return { mimeType: 'image/jpeg', data: dataUrl };
+    return { mimeType: 'image/jpeg', data: dataUrl.replace(/\s/g, '') };
   },
 
-  // 멀티모달 페이로드 빌더 (프라이버시 엄수: 이름 제외, 이미지만 패키징)
-  buildContents(history, userText, attachedProfiles = []) {
+  // 멀티모달 페이로드 빌더 (프라이버시 엄수: 이름 제외, 이미지만 패키징 & 용량 최적화)
+  async buildContents(history, userText, attachedProfiles = []) {
     const contents = [];
 
     // 이전 대화 내역 포맷팅
@@ -424,17 +489,23 @@ const AIEngine = {
     // 현재 사용자 턴 조립
     const currentParts = [];
 
-    // [핵심] 첨부된 명식 이미지가 있는 경우 이름은 완전히 제외하고 순수 이미지 바이너리만 첨부
+    // [핵심] 첨부된 명식 이미지가 있는 경우 이름은 완전히 제외하고 순수 이미지 바이너리만 첨부 (대용량 압축 보장)
     if (attachedProfiles && attachedProfiles.length > 0) {
-      attachedProfiles.forEach(profile => {
-        const { mimeType, data } = this.extractBase64(profile.imageData);
-        currentParts.push({
-          inlineData: {
-            mimeType: mimeType,
-            data: data
-          }
-        });
-      });
+      for (const profile of attachedProfiles) {
+        let rawData = profile.imageData;
+        if (rawData && rawData.length > 500000) {
+          rawData = await SajuManager.compressDataUrl(rawData);
+        }
+        const { mimeType, data } = this.extractBase64(rawData);
+        if (data) {
+          currentParts.push({
+            inlineData: {
+              mimeType: mimeType || 'image/jpeg',
+              data: data
+            }
+          });
+        }
+      }
     }
 
     // 사용자 텍스트 질문 추가
@@ -464,8 +535,8 @@ const AIEngine = {
         }
       }
 
-      // 2. 페이로드 생성
-      const contents = this.buildContents(history, userText, attachedProfiles);
+      // 2. 페이로드 생성 (비동기 이미지 안전 압축 포함)
+      const contents = await this.buildContents(history, userText, attachedProfiles);
       const payload = {
         contents: contents,
         generationConfig: {
@@ -1836,19 +1907,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       dropzone.addEventListener('click', () => fileInput.click());
     }
 
-    fileInput.addEventListener('change', (e) => {
+    fileInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        SajuManager.tempImageData = event.target.result;
-        previewImg.src = event.target.result;
+      try {
+        // 스마트 압축 적용 (10MB 폰 사진 -> 200KB 고선명 만세력 이미지로 최적화)
+        const optimizedBase64 = await SajuManager.compressImage(file);
+        SajuManager.tempImageData = optimizedBase64;
+        previewImg.src = optimizedBase64;
         previewFileName.textContent = file.name;
         previewContainer.classList.remove('hidden');
         if (uploadPlaceholder) uploadPlaceholder.classList.add('hidden');
-      };
-      reader.readAsDataURL(file);
+      } catch (err) {
+        console.error('이미지 압축 실패, 원본 사용:', err);
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          SajuManager.tempImageData = event.target.result;
+          previewImg.src = event.target.result;
+          previewFileName.textContent = file.name;
+          previewContainer.classList.remove('hidden');
+          if (uploadPlaceholder) uploadPlaceholder.classList.add('hidden');
+        };
+        reader.readAsDataURL(file);
+      }
     });
   }
 
