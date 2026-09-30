@@ -468,10 +468,9 @@ const VertexManager = {
   currentConfigKey: null,
 
   // 사용자가 입력한 다양한 포맷(JSON, JS 리터럴, <script> 스니펫 등)에서 설정값 지능형 추출
-  parseConfig(configStr) {
-    if (!configStr || typeof configStr !== 'string') return null;
-    const str = configStr.trim();
-    if (!str) return null;
+  parseConfig(configStr, explicitSiteKey = '', explicitType = '') {
+    if ((!configStr || typeof configStr !== 'string') && !explicitSiteKey) return null;
+    const str = (configStr || '').trim();
 
     let parsed = {};
     try {
@@ -494,19 +493,19 @@ const VertexManager = {
     const messagingSenderId = extract('messagingSenderId');
     const location = extract('location') || 'us-central1';
 
-    // reCAPTCHA Enterprise / v3 키 감지 (App Check)
-    let recaptchaSiteKey = extract('recaptchaSiteKey') || extract('siteKey') || extract('recaptchaKey');
-    let isEnterprise = true;
+    // reCAPTCHA Enterprise / v3 키 감지 (명시적 입력란 값 우선, 없으면 스니펫에서 추출)
+    let recaptchaSiteKey = (explicitSiteKey || '').trim() || extract('recaptchaSiteKey') || extract('siteKey') || extract('recaptchaKey');
+    let isEnterprise = explicitType === 'v3' ? false : true;
 
     const entMatch = str.match(/ReCaptchaEnterpriseProvider\s*\(\s*["']([^"']+)["']/i);
     const v3Match = str.match(/ReCaptchaV3Provider\s*\(\s*["']([^"']+)["']/i);
     const rawKeyMatch = str.match(/["'](6L[a-zA-Z0-9_-]{38})["']/);
 
     if (entMatch) {
-      recaptchaSiteKey = entMatch[1].trim();
+      if (!recaptchaSiteKey) recaptchaSiteKey = entMatch[1].trim();
       isEnterprise = true;
     } else if (v3Match) {
-      recaptchaSiteKey = v3Match[1].trim();
+      if (!recaptchaSiteKey) recaptchaSiteKey = v3Match[1].trim();
       isEnterprise = false;
     } else if (rawKeyMatch && !recaptchaSiteKey) {
       recaptchaSiteKey = rawKeyMatch[1].trim();
@@ -534,7 +533,15 @@ const VertexManager = {
       throw new Error('Firebase Project ID를 찾을 수 없습니다. Vertex AI 스크립트 또는 설정을 확인해 주세요.');
     }
 
-    const configKey = `${config.projectId}_${config.apiKey}_${config.recaptchaSiteKey || ''}`;
+    const configKey = `${config.projectId}_${config.apiKey}_${config.recaptchaSiteKey || ''}_${config.isEnterprise}`;
+    if (this.appInstance && this.currentConfigKey !== configKey) {
+      const { deleteApp } = await import("https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js");
+      await deleteApp(this.appInstance).catch(() => {});
+      this.appInstance = null;
+      this.appCheckInstance = null;
+      this.vertexInstance = null;
+    }
+
     if (this.vertexInstance && this.currentConfigKey === configKey) {
       return { app: this.appInstance, vertex: this.vertexInstance, appCheck: this.appCheckInstance };
     }
@@ -736,12 +743,17 @@ const AIEngine = {
       // 1. 설정 및 프롬프트 로드
       const geminiSetting = await DB.get('settings', 'gemini_api_key');
       const vertexSetting = await DB.get('settings', 'vertex_config');
+      const recaptchaSetting = await DB.get('settings', 'recaptcha_site_key');
+      const recaptchaTypeSetting = await DB.get('settings', 'recaptcha_type');
       const generalSetting = await DB.get('settings', 'general_settings');
       const promptData = await DB.get('prompts', category);
 
       const apiKey = geminiSetting?.value?.trim() || '';
       const vertexConfigStr = vertexSetting?.value?.trim() || '';
-      const parsedVertexConfig = VertexManager.parseConfig(vertexConfigStr);
+      const explicitRecaptchaKey = recaptchaSetting?.value?.trim() || '';
+      const explicitRecaptchaType = recaptchaTypeSetting?.value || 'enterprise';
+
+      const parsedVertexConfig = VertexManager.parseConfig(vertexConfigStr, explicitRecaptchaKey, explicitRecaptchaType);
       const outputMode = generalSetting?.outputMode || 'stream';
       let systemInstruction = promptData?.content?.trim() || '';
 
@@ -824,6 +836,11 @@ const AIEngine = {
           return;
         } catch (vertexErr) {
           console.warn('[Firebase Vertex AI 호출 실패]:', vertexErr);
+          const vMsg = vertexErr.message || '';
+          if (vMsg.includes('blocked') || vMsg.includes('AppCheck') || vMsg.includes('app-check') || vMsg.includes('GenerativeService.GenerateContent')) {
+            throw new Error(`Firebase App Check 인증이 필요합니다. [설정] ➔ [Firebase Vertex AI & App Check] 탭에서 reCAPTCHA 사이트 키(6L...)를 입력해 주세요. (현재 접속 주소: ${window.location.hostname})`);
+          }
+
           // 만약 Firebase SDK 호출이 실패했으나 firebaseConfig 안에 apiKey가 있는 경우 Google Direct Gemini API로 완벽 폴백
           if (parsedVertexConfig.apiKey) {
             console.log('[AIEngine] Firebase Config 내 apiKey로 Google API 직접 통신을 재시도합니다.');
@@ -837,7 +854,11 @@ const AIEngine = {
               response = directRes;
             } else {
               const errData = await directRes.json().catch(() => ({}));
-              throw new Error(errData.error?.message || `Firebase Vertex AI 통신 실패: ${vertexErr.message}`);
+              const dMsg = errData.error?.message || '';
+              if (dMsg.includes('blocked') || dMsg.includes('GenerativeService.GenerateContent')) {
+                throw new Error(`Firebase App Check 차단: 프로젝트에 App Check 보안이 적용되어 있어 토큰이 필수입니다. [설정] 메뉴의 [App Check reCAPTCHA Site Key] 입력란에 reCAPTCHA 사이트 키(6L...)를 등록해 주세요.`);
+              }
+              throw new Error(dMsg || `Firebase Vertex AI 통신 실패: ${vertexErr.message}`);
             }
           } else {
             throw new Error(`Firebase Vertex AI 통신 실패: ${vertexErr.message}`);
@@ -1845,11 +1866,22 @@ const ModalController = {
       } else if (modalId === 'modal-settings') {
         const geminiKey = await DB.get('settings', 'gemini_api_key');
         const vertexConfig = await DB.get('settings', 'vertex_config');
+        const recaptchaKey = await DB.get('settings', 'recaptcha_site_key');
+        const recaptchaType = await DB.get('settings', 'recaptcha_type');
         const firestoreConfig = await DB.get('settings', 'firestore_config');
         const general = await DB.get('settings', 'general_settings');
 
         document.getElementById('setting-gemini-key').value = geminiKey?.value || '';
         document.getElementById('setting-vertex-config').value = vertexConfig?.value || '';
+        const recaptchaInput = document.getElementById('setting-recaptcha-sitekey');
+        if (recaptchaInput) recaptchaInput.value = recaptchaKey?.value || '';
+        if (recaptchaType?.value === 'v3') {
+          const v3Radio = document.getElementById('recaptcha-type-v3');
+          if (v3Radio) v3Radio.checked = true;
+        } else {
+          const entRadio = document.getElementById('recaptcha-type-enterprise');
+          if (entRadio) entRadio.checked = true;
+        }
         document.getElementById('setting-firestore-config').value = firestoreConfig?.value || '';
 
         // 드롭다운 모드 복원
@@ -1899,12 +1931,16 @@ const ModalController = {
       } else if (modalId === 'modal-settings') {
         const geminiVal = document.getElementById('setting-gemini-key').value;
         const vertexVal = document.getElementById('setting-vertex-config').value;
+        const recaptchaSiteKey = document.getElementById('setting-recaptcha-sitekey')?.value?.trim() || '';
+        const recaptchaType = document.querySelector('input[name="recaptcha-type"]:checked')?.value || 'enterprise';
         const firestoreVal = document.getElementById('setting-firestore-config').value;
         const selectedItem = document.querySelector('#dropdown-output-menu .dropdown-item.selected');
         const outputMode = selectedItem ? selectedItem.dataset.value : 'stream';
 
         await DB.set('settings', { id: 'gemini_api_key', value: geminiVal, updatedAt: Date.now() });
         await DB.set('settings', { id: 'vertex_config', value: vertexVal, updatedAt: Date.now() });
+        await DB.set('settings', { id: 'recaptcha_site_key', value: recaptchaSiteKey, updatedAt: Date.now() });
+        await DB.set('settings', { id: 'recaptcha_type', value: recaptchaType, updatedAt: Date.now() });
         await DB.set('settings', { id: 'firestore_config', value: firestoreVal, updatedAt: Date.now() });
         const selectedModel = document.getElementById('select-gemini-model').value;
         const safetySettings = {
