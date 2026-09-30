@@ -474,17 +474,44 @@ const AIEngine = {
     return { mimeType: 'image/jpeg', data: dataUrl.replace(/\s/g, '') };
   },
 
-  // 멀티모달 페이로드 빌더 (프라이버시 엄수: 이름 제외, 이미지만 패키징 & 용량 최적화)
+  // 멀티모달 페이로드 빌더 (프라이버시 엄수: 이름 제외, 이미지만 패키징 & Multiturn 교차 순서 강제)
   async buildContents(history, userText, attachedProfiles = []) {
     const contents = [];
 
-    // 이전 대화 내역 포맷팅
-    history.forEach(msg => {
-      contents.push({
+    // 1. 유효한 텍스트만 필터링 (오류 메시지 및 빈 메시지 완전 배제)
+    const validHistory = (history || [])
+      .filter(msg => msg && msg.content && typeof msg.content === 'string' && msg.content.trim() && !msg.content.startsWith('⚠️'))
+      .map(msg => ({
         role: msg.role === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.content }]
-      });
-    });
+        parts: [{ text: msg.content.trim() }]
+      }));
+
+    // 2. Gemini Multiturn 규칙 강제: 첫 번째 항목은 무조건 'user'여야 함 (model 시작 금지)
+    while (validHistory.length > 0 && validHistory[0].role !== 'user') {
+      validHistory.shift();
+    }
+
+    // 3. Gemini Multiturn 규칙 강제: user와 model이 번갈아 교차해야 함 (동일 role 연속 시 병합)
+    const alternatingHistory = [];
+    for (const turn of validHistory) {
+      if (alternatingHistory.length === 0) {
+        alternatingHistory.push(turn);
+      } else {
+        const lastTurn = alternatingHistory[alternatingHistory.length - 1];
+        if (lastTurn.role === turn.role) {
+          lastTurn.parts[0].text += '\n\n' + turn.parts[0].text;
+        } else {
+          alternatingHistory.push(turn);
+        }
+      }
+    }
+
+    // 4. 새 사용자 턴이 추가될 예정이므로, history의 마지막 턴이 user라면 제거 (미응답 잔여 턴 정리)
+    if (alternatingHistory.length > 0 && alternatingHistory[alternatingHistory.length - 1].role === 'user') {
+      alternatingHistory.pop();
+    }
+
+    contents.push(...alternatingHistory);
 
     // 현재 사용자 턴 조립
     const currentParts = [];
@@ -587,6 +614,7 @@ const AIEngine = {
       const isStream = outputMode === 'stream';
       const cleanModel = modelName.replace(/^models\//, '');
       const action = isStream ? 'streamGenerateContent?alt=sse' : 'generateContent';
+      const sep = action.includes('?') ? '&' : '?';
 
       let response;
 
@@ -608,7 +636,7 @@ const AIEngine = {
 
           // 정적 호스팅(Cloud CDN/GCS 등)에서 POST 요청 시 405 발생하거나 프록시가 없는 404인 경우
           if (response.status === 405 || response.status === 404) {
-            const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:${action}&key=${apiKey}`;
+            const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:${action}${sep}key=${apiKey}`;
             response = await fetch(directUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -617,7 +645,7 @@ const AIEngine = {
           }
         } catch (fetchErr) {
           // 프록시 네트워크 실패 시 클라이언트에서 직접 Google Gemini API 호출
-          const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:${action}&key=${apiKey}`;
+          const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:${action}${sep}key=${apiKey}`;
           response = await fetch(directUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -656,7 +684,7 @@ const AIEngine = {
             const retryPayload = JSON.parse(JSON.stringify(payload));
             delete retryPayload.generationConfig.thinkingConfig;
             if (apiKey) {
-              const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:${action}&key=${apiKey}`;
+              const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:${action}${sep}key=${apiKey}`;
               response = await fetch(directUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -731,6 +759,28 @@ const AIEngine = {
             } catch (err) {
               // 불완전 JSON 패킷 무시
             }
+          }
+        }
+      }
+
+      // 스트림 완료 후 잔여 버퍼 최종 파싱 (마지막 문장 누락 방지)
+      if (buffer && buffer.trim()) {
+        const trimmed = buffer.trim();
+        if (trimmed.startsWith('data: ')) {
+          const jsonStr = trimmed.substring(6);
+          if (jsonStr !== '[DONE]') {
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const parts = parsed.candidates?.[0]?.content?.parts || [];
+              let chunk = '';
+              for (const p of parts) {
+                if (!p.thought && p.text) chunk += p.text;
+              }
+              if (chunk) {
+                accumulatedText += chunk;
+                if (onChunk) onChunk(accumulatedText, chunk);
+              }
+            } catch (err) {}
           }
         }
       }
@@ -1054,7 +1104,7 @@ const SessionManager = {
     } else {
       messages.forEach(msg => {
         ChatUI.appendMessage(containerId, msg.role, msg.content, msg.id);
-        ChatManager.activeHistory.push({ role: msg.role, content: msg.content });
+        ChatManager.activeHistory.push({ id: msg.id, role: msg.role, content: msg.content });
       });
     }
 
@@ -1188,8 +1238,9 @@ const ChatManager = {
       const tagPrefix = attachedProfiles.map(p => `[${p.name}의 만세력]`).join(' ');
       displayUserText = `${tagPrefix}\n${text}`.trim();
     }
-    const userMsgId = `msg_${Date.now()}_u`;
+    const userMsgId = `msg_${Date.now()}_u_${Math.random().toString(36).substr(2, 6)}`;
     ChatUI.appendMessage(containerId, 'user', displayUserText, userMsgId);
+    this.activeHistory.push({ id: userMsgId, role: 'user', content: displayUserText });
     await DB.set('chat_messages', {
       id: userMsgId,
       sessionId: this.currentSessionId,
@@ -1200,7 +1251,7 @@ const ChatManager = {
 
     // [핵심] 첫 질문일 때: 사용자가 제목을 수정한 적 없다면 첫 질문을 바탕으로 세션 제목 자동 업데이트 (AI Studio 스타일)
     const currentSession = await DB.get('chat_sessions', this.currentSessionId);
-    if (currentSession && !currentSession.isCustomTitle && this.activeHistory.length === 0) {
+    if (currentSession && !currentSession.isCustomTitle && this.activeHistory.length <= 1) {
       const autoTitle = text.slice(0, 18).trim() + (text.length > 18 ? '...' : '');
       if (autoTitle) {
         currentSession.title = autoTitle;
@@ -1215,8 +1266,9 @@ const ChatManager = {
       SajuManager.renderAttachedTags();
     }
 
-    // 4. AI 답변 말풍선 미리 생성 (로딩/스트리밍 표시용)
-    const modelBubble = ChatUI.appendMessage(containerId, 'model', '생각하는 중...');
+    // 4. AI 답변 말풍선 미리 생성 (고유 ID 즉시 발급)
+    const modelMsgId = `msg_${Date.now()}_m_${Math.random().toString(36).substr(2, 6)}`;
+    const modelBubble = ChatUI.appendMessage(containerId, 'model', '생각하는 중...', modelMsgId);
     let hasScrolledToTop = false;
 
     // 5. AI 통신 호출
@@ -1234,8 +1286,10 @@ const ChatManager = {
           hasScrolledToTop = true;
         }
 
-        const extracted = MarkdownParser.extractReport(accumulatedText);
-        modelBubble.innerHTML = MarkdownParser.parse(extracted.chatContent || '답변 작성 중...');
+        // [핵심] modelBubble의 내부 메서드를 통해 안전하게 업데이트하여 contentDiv를 손상시키지 않음
+        if (modelBubble && modelBubble.updateRawContent) {
+          modelBubble.updateRawContent(accumulatedText);
+        }
       },
 
       // 통신 완료 시 (일시 출력 & 스트리밍 완료 공통)
@@ -1245,32 +1299,13 @@ const ChatManager = {
           ChatUI.scrollToMessageTop(modelBubble);
         }
 
-        // 최종 마크다운 및 보고서 카드 렌더링
-        const extracted = MarkdownParser.extractReport(finalText);
-        modelBubble.innerHTML = MarkdownParser.parse(extracted.chatContent || '');
-
-        if (extracted.hasReport) {
-          const reportCard = document.createElement('div');
-          reportCard.className = 'report-card-summary';
-          reportCard.innerHTML = `
-            <div class="report-card-info">
-              <span class="report-card-title">심층 분석 보고서</span>
-              <span class="report-card-desc">전문 분석 결과가 도착했습니다.</span>
-            </div>
-            <button type="button" class="btn-open-report">분석 보고서 열기</button>
-          `;
-          reportCard.querySelector('.btn-open-report').addEventListener('click', () => {
-            ReportController.open(extracted.reportContent);
-          });
-          modelBubble.appendChild(reportCard);
+        if (modelBubble && modelBubble.updateRawContent) {
+          modelBubble.updateRawContent(finalText);
         }
 
         // 메모리 히스토리 업데이트 및 DB 영구 저장
-        this.activeHistory.push({ role: 'user', content: displayUserText });
-        this.activeHistory.push({ role: 'model', content: finalText });
+        this.activeHistory.push({ id: modelMsgId, role: 'model', content: finalText });
 
-        const modelMsgId = `msg_${Date.now()}_m`;
-        modelBubble.dataset.msgId = modelMsgId;
         await DB.set('chat_messages', {
           id: modelMsgId,
           sessionId: this.currentSessionId,
@@ -1294,7 +1329,11 @@ const ChatManager = {
 
       // 오류 발생 시
       onError: (errMsg) => {
-        modelBubble.innerHTML = `<span style="color: #9C413D;">⚠️ ${errMsg}</span>`;
+        if (modelBubble && modelBubble.updateRawContent) {
+          modelBubble.updateRawContent(`⚠️ ${errMsg}`);
+        } else {
+          modelBubble.innerHTML = `<span style="color: #9C413D;">⚠️ ${errMsg}</span>`;
+        }
         this.isGenerating = false;
         sendBtn.disabled = false;
       }
@@ -1312,14 +1351,16 @@ const ChatUI = {
     const row = document.createElement('div');
     row.className = `chat-message-row ${role}`;
 
+    const currentMsgId = msgId || `msg_${Date.now()}_${role[0]}_${Math.random().toString(36).substr(2, 6)}`;
+
     const bubble = document.createElement('div');
     bubble.className = `chat-bubble ${role}`;
-    if (msgId) bubble.dataset.msgId = msgId;
+    bubble.dataset.msgId = currentMsgId;
 
     const contentDiv = document.createElement('div');
     contentDiv.className = 'bubble-text-content';
 
-    let currentRaw = rawContent;
+    let currentRaw = rawContent || '';
 
     const renderInnerContent = () => {
       if (role === 'model') {
@@ -1349,6 +1390,15 @@ const ChatUI = {
     renderInnerContent();
     bubble.appendChild(contentDiv);
 
+    // [핵심] 외부에서 안전하게 내용 업데이트 가능한 메서드 제공 (스트리밍 및 완료 시 사용)
+    bubble.updateRawContent = (newText) => {
+      currentRaw = newText;
+      bubble.dataset.rawContent = newText;
+      renderInnerContent();
+    };
+
+    bubble.getRawContent = () => currentRaw;
+
     row.appendChild(bubble);
 
     // [요구사항] 시스템 첫 인사가 아니면 말풍선 아예 끝난 바깥 하단에 액션 버튼 배치 (사용자/AI 공통 적용)
@@ -1364,32 +1414,42 @@ const ChatUI = {
         </button>
       `;
 
-      // 수정 클릭 시: 대화 카드 그대로 두고 안에 텍스트에리어 생성 및 내용에 맞게 자동 크기 조절
+      // 수정 클릭 시: 본문 완전 숨김 + AI 완성본 본문이 온전히 들어간 텍스트에리어 활성화
       actionBar.querySelector('.btn-edit-msg').addEventListener('click', () => {
+        // 기존 본문 완벽하게 숨김
         contentDiv.classList.add('hidden');
+        contentDiv.style.display = 'none';
         actionBar.classList.add('hidden');
 
         // 카드 그대로 두고, 최소 폭을 확보해 편안하게 입력
         bubble.classList.add('is-editing');
         bubble.style.minWidth = 'min(100%, 280px)';
 
+        // 중복 방지
+        const existingEdit = bubble.querySelector('.bubble-edit-textarea');
+        if (existingEdit) existingEdit.remove();
+        const existingOutside = row.querySelector('.bubble-action-bar-outside.is-editing-bar');
+        if (existingOutside) existingOutside.remove();
+
         const editArea = document.createElement('textarea');
         editArea.className = 'bubble-edit-textarea';
+        // AI 본문 전체를 100% 온전하게 주입
         editArea.value = currentRaw;
         bubble.appendChild(editArea);
 
         // 텍스트 에리어 크기만큼 자동으로 크기 조절
         const autoResize = () => {
           editArea.style.height = 'auto';
-          editArea.style.height = `${editArea.scrollHeight}px`;
+          editArea.style.height = `${Math.max(editArea.scrollHeight, 60)}px`;
         };
         autoResize();
         editArea.addEventListener('input', autoResize);
         editArea.focus();
+        editArea.setSelectionRange(editArea.value.length, editArea.value.length);
 
         // [취소] [확인] 버튼 바는 말풍선 바깥 아래쪽 우측에 배치
         const outsideEditBar = document.createElement('div');
-        outsideEditBar.className = 'bubble-action-bar-outside';
+        outsideEditBar.className = 'bubble-action-bar-outside is-editing-bar';
         outsideEditBar.style.cssText = 'display:flex; justify-content:flex-end; gap:12px; margin-top:6px;';
         outsideEditBar.innerHTML = `
           <button type="button" class="btn-bubble-cancel" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; display:inline-flex; align-items:center; gap:4px; font-size:0.8rem;">
@@ -1409,6 +1469,7 @@ const ChatUI = {
           bubble.classList.remove('is-editing');
           bubble.style.minWidth = '';
           contentDiv.classList.remove('hidden');
+          contentDiv.style.display = '';
           actionBar.classList.remove('hidden');
         });
 
@@ -1419,19 +1480,22 @@ const ChatUI = {
 
           const oldText = currentRaw;
           currentRaw = updatedText;
+          bubble.dataset.rawContent = updatedText;
           renderInnerContent();
 
-          if (msgId) {
-            const msgObj = await DB.get('chat_messages', msgId);
+          const targetId = bubble.dataset.msgId || currentMsgId;
+          if (targetId) {
+            const msgObj = await DB.get('chat_messages', targetId);
             if (msgObj) {
               msgObj.content = updatedText;
               await DB.set('chat_messages', msgObj);
             }
           }
 
-          const historyIdx = ChatManager.activeHistory.findIndex(h => h.role === role && h.content === oldText);
-          if (historyIdx !== -1) {
-            ChatManager.activeHistory[historyIdx].content = updatedText;
+          // activeHistory 동기화
+          const histItem = ChatManager.activeHistory.find(h => (h.id && h.id === targetId) || (h.role === role && h.content === oldText));
+          if (histItem) {
+            histItem.content = updatedText;
           }
 
           editArea.remove();
@@ -1439,6 +1503,7 @@ const ChatUI = {
           bubble.classList.remove('is-editing');
           bubble.style.minWidth = '';
           contentDiv.classList.remove('hidden');
+          contentDiv.style.display = '';
           actionBar.classList.remove('hidden');
         });
 
@@ -1448,13 +1513,15 @@ const ChatUI = {
       // 삭제 클릭
       actionBar.querySelector('.btn-delete-msg').addEventListener('click', async () => {
         if (confirm('이 메시지를 삭제하시겠습니까?')) {
-          if (msgId) {
-            await DB.delete('chat_messages', msgId);
+          const targetId = bubble.dataset.msgId || currentMsgId;
+          if (targetId) {
+            await DB.delete('chat_messages', targetId);
           }
-          const historyIdx = ChatManager.activeHistory.findIndex(h => h.role === role && h.content === currentRaw);
-          if (historyIdx !== -1) {
-            ChatManager.activeHistory.splice(historyIdx, 1);
-          }
+          // activeHistory에서 완벽 필터링 제거
+          ChatManager.activeHistory = ChatManager.activeHistory.filter(h => {
+            if (h.id && targetId) return h.id !== targetId;
+            return !(h.role === role && h.content === currentRaw);
+          });
           row.remove();
         }
       });

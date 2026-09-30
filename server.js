@@ -16,7 +16,8 @@ app.use(express.static(__dirname));
 
 async function callGemini(modelName, action, apiKey, payload) {
   const cleanModel = modelName.replace(/^models\//, '');
-  const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:${action}&key=${apiKey}`;
+  const sep = action.includes('?') ? '&' : '?';
+  const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:${action}${sep}key=${apiKey}`;
   return await fetch(targetUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -70,11 +71,19 @@ app.post('/api/gemini', async (req, res) => {
       res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
       res.setHeader('Cache-Control', 'no-cache, no-transform');
       res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
 
       const reader = response.body.getReader();
-      while (true) {
+      let isClosed = false;
+
+      req.on('close', () => {
+        isClosed = true;
+        reader.cancel().catch(() => {});
+      });
+
+      while (!isClosed) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done || isClosed) break;
         res.write(value);
       }
       res.end();
