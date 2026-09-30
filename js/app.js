@@ -514,22 +514,97 @@ const AIEngine = {
       ];
 
       const isStream = outputMode === 'stream';
-      const response = await fetch('/api/gemini', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(apiKey ? { 'x-gemini-key': apiKey } : {})
-        },
-        body: JSON.stringify({
-          modelName: modelName,
-          payload: payload,
-          stream: isStream
-        })
-      });
+      const cleanModel = modelName.replace(/^models\//, '');
+      const action = isStream ? 'streamGenerateContent?alt=sse' : 'generateContent';
+
+      let response;
+
+      // 1. API 키가 등록되어 있는 경우: 프록시 우선 시도 후 404/405/네트워크 오류 시 Google 다이렉트 API로 완벽 폴백
+      if (apiKey) {
+        try {
+          response = await fetch('/api/gemini', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-gemini-key': apiKey
+            },
+            body: JSON.stringify({
+              modelName: cleanModel,
+              payload: payload,
+              stream: isStream
+            })
+          });
+
+          // 정적 호스팅(Cloud CDN/GCS 등)에서 POST 요청 시 405 발생하거나 프록시가 없는 404인 경우
+          if (response.status === 405 || response.status === 404) {
+            const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:${action}&key=${apiKey}`;
+            response = await fetch(directUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+          }
+        } catch (fetchErr) {
+          // 프록시 네트워크 실패 시 클라이언트에서 직접 Google Gemini API 호출
+          const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:${action}&key=${apiKey}`;
+          response = await fetch(directUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        }
+      } else {
+        // 2. API 키가 로컬에 없는 경우 서버 프록시 호출
+        try {
+          response = await fetch('/api/gemini', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              modelName: cleanModel,
+              payload: payload,
+              stream: isStream
+            })
+          });
+        } catch (proxyErr) {
+          throw new Error('서버와 통신할 수 없습니다. 좌측 서랍의 [설정] 메뉴에서 Gemini API 키를 직접 등록해 주세요.');
+        }
+
+        if (response.status === 405) {
+          throw new Error('공유 환경에서는 API 키 직접 입력이 필요합니다. 좌측 메뉴의 [설정]에서 본인의 Gemini API 키를 입력해 주세요.');
+        }
+      }
+
+      // ThinkingConfig 호환성 문제 시 재시도
+      if (!response.ok && payload?.generationConfig?.thinkingConfig) {
+        try {
+          const errClone = await response.clone().json().catch(() => ({}));
+          const errMsg = errClone.error?.message || '';
+          if (errMsg.toLowerCase().includes('thinking') || errMsg.toLowerCase().includes('budget')) {
+            const retryPayload = JSON.parse(JSON.stringify(payload));
+            delete retryPayload.generationConfig.thinkingConfig;
+            if (apiKey) {
+              const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:${action}&key=${apiKey}`;
+              response = await fetch(directUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(retryPayload)
+              });
+            }
+          }
+        } catch (e) {
+          // Ignore retry error and use original
+        }
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || `통신 오류 (상태 코드: ${response.status})`);
+        const msg = errorData.error?.message;
+        if (response.status === 400 && (!apiKey || msg?.includes('API key'))) {
+          throw new Error('Gemini API 키가 유효하지 않거나 등록되지 않았습니다. 좌측 서랍의 [설정] 메뉴에서 API 키를 입력해 주세요.');
+        }
+        throw new Error(msg || `통신 오류 (상태 코드: ${response.status})`);
       }
 
       // 4-A. 일시 출력 (Batch) 방식
