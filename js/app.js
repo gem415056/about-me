@@ -141,8 +141,8 @@ const KeyboardViewportManager = {
 
       const keyboardHeight = window.innerHeight - window.visualViewport.height;
       if (keyboardHeight > 80) {
-        // 키보드 높이만큼 대화창 하단 여백을 확장하여 가장 아래 밑줄과 선택버튼까지 자유롭게 스크롤 가능
-        activeChatScroll.style.paddingBottom = `${keyboardHeight + 40}px`;
+        // 키보드 + 자동완성(QuickType) 툴바 높이까지 고려하여 대화창 하단 여백을 넉넉하게 확장
+        activeChatScroll.style.paddingBottom = `${keyboardHeight + 100}px`;
         const activeEl = document.activeElement;
         if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
           setTimeout(() => {
@@ -968,7 +968,8 @@ const MarkdownParser = {
       requestAnimationFrame(() => {
         const activeChatScroll = textarea.closest('.chat-messages-container');
         if (!activeChatScroll) return;
-        const viewportBottom = window.visualViewport.height - 28;
+        // iOS QuickType 자동완성 / 툴바 높이(약 45~60px)까지 완벽 여유 공간 확보 (85px)
+        const viewportBottom = window.visualViewport.height - 85;
         const rect = textarea.getBoundingClientRect();
         if (rect.bottom > viewportBottom) {
           activeChatScroll.scrollTop += (rect.bottom - viewportBottom);
@@ -1041,7 +1042,8 @@ const MarkdownParser = {
       requestAnimationFrame(() => {
         const activeChatScroll = textarea.closest('.chat-messages-container');
         if (!activeChatScroll) return;
-        const viewportBottom = window.visualViewport.height - 28;
+        // iOS QuickType 자동완성 / 툴바 높이(약 45~60px)까지 완벽 여유 공간 확보 (85px)
+        const viewportBottom = window.visualViewport.height - 85;
         const rect = textarea.getBoundingClientRect();
         if (rect.bottom > viewportBottom) {
           activeChatScroll.scrollTop += (rect.bottom - viewportBottom);
