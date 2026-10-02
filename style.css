@@ -1668,31 +1668,48 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
 
 .single-underline-field {
   width: 100%;
-  background: transparent;
-  border: none;
-  border-bottom: 1.5px solid #8F977F;
+  background-color: transparent !important;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 26.8px,
+    #B5BCA8 26.8px,
+    #B5BCA8 28px
+  ) !important;
+  background-attachment: local;
+  line-height: 28px !important;
   font-family: inherit;
   font-size: 16px !important; /* iOS 사파리 16px 미만 터치 시 강제 확대 및 튕김 100% 방지 */
-  line-height: 1.5;
   letter-spacing: -0.01em;
-  color: #2A3022;
-  padding: 4px 0;
-  outline: none;
+  color: #3E4435;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  padding: 0 2px !important;
+  margin: 0;
   resize: none;
   overflow: hidden;
-  min-height: 28px;
+  min-height: 28px !important;
   box-sizing: border-box;
-  transition: border-bottom-color 0.2s;
+  display: block;
 }
 
 .single-underline-field:focus {
-  border-bottom-color: #2A3022;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 26.8px,
+    #747B61 26.8px,
+    #747B61 28px
+  ) !important;
 }
 
 .single-underline-field::placeholder {
-  color: #9DA291;
-  font-size: 0.82rem;
+  color: #A3AA98;
+  font-size: 0.88rem;
+  line-height: 28px;
   font-style: normal;
+  opacity: 0.85;
 }
 
 .supplement-divider-box {

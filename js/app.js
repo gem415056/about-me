@@ -127,12 +127,48 @@ const Router = {
 // 5. 모바일 가상 키보드 뷰포트 관리자 (KeyboardViewportManager)
 const KeyboardViewportManager = {
   init() {
-    // iOS Safari에서 컨테이너 높이 임의 축소로 인한 빈 사각형 박스 및 윈도우 스크롤 누수를 원천 차단
-    window.addEventListener('scroll', () => {
+    if (!window.visualViewport) return;
+
+    const handleViewportChange = () => {
+      // 윈도우 스크롤 락 (사파리 튕김 방지)
       if (window.scrollY !== 0 || window.scrollX !== 0) {
         window.scrollTo(0, 0);
       }
-    }, { passive: true });
+
+      // 키보드가 화면을 가리는 높이 계산
+      const activeChatScroll = document.querySelector('.view-section.active .chat-messages-container');
+      if (!activeChatScroll) return;
+
+      const keyboardHeight = window.innerHeight - window.visualViewport.height;
+      if (keyboardHeight > 80) {
+        // 키보드 높이만큼 대화창 하단 여백을 확장하여 가장 아래 밑줄과 선택버튼까지 자유롭게 스크롤 가능
+        activeChatScroll.style.paddingBottom = `${keyboardHeight + 40}px`;
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+          setTimeout(() => {
+            activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 100);
+        }
+      } else {
+        activeChatScroll.style.paddingBottom = '';
+      }
+    };
+
+    window.visualViewport.addEventListener('resize', handleViewportChange);
+    window.visualViewport.addEventListener('scroll', () => {
+      if (window.scrollY !== 0 || window.scrollX !== 0) {
+        window.scrollTo(0, 0);
+      }
+    });
+
+    // 모든 input, textarea 포커스 시에도 부드럽게 화면 중심 스크롤 보정
+    document.addEventListener('focusin', (e) => {
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+        setTimeout(() => {
+          e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 280);
+      }
+    });
   }
 };
 
@@ -929,7 +965,8 @@ const MarkdownParser = {
 
     const handleAutoResize = (textarea) => {
       textarea.style.height = 'auto';
-      textarea.style.height = textarea.scrollHeight + 'px';
+      const lines = Math.max(1, Math.round(textarea.scrollHeight / 28));
+      textarea.style.height = `${lines * 28}px`;
     };
 
     if (nicknameField) nicknameField.addEventListener('input', () => handleAutoResize(nicknameField));
@@ -987,7 +1024,8 @@ const MarkdownParser = {
 
     const handleAutoResize = (textarea) => {
       textarea.style.height = 'auto';
-      textarea.style.height = textarea.scrollHeight + 'px';
+      const lines = Math.max(1, Math.round(textarea.scrollHeight / 28));
+      textarea.style.height = `${lines * 28}px`;
     };
 
     // 일반 선택지 클릭 핸들러
