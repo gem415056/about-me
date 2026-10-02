@@ -126,20 +126,13 @@ const Router = {
 
 // 5. 모바일 가상 키보드 뷰포트 관리자 (KeyboardViewportManager)
 const KeyboardViewportManager = {
-  container: document.getElementById('app-container'),
-
   init() {
-    if (!window.visualViewport) return;
-
-    const onResize = () => {
-      // visualViewport 높이에 맞춰 컨테이너의 가시 영역 높이만 부드럽게 조정 (강제 스크롤 점프 완전 제거)
-      const currentHeight = window.visualViewport.height;
-      if (this.container) {
-        this.container.style.height = `${currentHeight}px`;
+    // iOS Safari에서 컨테이너 높이 임의 축소로 인한 빈 사각형 박스 및 윈도우 스크롤 누수를 원천 차단
+    window.addEventListener('scroll', () => {
+      if (window.scrollY !== 0 || window.scrollX !== 0) {
+        window.scrollTo(0, 0);
       }
-    };
-
-    window.visualViewport.addEventListener('resize', onResize);
+    }, { passive: true });
   }
 };
 
