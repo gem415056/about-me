@@ -14,8 +14,9 @@ const NavStack = {
   isProgrammaticBack: false,
 
   init() {
-    // 최초 상태 저장
-    history.replaceState({ depth: 0, view: 'landing' }, '');
+    // 최초 상태 저장 (새로고침 시 마지막 뷰 복원)
+    const savedView = (typeof localStorage !== 'undefined' && localStorage.getItem('about_me_active_view')) || 'landing';
+    history.replaceState({ depth: 0, view: savedView }, '');
 
     window.addEventListener('popstate', (e) => {
       // 닫기 버튼 등으로 인한 프로그램적 history.back()인 경우 라우터 이동 방지
@@ -88,6 +89,15 @@ const Router = {
     target.classList.add('active');
 
     this.currentView = viewName;
+
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('about_me_active_view', viewName);
+        if (viewName === 'landing') {
+          localStorage.removeItem('about_me_active_session_id');
+        }
+      }
+    } catch (e) {}
 
     // 헤더 상태 동기화
     this.updateHeaders(viewName);
@@ -495,12 +505,136 @@ const MarkdownParser = {
     return text;
   },
 
+  // [핵심 3.5] 심리학 보고서 JSON 게이지바 시각화 렌더러 (빅파이브 투톤 대칭 바 & 10% 농도 실린더)
+  renderJsonGauge(data) {
+    if (!data || typeof data !== 'object') return '';
+
+    const keys = Object.keys(data);
+    const isBigFive = keys.some(k => k === '개방성' || k === '외향성' || k === '성실성');
+
+    if (isBigFive) {
+      const BIG_FIVE_POLES = {
+        '개방성': { left: '보수·현실안주', right: '창의·호기심' },
+        '외향성': { left: '내향 충전', right: '외부 자극' },
+        '우호성': { left: '비판·경쟁', right: '신뢰·배려' },
+        '성실성': { left: '유연·즉흥', right: '규율·철저' },
+        '신경증': { left: '정서적 안정', right: '위협 민감' }
+      };
+
+      let rowsHtml = '';
+      keys.forEach(key => {
+        const pole = BIG_FIVE_POLES[key] || { left: '낮음', right: '높음' };
+        const rawScore = parseInt(data[key], 10) || 50;
+        const diff = rawScore - 50;
+        const absDiff = Math.abs(diff);
+
+        let barHtml = '';
+        let labelText = '';
+
+        if (diff >= 0) {
+          labelText = `${key} +${diff}% 우세`;
+          barHtml = `<div class="bipolar-bar-pos" style="width: ${Math.min(50, absDiff)}%;"></div>`;
+        } else {
+          labelText = `${key} -${absDiff}% ${pole.left} 우세`;
+          barHtml = `<div class="bipolar-bar-neg" style="width: ${Math.min(50, absDiff)}%;"></div>`;
+        }
+
+        rowsHtml += `
+          <div class="bipolar-item-row">
+            <div class="bipolar-meta-row">
+              <span>${pole.left}</span>
+              <span style="font-weight: 700; color: #2A3022;">${labelText}</span>
+              <span>${pole.right}</span>
+            </div>
+            <div class="bipolar-track">
+              <div class="bipolar-center-pin-subtle"></div>
+              ${barHtml}
+            </div>
+          </div>
+        `;
+      });
+
+      return `
+        <div class="report-card-container">
+          <div class="report-card-header">
+            <h4 class="report-card-title">🧬 Big Five 5대 요인 분석</h4>
+            <p class="report-card-desc">기저 기질의 스펙트럼 밸런스</p>
+          </div>
+          ${rowsHtml}
+        </div>
+      `;
+    }
+
+    // Unipolar gauges (융 인지기능, 에니어그램, DISC, 맥클리랜드)
+    let title = '심리 지표 활성도';
+    let desc = '에너지 비중 및 기능별 활성도';
+    const typeLabel = data['도출유형'];
+
+    if (keys.some(k => k.includes('기능:'))) {
+      title = `🧠 융의 인지 기능 위계${typeLabel ? ` (${typeLabel})` : ''}`;
+      desc = '두뇌 정보 처리 알고리즘별 활성도';
+    } else if (keys.some(k => k === '자기보존' || k === '일대일' || k === '사회적')) {
+      title = `⚓ 에니어그램 본능 삼원소${typeLabel ? ` (${typeLabel})` : ''}`;
+      desc = '본능적 에너지 집중 비중';
+    } else if (keys.some(k => k === '주도형' || k === '사교형' || k === '안정형' || k === '신중형')) {
+      title = '🎭 DISC 4대 행동 양식';
+      desc = '사회적 가면 및 현실 처세 페르소나';
+    } else if (keys.some(k => k === '성취욕구' || k === '권력욕구' || k === '친교욕구')) {
+      title = '⚡ 맥클리랜드 3대 동기 엔진';
+      desc = '행동을 점화하는 핵심 추진 동기';
+    }
+
+    let rowsHtml = '';
+    keys.forEach(key => {
+      if (key === '도출유형') return;
+      const score = Math.min(100, Math.max(0, parseInt(data[key], 10) || 0));
+
+      let barColor = '#B2B9A8';
+      if (score > 80) barColor = '#4B533C'; // 쌩까망 완전 배제 딥 포레스트 말차
+      else if (score > 60) barColor = '#5D664D';
+      else if (score > 40) barColor = '#747B61';
+      else if (score > 20) barColor = '#959F89';
+
+      rowsHtml += `
+        <div class="unipolar-item-row">
+          <div class="unipolar-meta-row">
+            <span>${key}</span>
+            <span style="font-weight: 700; color: #2A3022;">${score}%</span>
+          </div>
+          <div class="unipolar-track">
+            <div class="unipolar-fill-bar" style="width: ${score}%; background: ${barColor};"></div>
+          </div>
+        </div>
+      `;
+    });
+
+    return `
+      <div class="report-card-container">
+        <div class="report-card-header">
+          <h4 class="report-card-title">${title}</h4>
+          <p class="report-card-desc">${desc}</p>
+        </div>
+        ${rowsHtml}
+      </div>
+    `;
+  },
+
   // [핵심 4] 마크다운 본체 파서
   parse(text) {
     if (!text) return '';
 
     // 1. CRLF 개행 표준화
     let processed = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+    // 1.5. JSON 게이지 블록 변환
+    processed = processed.replace(/```json\s*([\s\S]*?)\s*```/g, (match, jsonStr) => {
+      try {
+        const data = JSON.parse(jsonStr.trim());
+        return this.renderJsonGauge(data);
+      } catch (e) {
+        return match;
+      }
+    });
 
     // 2. 마크다운 테이블 변환
     processed = this.parseMarkdownTable(processed);
@@ -514,12 +648,15 @@ const MarkdownParser = {
     processed = processed.replace(/^>\s?(.*)$/gm, '<blockquote>$1</blockquote>');
     processed = processed.replace(/<\/blockquote>\n<blockquote>/g, '<br>');
 
-    // 5. 볼드체 및 이탤릭체
+    // 5. 볼드체, 인라인 코드, 밑줄 파싱
     processed = processed.replace(/\*\*\*([\s\S]+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-    processed = processed.replace(/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>');
-    processed = processed.replace(/__([\s\S]+?)__/g, '<strong>$1</strong>');
-    processed = processed.replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, '<em>$1</em>');
-    processed = processed.replace(/(?<!_)_([^_\n]+?)_(?!_)/g, '<em>$1</em>');
+    processed = processed.replace(/\*\*([\s\S]+?)\*\*/g, '<span class="md-bold-highlight">$1</span>');
+    processed = processed.replace(/__([\s\S]+?)__/g, '<span class="md-bold-highlight">$1</span>');
+    // `코드` 인라인 칩
+    processed = processed.replace(/`([^`\n]+?)`/g, '<span class="md-inline-code">$1</span>');
+    // *텍스트* : 별표를 완전히 없애고 깔끔한 밑줄로 파싱!
+    processed = processed.replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, '<span class="md-underline">$1</span>');
+    processed = processed.replace(/(?<!_)_([^_\n]+?)_(?!_)/g, '<span class="md-underline">$1</span>');
 
     // 6. 구분선
     processed = processed.replace(/^---$/gim, '<hr>');
@@ -540,6 +677,330 @@ const MarkdownParser = {
     }).filter(Boolean).join('');
 
     return processed;
+  },
+
+  escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  },
+
+  // [핵심 5] 심리학 전용 대화형 선택지 & 도시에 파서 (체크박스, 순서 추적, 밑줄 입력창, 원클릭 전송)
+  parseChoiceDossier(rawText, msgId) {
+    if (!rawText) return { hasChoices: false, html: '' };
+
+    // 선택지 번호(1. or 1.:)와 직접 입력 또는 답변 보충 포함 여부 감지 (인용구 > 유무 무관, [ ] 체크박스 유무 무관)
+    const hasNumbered = /(?:^|\n)\s*>?\s*(?:[-*•]\s*)?(?:\[\s*[xX_\- ]?\s*\]\s*)?1(?:\.|\:|\.\:|\))\s+.+/m.test(rawText);
+    const hasDirect = /직접\s*입력/.test(rawText);
+    const hasSupplement = /답변\s*보충/.test(rawText);
+
+    if (!hasNumbered && !hasDirect && !hasSupplement) {
+      return { hasChoices: false, html: '' };
+    }
+
+    const lines = rawText.split('\n');
+    const preambleLines = [];
+    const choiceLines = [];
+    let isChoiceSection = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      if (!isChoiceSection && (
+        trimmed.startsWith('>') ||
+        /^(?:\[상황\s*질의\]|💡\s*\[|\[질문\])/.test(trimmed) ||
+        /^\s*(?:[-*•]\s*)?(?:\[\s*[xX_\- ]?\s*\]\s*)?1(?:\.|\:|\.\:|\))\s+/.test(trimmed)
+      )) {
+        isChoiceSection = true;
+      }
+
+      if (isChoiceSection) {
+        choiceLines.push(line);
+      } else {
+        preambleLines.push(line);
+      }
+    }
+
+    if (choiceLines.length === 0) {
+      return { hasChoices: false, html: '' };
+    }
+
+    const preambleText = preambleLines.join('\n').trim();
+    const preambleHtml = preambleText ? this.parse(preambleText) : '';
+
+    let scenarioTitle = '';
+    const choices = [];
+    let directChoice = null;
+    let supplementObj = null;
+
+    choiceLines.forEach(rawLine => {
+      // 1. 인용구 '>' 기호 제거
+      let clean = rawLine.replace(/^\s*>\s?/, '').trim();
+      if (!clean) return;
+
+      // 2. 불릿 기호 제거 (- or * or •)
+      clean = clean.replace(/^[-*•]\s+/, '').trim();
+
+      // 3. 마크다운 체크박스 마커 ([ ] or [x] or ( )) 제거
+      clean = clean.replace(/^\[\s*[xX_\- ]?\s*\]\s*/, '').replace(/^\(\s*[xX_\- ]?\s*\)\s*/, '').trim();
+
+      // 상황 질의 타이틀 감지
+      if (/^(?:💡\s*)?\[(?:상황\s*질의|질문|상황)\]/i.test(clean) || (choices.length === 0 && !directChoice && !/^\d+(?:\.|\:|\.\:|\))/.test(clean) && !clean.includes('답변 보충') && !clean.includes('직접 입력'))) {
+        scenarioTitle = clean;
+        return;
+      }
+
+      // 6. 직접 입력 감지 (e.g. "[ ] 6. ⟦직접 입력⟧", "6.: ⟦직접 입력⟧", "⟦직접 입력⟧", "[직접 입력]" 등 모든 변형 안전 지원)
+      if (/직접\s*입력/i.test(clean)) {
+        const phMatch = clean.match(/\(([^)]+)\)/);
+        let ph = phMatch ? phMatch[1].trim() : '보기에 없는 내 생각이나 상황을 적어주세요';
+        directChoice = {
+          id: 6,
+          placeholder: ph
+        };
+        return;
+      }
+
+      // 답변 보충 감지 (e.g. "⟦답변 보충⟧", "[답변 보충]", "답변 보충" 등 모든 변형 안전 지원)
+      if (/답변\s*보충/i.test(clean)) {
+        const phMatch = clean.match(/\(([^)]+)\)/);
+        let ph = phMatch ? phMatch[1].trim() : '답변 일부 발췌, 재조립, 기타 메모를 자유롭게 입력';
+        supplementObj = {
+          placeholder: ph
+        };
+        return;
+      }
+
+      // 번호 매겨진 선택지 (1~5번) - "1.: ", "1. ", "1: ", "1) " 등 완벽 포용
+      const numMatch = clean.match(/^(\d+)(?:\.|\:|\.\:|\))\s*(.+)$/);
+      if (numMatch) {
+        const num = parseInt(numMatch[1], 10);
+        let text = numMatch[2].trim();
+        // 앞부분에 남아있는 콜론이나 점 제거 (e.g. "1.: 최우선" -> text가 ": 최우선"으로 잡히는 오염 방지)
+        text = text.replace(/^[:.]\s*/, '').trim();
+
+        choices.push({
+          id: num,
+          label: `${num}. ${text}`,
+          text: `${num}번 선택: ${text}`
+        });
+      }
+    });
+
+    if (choices.length === 0 && !directChoice) {
+      return { hasChoices: false, html: '' };
+    }
+
+    if (!scenarioTitle) {
+      scenarioTitle = '💡 [선택 안내] 아래 보기 중 마음속 생각이나 반응을 골라주세요.';
+    }
+
+    if (!directChoice) {
+      directChoice = { id: 6, placeholder: '보기에 없는 내 생각이나 상황을 적어주세요' };
+    }
+
+    if (!supplementObj) {
+      supplementObj = { placeholder: '답변 일부 발췌, 재조립, 기타 메모를 자유롭게 입력' };
+    }
+
+    let choicesHtml = '';
+    choices.forEach(ch => {
+      choicesHtml += `
+        <div class="choice-item-row" data-choice-id="${ch.id}" data-choice-text="${this.escapeHtml(ch.text)}">
+          <input type="checkbox" class="choice-chk" id="chk-${msgId}-${ch.id}">
+          <span class="choice-label-text">${this.escapeHtml(ch.label)} <span class="order-badge-placeholder" id="badge-${msgId}-${ch.id}"></span></span>
+        </div>
+      `;
+    });
+
+    // 6. 직접 입력 (일반 굵기 400 + 단일 밑줄)
+    choicesHtml += `
+      <div class="choice-item-row choice-row-direct" data-choice-id="6">
+        <input type="checkbox" class="choice-chk" id="chk-${msgId}-6">
+        <div style="flex: 1;">
+          <span class="choice-label-text">6. 직접 입력 <span class="order-badge-placeholder" id="badge-${msgId}-6"></span></span>
+          <div style="margin-top: 4px;">
+            <textarea id="field-${msgId}-direct" class="single-underline-field field-direct" rows="1" placeholder="${this.escapeHtml(directChoice.placeholder)}"></textarea>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // 답변 보충 (단일 밑줄)
+    const supplementHtml = `
+      <div class="supplement-divider-box">
+        <div class="supplement-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          <span>답변 보충</span>
+        </div>
+        <textarea id="field-${msgId}-supplement" class="single-underline-field field-supplement" rows="1" placeholder="${this.escapeHtml(supplementObj.placeholder)}"></textarea>
+      </div>
+    `;
+
+    // 선택 완료 버튼 (컴팩트 & 완벽 중앙 정렬)
+    const submitBtnHtml = `
+      <div class="confirm-action-row">
+        <button type="button" class="btn-submit-choice-compact" id="btn-submit-${msgId}">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-check"><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></svg>
+          <span>선택 완료!</span>
+        </button>
+      </div>
+    `;
+
+    const html = `
+      ${preambleHtml ? `<div class="ai-dialogue-body">${preambleHtml}</div>` : ''}
+      <div class="integrated-quote-section" data-msg-id="${msgId}">
+        <div class="quote-scenario-title">${this.escapeHtml(scenarioTitle)}</div>
+        <div class="choices-list-container">
+          ${choicesHtml}
+        </div>
+        ${supplementHtml}
+        ${submitBtnHtml}
+      </div>
+    `;
+
+    return { hasChoices: true, html };
+  },
+
+  bindChoiceEvents(containerEl, msgId) {
+    const quoteSection = containerEl.querySelector(`.integrated-quote-section[data-msg-id="${msgId}"]`);
+    if (!quoteSection) return;
+
+    const orderedSelections = [];
+
+    const updateBadges = () => {
+      quoteSection.querySelectorAll('.order-badge-placeholder').forEach(el => {
+        el.textContent = '';
+        el.className = 'order-badge-placeholder';
+      });
+
+      orderedSelections.forEach((item, idx) => {
+        const badgeEl = quoteSection.querySelector(`#badge-${msgId}-${item.id}`);
+        if (badgeEl) {
+          badgeEl.textContent = `${idx + 1}번째 선택`;
+          badgeEl.className = 'order-badge-placeholder order-badge-clean';
+        }
+      });
+    };
+
+    const handleAutoResize = (textarea) => {
+      textarea.style.height = 'auto';
+      textarea.style.height = textarea.scrollHeight + 'px';
+    };
+
+    // 일반 선택지 클릭 핸들러
+    quoteSection.querySelectorAll('.choice-item-row:not(.choice-row-direct)').forEach(row => {
+      row.addEventListener('click', (e) => {
+        const choiceId = parseInt(row.dataset.choiceId, 10);
+        const choiceText = row.dataset.choiceText;
+        const chk = row.querySelector('.choice-chk');
+
+        if (e.target !== chk) {
+          chk.checked = !chk.checked;
+        }
+
+        if (chk.checked) {
+          if (!orderedSelections.some(item => item.id === choiceId)) {
+            orderedSelections.push({ id: choiceId, text: choiceText });
+          }
+        } else {
+          const idx = orderedSelections.findIndex(item => item.id === choiceId);
+          if (idx !== -1) orderedSelections.splice(idx, 1);
+        }
+
+        updateBadges();
+      });
+    });
+
+    // 6번 직접 입력 핸들러
+    const directRow = quoteSection.querySelector('.choice-row-direct');
+    const directChk = quoteSection.querySelector(`#chk-${msgId}-6`);
+    const directField = quoteSection.querySelector(`#field-${msgId}-direct`);
+
+    if (directRow && directChk && directField) {
+      directRow.addEventListener('click', (e) => {
+        if (e.target === directField) {
+          if (!directChk.checked) {
+            directChk.checked = true;
+            if (!orderedSelections.some(item => item.id === 6)) {
+              orderedSelections.push({ id: 6, isDirect: true });
+            }
+            updateBadges();
+          }
+          return;
+        }
+
+        if (e.target !== directChk) {
+          directChk.checked = !directChk.checked;
+        }
+
+        if (directChk.checked) {
+          if (!orderedSelections.some(item => item.id === 6)) {
+            orderedSelections.push({ id: 6, isDirect: true });
+          }
+          directField.focus();
+        } else {
+          const idx = orderedSelections.findIndex(item => item.id === 6);
+          if (idx !== -1) orderedSelections.splice(idx, 1);
+        }
+
+        updateBadges();
+      });
+
+      directField.addEventListener('input', () => {
+        handleAutoResize(directField);
+        if (directField.value.trim().length > 0 && !directChk.checked) {
+          directChk.checked = true;
+          if (!orderedSelections.some(item => item.id === 6)) {
+            orderedSelections.push({ id: 6, isDirect: true });
+          }
+          updateBadges();
+        }
+      });
+    }
+
+    // 답변 보충 자동 늘어남
+    const suppField = quoteSection.querySelector(`#field-${msgId}-supplement`);
+    if (suppField) {
+      suppField.addEventListener('input', () => handleAutoResize(suppField));
+    }
+
+    // 선택 완료 전송
+    const submitBtn = quoteSection.querySelector(`#btn-submit-${msgId}`);
+    if (submitBtn) {
+      submitBtn.addEventListener('click', () => {
+        const lines = [];
+
+        orderedSelections.forEach(item => {
+          if (item.isDirect) {
+            const val = directField ? directField.value.trim() : '';
+            lines.push(val ? `6번 선택: 직접 입력 ${val}` : `6번 선택: 직접 입력`);
+          } else {
+            lines.push(item.text);
+          }
+        });
+
+        const suppVal = suppField ? suppField.value.trim() : '';
+        if (suppVal) {
+          lines.push(`답변 보충\n${suppVal}`);
+        }
+
+        if (lines.length === 0) {
+          alert('선택지를 최소 1개 이상 선택하거나 텍스트를 입력해주세요!');
+          return;
+        }
+
+        const psychInput = document.getElementById('psychology-input');
+        if (psychInput) {
+          psychInput.value = lines.join('\n');
+          ChatManager.sendMessage('psychology');
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.6';
+        submitBtn.innerHTML = `<span>전송 완료 ✓</span>`;
+      });
+    }
   }
 };
 
@@ -1479,6 +1940,12 @@ const SessionManager = {
       updatedAt: Date.now()
     };
     await DB.set('chat_sessions', newSession);
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('about_me_active_session_id', sessionId);
+        localStorage.setItem('about_me_active_view', category);
+      }
+    } catch (e) {}
     await this.renderSessionList(category);
     return newSession;
   },
@@ -1489,6 +1956,13 @@ const SessionManager = {
 
     ChatManager.currentSessionId = session.id;
     ChatManager.activeHistory = [];
+
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('about_me_active_session_id', session.id);
+        localStorage.setItem('about_me_active_view', session.category);
+      }
+    } catch (e) {}
 
     const isPsychology = session.category === 'psychology';
     const containerId = isPsychology ? 'psychology-chat-messages' : 'saju-chat-messages';
@@ -1786,7 +2260,18 @@ const ChatUI = {
           });
           contentDiv.appendChild(reportCard);
         } else {
-          contentDiv.innerHTML = MarkdownParser.parse(currentRaw);
+          // 심리학 대화방 모델 응답인 경우 대화형 선택지 도시에 파싱 적용
+          if (containerId === 'psychology-chat-messages') {
+            const dossier = MarkdownParser.parseChoiceDossier(currentRaw, currentMsgId);
+            if (dossier.hasChoices) {
+              contentDiv.innerHTML = dossier.html;
+              MarkdownParser.bindChoiceEvents(contentDiv, currentMsgId);
+            } else {
+              contentDiv.innerHTML = MarkdownParser.parse(currentRaw);
+            }
+          } else {
+            contentDiv.innerHTML = MarkdownParser.parse(currentRaw);
+          }
         }
       } else {
         contentDiv.innerHTML = MarkdownParser.parse(currentRaw);
@@ -2243,7 +2728,42 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   NavStack.init();
   KeyboardViewportManager.init(); // 가상 키보드 자석 고정 초기화
-  Router.navigate('landing', false);
+
+  // [요구사항 2] 모바일 새로고침 유지: 기존 화면 및 세션 그대로 복구
+  let restored = false;
+  try {
+    const savedView = typeof localStorage !== 'undefined' ? localStorage.getItem('about_me_active_view') : null;
+    const savedSessionId = typeof localStorage !== 'undefined' ? localStorage.getItem('about_me_active_session_id') : null;
+
+    if (savedView && (savedView === 'psychology' || savedView === 'saju')) {
+      if (savedSessionId) {
+        const session = await DB.get('chat_sessions', savedSessionId);
+        if (session) {
+          await SessionManager.loadSession(savedSessionId);
+          restored = true;
+        }
+      }
+      if (!restored) {
+        // 해당 카테고리의 가장 최근 세션 복구
+        const allSessions = await DB.getAll('chat_sessions');
+        const catSessions = allSessions.filter(s => s.category === savedView).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+        if (catSessions.length > 0) {
+          await SessionManager.loadSession(catSessions[0].id);
+          restored = true;
+        }
+      }
+      if (!restored) {
+        Router.navigate(savedView, false);
+        restored = true;
+      }
+    }
+  } catch (err) {
+    console.warn('화면 상태 복구 중 오류:', err);
+  }
+
+  if (!restored) {
+    Router.navigate('landing', false);
+  }
 
   // 전송 버튼 클릭 바인딩 (엔터키는 전송하지 않고 순수 줄바꿈으로 유지)
   const psychInput = document.getElementById('psychology-input');
@@ -2341,6 +2861,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (DrawerController.isOpenLeft) DrawerController.closeLeft(false);
       if (DrawerController.isOpenRight) DrawerController.closeRight(false);
       if (ModalController.activeModalId) ModalController.close(false);
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('about_me_active_view', 'landing');
+          localStorage.removeItem('about_me_active_session_id');
+        }
+      } catch (e) {}
       Router.navigate('landing');
     });
   }
