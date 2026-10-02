@@ -58,6 +58,7 @@ html, body {
   height: 100%;
   height: 100dvh;
   overflow: hidden;
+  overscroll-behavior-y: none;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Segoe UI", Roboto, sans-serif;
@@ -937,7 +938,7 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  overscroll-behavior-y: contain;
+  overscroll-behavior-y: none;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -1151,8 +1152,9 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   background: transparent;
   border: none;
   outline: none;
-  font-size: 0.94rem;
+  font-size: 16px !important; /* iOS 사파리 강제 줌 방지 */
   line-height: 1.48;
+  letter-spacing: -0.01em;
   color: var(--text-primary);
   resize: none;
   max-height: 120px;
@@ -1538,11 +1540,56 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
 }
 
 .quote-scenario-title {
-  font-size: 0.89rem;
-  font-weight: 700;
+  font-size: 0.92rem;
+  font-weight: 600;
   color: #2A3022;
   margin-bottom: 14px;
   line-height: 1.55;
+}
+
+/* 인용구, 선택지 라벨 및 온보딩 내 볼드/하이라이트 확실한 시각화 보장 */
+.quote-scenario-title strong,
+.quote-scenario-title b,
+.quote-scenario-title .md-bold-highlight,
+.choice-label-text strong,
+.choice-label-text b,
+.choice-label-text .md-bold-highlight,
+.chat-bubble blockquote strong,
+.chat-bubble blockquote b,
+.chat-bubble blockquote .md-bold-highlight,
+.onboarding-q-title strong,
+.onboarding-q-title b,
+.onboarding-q-title .md-bold-highlight {
+  color: #2A3022 !important;
+  font-weight: 700 !important;
+  background: rgba(116, 123, 97, 0.16) !important;
+  padding: 1px 5px !important;
+  border-radius: 4px !important;
+  display: inline !important;
+}
+
+/* 온보딩 문항 블록 (체크박스 없는 상위 문항 라벨) */
+.onboarding-question-block {
+  margin-bottom: 6px;
+}
+
+.onboarding-q-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #2A3022;
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+
+.onboarding-tone-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.onboarding-tone-row {
+  margin-bottom: 4px !important;
 }
 
 .choice-item-row {
@@ -1617,8 +1664,9 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   border: none;
   border-bottom: 1.5px solid #8F977F;
   font-family: inherit;
-  font-size: 0.88rem;
-  line-height: 1.6;
+  font-size: 16px !important; /* iOS 사파리 16px 미만 터치 시 강제 확대 및 튕김 100% 방지 */
+  line-height: 1.5;
+  letter-spacing: -0.01em;
   color: #2A3022;
   padding: 4px 0;
   outline: none;

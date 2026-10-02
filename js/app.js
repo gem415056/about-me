@@ -4,7 +4,7 @@
 
 // 첫 진입 시 화면 전용 초기 안내 메시지 템플릿 (대화가 비어있는 세션에서도 영구 출력 보장)
 const INITIAL_GREETINGS = {
-  psychology: `본격적으로 이야기를 시작하기 전에, 가장 편안한 대화 환경부터 맞춰볼게요!\n\n1. 어떤 대화 톤이 편하신가요?\n- 친구처럼 거침없이 반말로 티키타카 하기\n- 적당히 위트 있고 편안한 존댓말 쓰기\n\n2. 대화하는 동안 제가 어떤 호칭(닉네임)으로 불러드리면 좋을까요?\n\n3. 지금 머릿속에 가장 먼저 떠오르는 이야기 하나만 편하게 꺼내주세요!\n(재밌게 본 영화/드라마/유튜브, 친구나 직장에서 겪은 웃기거나 빡쳤던 일화, 나만의 독특한 취미나 덕질, 요즘 느끼는 인간관계의 피로감이나 고민 등... 어떤 이야기든 좋습니다.)`,
+  psychology: `__PSYCHOLOGY_ONBOARDING__`,
   saju: `명리학으로 심층 분석할 만세력과 궁금하신 내용을 함께 전송해주세요!`
 };
 
@@ -124,7 +124,7 @@ const Router = {
   }
 };
 
-// 5. 모바일 가상 키보드 자석 고정 관리자 (KeyboardViewportManager)
+// 5. 모바일 가상 키보드 뷰포트 관리자 (KeyboardViewportManager)
 const KeyboardViewportManager = {
   container: document.getElementById('app-container'),
 
@@ -132,19 +132,14 @@ const KeyboardViewportManager = {
     if (!window.visualViewport) return;
 
     const onResize = () => {
-      // visualViewport 높이에 맞춰 컨테이너의 가시 영역을 정확히 일치시킴
+      // visualViewport 높이에 맞춰 컨테이너의 가시 영역 높이만 부드럽게 조정 (강제 스크롤 점프 완전 제거)
       const currentHeight = window.visualViewport.height;
-      this.container.style.height = `${currentHeight}px`;
-
-      // 활성화된 대화방의 스크롤을 맨 아래로 자연스럽게 유지
-      const activeChatScroll = document.querySelector('.view-section.active .chat-messages-container');
-      if (activeChatScroll) {
-        activeChatScroll.scrollTop = activeChatScroll.scrollHeight;
+      if (this.container) {
+        this.container.style.height = `${currentHeight}px`;
       }
     };
 
     window.visualViewport.addEventListener('resize', onResize);
-    window.visualViewport.addEventListener('scroll', onResize);
   }
 };
 
@@ -645,8 +640,13 @@ const MarkdownParser = {
     processed = processed.replace(/^# (.*$)/gim, '<h1>$1</h1>');
 
     // 4. 인용구 (> 문장)
-    processed = processed.replace(/^>\s?(.*)$/gm, '<blockquote>$1</blockquote>');
-    processed = processed.replace(/<\/blockquote>\n<blockquote>/g, '<br>');
+    // 연속된 > 문장들을 단일 blockquote로 결합하여 내부 줄바꿈 보존 및 마크다운 완벽 지원
+    processed = processed.replace(/(?:^>\s?.*(?:\n|$))+/gm, (block) => {
+      const innerLines = block.trim().split('\n')
+        .map(l => l.replace(/^>\s?/, ''))
+        .filter(l => l.length > 0);
+      return `<blockquote>${innerLines.join('<br>')}</blockquote>\n`;
+    });
 
     // 5. 볼드체, 인라인 코드, 밑줄 파싱
     processed = processed.replace(/\*\*\*([\s\S]+?)\*\*\*/g, '<strong><em>$1</em></strong>');
@@ -682,6 +682,19 @@ const MarkdownParser = {
   escapeHtml(str) {
     if (!str) return '';
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  },
+
+  // 인라인 마크다운 (볼드체, 인라인 코드, 밑줄) 전용 파서
+  parseInline(str) {
+    if (!str) return '';
+    let s = this.escapeHtml(str);
+    s = s.replace(/\*\*\*([\s\S]+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    s = s.replace(/\*\*([\s\S]+?)\*\*/g, '<span class="md-bold-highlight">$1</span>');
+    s = s.replace(/__([\s\S]+?)__/g, '<span class="md-bold-highlight">$1</span>');
+    s = s.replace(/`([^`\n]+?)`/g, '<span class="md-inline-code">$1</span>');
+    s = s.replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, '<span class="md-underline">$1</span>');
+    s = s.replace(/(?<!_)_([^_\n]+?)_(?!_)/g, '<span class="md-underline">$1</span>');
+    return s;
   },
 
   // [핵심 5] 심리학 전용 대화형 선택지 & 도시에 파서 (체크박스, 순서 추적, 밑줄 입력창, 원클릭 전송)
@@ -746,6 +759,7 @@ const MarkdownParser = {
 
       // 상황 질의 타이틀 감지
       if (/^(?:💡\s*)?\[(?:상황\s*질의|질문|상황)\]/i.test(clean) || (choices.length === 0 && !directChoice && !/^\d+(?:\.|\:|\.\:|\))/.test(clean) && !clean.includes('답변 보충') && !clean.includes('직접 입력'))) {
+        clean = clean.replace(/\[\s*선택\s*안내\s*\]/gi, '').trim();
         scenarioTitle = clean;
         return;
       }
@@ -791,8 +805,9 @@ const MarkdownParser = {
       return { hasChoices: false, html: '' };
     }
 
-    if (!scenarioTitle) {
-      scenarioTitle = '💡 [선택 안내] 아래 보기 중 마음속 생각이나 반응을 골라주세요.';
+    // [선택 안내] 삭제 및 요청 문구로 깔끔하게 교체
+    if (!scenarioTitle || scenarioTitle.includes('선택 안내') || scenarioTitle === '💡') {
+      scenarioTitle = '아래 보기 중 가장 가까운 마음 속 생각이나 반응을 골라주세요!';
     }
 
     if (!directChoice) {
@@ -808,7 +823,7 @@ const MarkdownParser = {
       choicesHtml += `
         <div class="choice-item-row" data-choice-id="${ch.id}" data-choice-text="${this.escapeHtml(ch.text)}">
           <input type="checkbox" class="choice-chk" id="chk-${msgId}-${ch.id}">
-          <span class="choice-label-text">${this.escapeHtml(ch.label)} <span class="order-badge-placeholder" id="badge-${msgId}-${ch.id}"></span></span>
+          <span class="choice-label-text">${this.parseInline(ch.label)} <span class="order-badge-placeholder" id="badge-${msgId}-${ch.id}"></span></span>
         </div>
       `;
     });
@@ -850,7 +865,7 @@ const MarkdownParser = {
     const html = `
       ${preambleHtml ? `<div class="ai-dialogue-body">${preambleHtml}</div>` : ''}
       <div class="integrated-quote-section" data-msg-id="${msgId}">
-        <div class="quote-scenario-title">${this.escapeHtml(scenarioTitle)}</div>
+        <div class="quote-scenario-title">${this.parseInline(scenarioTitle)}</div>
         <div class="choices-list-container">
           ${choicesHtml}
         </div>
@@ -860,6 +875,100 @@ const MarkdownParser = {
     `;
 
     return { hasChoices: true, html };
+  },
+
+  // [신규] 심리학 첫 진입 시 전용 온보딩 선택 카드 (톤 2줄 옵션 + 닉네임 밑줄 + 첫 이야기 밑줄 + 선택완료)
+  renderPsychologyOnboarding(msgId) {
+    return `
+      <div class="ai-dialogue-body">
+        본격적으로 이야기를 시작하기 전에, 가장 편안한 대화 환경부터 맞춰볼게요!
+      </div>
+      <div class="integrated-quote-section onboarding-quote-section" data-msg-id="${msgId}">
+        <!-- 1번 질문: 체크박스 없이, 아래에 2줄 옵션 체크박스 -->
+        <div class="onboarding-question-block">
+          <div class="onboarding-q-title">1. 어떤 대화 톤이 편하신가요?</div>
+          <div class="onboarding-tone-options">
+            <label class="choice-item-row onboarding-tone-row">
+              <input type="radio" name="tone-${msgId}" class="choice-chk" value="친구처럼 거침없이 반말로 티키타카 하기">
+              <span class="choice-label-text">친구처럼 거침없이 반말로 티키타카 하기</span>
+            </label>
+            <label class="choice-item-row onboarding-tone-row">
+              <input type="radio" name="tone-${msgId}" class="choice-chk" value="적당히 위트 있고 편안한 존댓말 쓰기">
+              <span class="choice-label-text">적당히 위트 있고 편안한 존댓말 쓰기</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 2번 질문: 체크박스 없이, 아래에 밑줄 입력창 -->
+        <div class="onboarding-question-block" style="margin-top: 14px;">
+          <div class="onboarding-q-title">2. 대화하는 동안 제가 어떤 호칭(닉네임)으로 불러드리면 좋을까요?</div>
+          <div style="margin-top: 6px;">
+            <textarea id="onboarding-nickname-${msgId}" class="single-underline-field" rows="1" placeholder="불러드릴 호칭(닉네임)"></textarea>
+          </div>
+        </div>
+
+        <!-- 3번 질문: 체크박스 없이, 아래에 밑줄 입력창 -->
+        <div class="onboarding-question-block" style="margin-top: 14px;">
+          <div class="onboarding-q-title">3. 지금 머릿속에 가장 먼저 떠오르는 이야기 하나만 편하게 꺼내주세요!</div>
+          <div style="margin-top: 6px;">
+            <textarea id="onboarding-story-${msgId}" class="single-underline-field" rows="1" placeholder="재밌게 본 영화/유튜브, 직장/친구 일화, 취미, 고민 등"></textarea>
+          </div>
+        </div>
+
+        <!-- 컴팩트 선택 완료 버튼 (직접 입력칸 및 답변 보충칸 완전 배제) -->
+        <div class="confirm-action-row" style="margin-top: 16px;">
+          <button type="button" class="btn-submit-choice-compact" id="btn-submit-onboarding-${msgId}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-check"><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></svg>
+            <span>선택 완료!</span>
+          </button>
+        </div>
+      </div>
+    `;
+  },
+
+  bindOnboardingEvents(containerEl, msgId) {
+    const quoteSection = containerEl.querySelector(`.onboarding-quote-section[data-msg-id="${msgId}"]`);
+    if (!quoteSection) return;
+
+    const nicknameField = quoteSection.querySelector(`#onboarding-nickname-${msgId}`);
+    const storyField = quoteSection.querySelector(`#onboarding-story-${msgId}`);
+    const submitBtn = quoteSection.querySelector(`#btn-submit-onboarding-${msgId}`);
+
+    const handleAutoResize = (textarea) => {
+      textarea.style.height = 'auto';
+      textarea.style.height = textarea.scrollHeight + 'px';
+    };
+
+    if (nicknameField) nicknameField.addEventListener('input', () => handleAutoResize(nicknameField));
+    if (storyField) storyField.addEventListener('input', () => handleAutoResize(storyField));
+
+    if (submitBtn) {
+      submitBtn.addEventListener('click', () => {
+        const checkedTone = quoteSection.querySelector(`input[name="tone-${msgId}"]:checked`);
+        const toneVal = checkedTone ? checkedTone.value : '적당히 위트 있고 편안한 존댓말 쓰기';
+        const nickVal = nicknameField ? nicknameField.value.trim() : '';
+        const storyVal = storyField ? storyField.value.trim() : '';
+
+        if (!storyVal) {
+          alert('3번 질문에 머릿속에 떠오르는 이야기 하나만 편하게 적어주세요!');
+          if (storyField) storyField.focus();
+          return;
+        }
+
+        const lines = [
+          `1. 대화 톤: ${toneVal}`,
+          `2. 호칭(닉네임): ${nickVal || '편한 호칭으로 불러주세요'}`,
+          `3. 첫 번째 이야기: ${storyVal}`
+        ];
+
+        // [핵심] 사용자 말풍선 없이 즉시 AI에게 페이로드 전송
+        ChatManager.sendChoicePayload('psychology', lines.join('\n'));
+
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.6';
+        submitBtn.innerHTML = `<span>선택 반영됨 ✓</span>`;
+      });
+    }
   },
 
   bindChoiceEvents(containerEl, msgId) {
@@ -990,15 +1099,13 @@ const MarkdownParser = {
           return;
         }
 
-        const psychInput = document.getElementById('psychology-input');
-        if (psychInput) {
-          psychInput.value = lines.join('\n');
-          ChatManager.sendMessage('psychology');
-        }
+        const payloadText = lines.join('\n');
+        // [핵심] 사용자 말풍선 없이 즉시 AI에게 페이로드 전송
+        ChatManager.sendChoicePayload('psychology', payloadText);
 
         submitBtn.disabled = true;
         submitBtn.style.opacity = '0.6';
-        submitBtn.innerHTML = `<span>전송 완료 ✓</span>`;
+        submitBtn.innerHTML = `<span>선택 반영됨 ✓</span>`;
       });
     }
   }
@@ -1974,6 +2081,7 @@ const SessionManager = {
     const messages = await DB.getByIndex('chat_messages', 'sessionId', sessionId);
     messages.sort((a, b) => a.timestamp - b.timestamp);
 
+    let hasReport = false;
     if (messages.length === 0) {
       // 대화가 없는 빈 세션인 경우 첫 안내 인사말을 화면에 반드시 출력
       if (INITIAL_GREETINGS[session.category]) {
@@ -1981,9 +2089,28 @@ const SessionManager = {
       }
     } else {
       messages.forEach(msg => {
-        ChatUI.appendMessage(containerId, msg.role, msg.content, msg.id);
+        // [핵심] silent 표시된 선택지 전송 사용자 메시지는 화면 말풍선 생략
+        if (msg.role === 'user' && msg.silent) {
+          ChatManager.activeHistory.push({ id: msg.id, role: msg.role, content: msg.content, silent: true });
+          return;
+        }
+        ChatUI.appendMessage(containerId, msg.role, msg.content, msg.id, msg.isGreeting);
         ChatManager.activeHistory.push({ id: msg.id, role: msg.role, content: msg.content });
+        if (msg.role === 'model' && MarkdownParser.extractReport(msg.content).hasReport) {
+          hasReport = true;
+        }
       });
+    }
+
+    if (isPsychology) {
+      const psychInputBar = document.getElementById('psychology-input-bar');
+      if (psychInputBar) {
+        if (hasReport) {
+          psychInputBar.classList.remove('hidden');
+        } else {
+          psychInputBar.classList.add('hidden');
+        }
+      }
     }
 
     await this.renderSessionList(session.category);
@@ -2200,6 +2327,15 @@ const ChatManager = {
         }
         await SessionManager.renderSessionList(category);
 
+        // 보고서 생성 시 심리학 하단 입력창 노출
+        if (isPsychology) {
+          const reportCheck = MarkdownParser.extractReport(finalText);
+          const psychInputBar = document.getElementById('psychology-input-bar');
+          if (reportCheck.hasReport && psychInputBar) {
+            psychInputBar.classList.remove('hidden');
+          }
+        }
+
         // 잠금 해제
         this.isGenerating = false;
         sendBtn.disabled = false;
@@ -2214,6 +2350,98 @@ const ChatManager = {
         }
         this.isGenerating = false;
         sendBtn.disabled = false;
+      }
+    });
+  },
+
+  // [핵심] 선택지 및 온보딩 전용 무음 페이로드 전송 (내 쪽 말풍선 없이 즉시 AI 전송)
+  async sendChoicePayload(category, payloadText) {
+    if (this.isGenerating) return;
+
+    const isPsychology = category === 'psychology';
+    const containerId = isPsychology ? 'psychology-chat-messages' : 'saju-chat-messages';
+
+    // 활성 세션이 없으면 자동 생성
+    if (!this.currentSessionId) {
+      const newSession = await SessionManager.createNewSession(category);
+      this.currentSessionId = newSession.id;
+    }
+
+    this.isGenerating = true;
+
+    // 히스토리 및 DB에만 영구 보관 (UI 사용자 말풍선은 생성하지 않음!)
+    const userMsgId = `msg_${Date.now()}_u_${Math.random().toString(36).substr(2, 6)}`;
+    this.activeHistory.push({ id: userMsgId, role: 'user', content: payloadText, silent: true });
+    await DB.set('chat_messages', {
+      id: userMsgId,
+      sessionId: this.currentSessionId,
+      role: 'user',
+      content: payloadText,
+      silent: true,
+      timestamp: Date.now()
+    });
+
+    // AI 답변 말풍선 미리 생성
+    const modelMsgId = `msg_${Date.now()}_m_${Math.random().toString(36).substr(2, 6)}`;
+    const modelBubble = ChatUI.appendMessage(containerId, 'model', '생각하는 중...', modelMsgId);
+    let hasScrolledToTop = false;
+
+    await AIEngine.sendRequest({
+      category: category,
+      userText: payloadText,
+      history: this.activeHistory,
+      attachedProfiles: [],
+      onChunk: (accumulatedText) => {
+        if (!hasScrolledToTop) {
+          ChatUI.scrollToMessageTop(modelBubble);
+          hasScrolledToTop = true;
+        }
+        if (modelBubble && modelBubble.updateRawContent) {
+          modelBubble.updateRawContent(accumulatedText);
+        }
+      },
+      onComplete: async (finalText) => {
+        if (!hasScrolledToTop) {
+          ChatUI.scrollToMessageTop(modelBubble);
+        }
+        if (modelBubble && modelBubble.updateRawContent) {
+          modelBubble.updateRawContent(finalText);
+        }
+
+        this.activeHistory.push({ id: modelMsgId, role: 'model', content: finalText });
+        await DB.set('chat_messages', {
+          id: modelMsgId,
+          sessionId: this.currentSessionId,
+          role: 'model',
+          content: finalText,
+          timestamp: Date.now()
+        });
+
+        const sess = await DB.get('chat_sessions', this.currentSessionId);
+        if (sess) {
+          sess.updatedAt = Date.now();
+          await DB.set('chat_sessions', sess);
+        }
+        await SessionManager.renderSessionList(category);
+
+        // 보고서 생성 시 하단 입력창 노출
+        if (isPsychology) {
+          const reportCheck = MarkdownParser.extractReport(finalText);
+          const psychInputBar = document.getElementById('psychology-input-bar');
+          if (reportCheck.hasReport && psychInputBar) {
+            psychInputBar.classList.remove('hidden');
+          }
+        }
+
+        this.isGenerating = false;
+      },
+      onError: (errMsg) => {
+        if (modelBubble && modelBubble.updateRawContent) {
+          modelBubble.updateRawContent(`⚠️ ${errMsg}`);
+        } else {
+          modelBubble.innerHTML = `<span style="color: #9C413D;">⚠️ ${errMsg}</span>`;
+        }
+        this.isGenerating = false;
       }
     });
   }
@@ -2242,6 +2470,13 @@ const ChatUI = {
 
     const renderInnerContent = () => {
       if (role === 'model') {
+        // [신규] 심리학 온보딩 첫 질문인 경우 전용 카드 렌더링
+        if (currentRaw.includes('__PSYCHOLOGY_ONBOARDING__') || (isGreeting && containerId === 'psychology-chat-messages')) {
+          contentDiv.innerHTML = MarkdownParser.renderPsychologyOnboarding(currentMsgId);
+          MarkdownParser.bindOnboardingEvents(contentDiv, currentMsgId);
+          return;
+        }
+
         const extracted = MarkdownParser.extractReport(currentRaw);
         if (extracted.hasReport) {
           // 사용자 명확한 요구사항: 보고서 생성 시 대화창에는 본문 없이 오직 열기 버튼만 노출
@@ -2259,6 +2494,12 @@ const ChatUI = {
             ReportController.open(extracted.reportContent);
           });
           contentDiv.appendChild(reportCard);
+
+          // 보고서 생성 시 심리학 하단 입력창 노출
+          const psychInputBar = document.getElementById('psychology-input-bar');
+          if (psychInputBar) {
+            psychInputBar.classList.remove('hidden');
+          }
         } else {
           // 심리학 대화방 모델 응답인 경우 대화형 선택지 도시에 파싱 적용
           if (containerId === 'psychology-chat-messages') {
@@ -2797,6 +3038,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const containerId = category === 'psychology' ? 'psychology-chat-messages' : 'saju-chat-messages';
     const container = document.getElementById(containerId);
     if (container) container.innerHTML = '';
+
+    // 심리학인 경우 하단 입력창을 기본 숨김 (보고서 출력 후 노출)
+    if (category === 'psychology') {
+      const psychInputBar = document.getElementById('psychology-input-bar');
+      if (psychInputBar) psychInputBar.classList.add('hidden');
+    }
 
     const newSession = await SessionManager.createNewSession(category);
     ChatManager.currentSessionId = newSession.id;
