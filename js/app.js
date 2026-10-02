@@ -963,10 +963,24 @@ const MarkdownParser = {
     const storyField = quoteSection.querySelector(`#onboarding-story-${msgId}`);
     const submitBtn = quoteSection.querySelector(`#btn-submit-onboarding-${msgId}`);
 
+    const ensureCaretVisible = (textarea) => {
+      if (!window.visualViewport) return;
+      requestAnimationFrame(() => {
+        const activeChatScroll = textarea.closest('.chat-messages-container');
+        if (!activeChatScroll) return;
+        const viewportBottom = window.visualViewport.height - 28;
+        const rect = textarea.getBoundingClientRect();
+        if (rect.bottom > viewportBottom) {
+          activeChatScroll.scrollTop += (rect.bottom - viewportBottom);
+        }
+      });
+    };
+
     const handleAutoResize = (textarea) => {
       textarea.style.height = 'auto';
       const lines = Math.max(1, Math.round(textarea.scrollHeight / 28));
       textarea.style.height = `${lines * 28}px`;
+      ensureCaretVisible(textarea);
     };
 
     if (nicknameField) nicknameField.addEventListener('input', () => handleAutoResize(nicknameField));
@@ -1022,10 +1036,24 @@ const MarkdownParser = {
       });
     };
 
+    const ensureCaretVisible = (textarea) => {
+      if (!window.visualViewport) return;
+      requestAnimationFrame(() => {
+        const activeChatScroll = textarea.closest('.chat-messages-container');
+        if (!activeChatScroll) return;
+        const viewportBottom = window.visualViewport.height - 28;
+        const rect = textarea.getBoundingClientRect();
+        if (rect.bottom > viewportBottom) {
+          activeChatScroll.scrollTop += (rect.bottom - viewportBottom);
+        }
+      });
+    };
+
     const handleAutoResize = (textarea) => {
       textarea.style.height = 'auto';
       const lines = Math.max(1, Math.round(textarea.scrollHeight / 28));
       textarea.style.height = `${lines * 28}px`;
+      ensureCaretVisible(textarea);
     };
 
     // 일반 선택지 클릭 핸들러
