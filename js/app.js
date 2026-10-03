@@ -726,6 +726,11 @@ const MarkdownParser = {
     processed = processed.replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, '<span class="md-underline">$1</span>');
     processed = processed.replace(/(?<!_)_([^_\n]+?)_(?!_)/g, '<span class="md-underline">$1</span>');
 
+    // 5.5 만세력 첨부 칩 (대괄호 제거, 서책 SVG 아이콘 장착)
+    processed = processed.replace(/\[([^\]\n]+?의\s*만세력)\]/g, (match, name) => {
+      return `<span class="manse-chip-badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10"/><path d="M6 10h10"/></svg><span>${name}</span></span>`;
+    });
+
     // 6. 구분선
     processed = processed.replace(/^---$/gim, '<hr>');
 
@@ -2589,18 +2594,26 @@ const ChatUI = {
 
         const extracted = MarkdownParser.extractReport(currentRaw);
         if (extracted.hasReport) {
-          // 사용자 명확한 요구사항: 보고서 생성 시 대화창에는 본문 없이 오직 열기 버튼만 노출
+          // 뒤 배경 말풍선 지저분함 전면 제거: bubble에 is-report-wrapper 부여하여 투명/무패딩/무테두리로 전환
+          bubble.classList.add('is-report-wrapper');
           contentDiv.innerHTML = '';
           const reportCard = document.createElement('div');
-          reportCard.className = 'report-card-summary';
+          reportCard.className = 'report-card-compact-slot';
           reportCard.innerHTML = `
-            <div class="report-card-info">
-              <span class="report-card-title">심층 분석 보고서</span>
-              <span class="report-card-desc">전문 분석 보고서 생성이 완료되었습니다.</span>
+            <div class="report-card-text-box">
+              <span class="report-card-title-text">
+                <span>📋 심층 분석 보고서</span>
+              </span>
+              <span class="report-card-short-desc">결과 보고서 생성이 완료되었습니다.</span>
             </div>
-            <button type="button" class="btn-open-report">열기</button>
+            <button type="button" class="circle-arrow-btn-soft" title="보고서 열기">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14"/>
+                <path d="m12 5 7 7-7 7"/>
+              </svg>
+            </button>
           `;
-          reportCard.querySelector('.btn-open-report').addEventListener('click', () => {
+          reportCard.querySelector('.circle-arrow-btn-soft').addEventListener('click', () => {
             ReportController.open(extracted.reportContent);
           });
           contentDiv.appendChild(reportCard);

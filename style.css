@@ -973,14 +973,14 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   }
 }
 
-/* 사용자 말풍선 (우측: 포근한 오프화이트 카드) */
+/* 사용자 말풍선 (우측: 미디엄 세이지 + 화이트 텍스트 전역 적용) */
 .chat-bubble.user {
   align-self: flex-end;
-  background-color: var(--bg-card);
-  color: var(--text-primary);
-  border: 1px solid var(--border-subtle);
+  background-color: #747B61 !important;
+  color: #FFFFFF !important;
+  border: 1px solid #5A614A !important;
   border-bottom-right-radius: 5px;
-  box-shadow: var(--shadow-soft);
+  box-shadow: 0 3px 12px rgba(45, 47, 39, 0.12);
 }
 
 /* AI 말풍선 (좌측: 따뜻한 내추럴 오트밀 톤) */
@@ -1491,12 +1491,14 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
    10. 마크다운 스타일링 (저대비 웜톤 인용구 & 전체화면 보고서 & 심리학 특화 UI)
    ========================================================================== */
 
-/* 심리학 전용: AI 말풍선 가로 전체 너비 확장 & 소프트 포슬린 테마 */
-#psychology-chat-messages .chat-message-row.model {
+/* 심리학 & 명리학 공통: AI 말풍선 가로 전체 너비 확장 & 소프트 포슬린 테마 */
+#psychology-chat-messages .chat-message-row.model,
+#saju-chat-messages .chat-message-row.model {
   width: 100% !important;
 }
 
-#psychology-chat-messages .chat-bubble.model {
+#psychology-chat-messages .chat-bubble.model,
+#saju-chat-messages .chat-bubble.model {
   width: 100% !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
@@ -1505,6 +1507,25 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   border-radius: 18px !important;
   padding: 20px 18px !important;
   box-shadow: 0 4px 16px rgba(45, 47, 39, 0.05) !important;
+}
+
+/* 명리학 만세력 첨부 태그 칩 (타입 A - 소프트 라운드 8px + 서책 SVG) */
+.manse-chip-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  margin-bottom: 6px;
+  vertical-align: middle;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
 /* 마크다운 하이라이트 (말차 톤, 절대 쌩블랙 배제) */
@@ -1562,9 +1583,6 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
 .choice-label-text strong,
 .choice-label-text b,
 .choice-label-text .md-bold-highlight,
-.chat-bubble blockquote strong,
-.chat-bubble blockquote b,
-.chat-bubble blockquote .md-bold-highlight,
 .onboarding-q-title strong,
 .onboarding-q-title b,
 .onboarding-q-title .md-bold-highlight {
@@ -1604,10 +1622,10 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   cursor: pointer;
   user-select: none;
-  padding: 6px 8px;
+  padding: 4px 6px;
   border-radius: 8px;
   transition: background 0.15s ease;
 }
@@ -1619,11 +1637,11 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
 .choice-chk {
   appearance: none;
   -webkit-appearance: none;
-  width: 19px;
-  height: 19px;
+  width: 18px;
+  height: 18px;
   border: 1.8px solid #A2A995;
   border-radius: 5px;
-  margin-top: 2px;
+  margin-top: 1.5px;
   flex-shrink: 0;
   cursor: pointer;
   display: inline-flex;
@@ -1641,13 +1659,13 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
 .choice-chk:checked::after {
   content: '✓';
   color: #FFF;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .choice-label-text {
   font-size: 0.88rem;
-  line-height: 1.55;
+  line-height: 1.42;
   color: #3E4236;
   flex: 1;
   font-weight: 400; /* 6번 직접 입력 포함 모두 동일한 일반 굵기 */
@@ -1911,8 +1929,23 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
 
 .chat-bubble blockquote strong, .chat-bubble blockquote b,
 .report-body-scroll blockquote strong, .report-body-scroll blockquote b {
-  color: var(--quote-bold) !important;
+  color: #FFFDF5 !important;
   font-weight: 700 !important;
+  background: rgba(255, 255, 255, 0.18) !important;
+  padding: 1px 6px !important;
+  border-radius: 4px !important;
+  display: inline !important;
+}
+
+.chat-bubble blockquote .md-bold-highlight,
+.report-body-scroll blockquote .md-bold-highlight {
+  color: #FFFDF5 !important;
+  font-weight: 700 !important;
+  background: rgba(218, 206, 160, 0.22) !important;
+  border-bottom: 1.5px solid rgba(255, 235, 170, 0.5) !important;
+  padding: 1px 6px !important;
+  border-radius: 4px !important;
+  display: inline !important;
 }
 
 /* 대화 수정 텍스트에리어 */
@@ -1934,51 +1967,82 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   display: block !important;
 }
 
-/* 대화창 내부 '분석 보고서 열기' 축약 카드 */
-.report-card-summary {
-  width: 100%;
-  padding: 14px 16px;
-  border-radius: 14px;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-strong);
-  display: flex;
+/* 대화창 내부 결과 보고서 슬롯 (뒤 배경 말풍선 제거 + 아담한 단독 콤팩트 카드) */
+.chat-bubble.is-report-wrapper {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  width: fit-content !important;
+  max-width: 100% !important;
+}
+
+.report-card-compact-slot {
+  width: fit-content;
+  max-width: min(100%, 330px);
+  box-sizing: border-box;
+  background: #F8F7F3;
+  border: 1.5px solid #D8D6C9;
+  border-radius: 16px;
+  padding: 13px 16px;
+  display: inline-flex;
   align-items: center;
   justify-content: space-between;
-  margin: 6px 0;
-  box-shadow: 0 3px 10px rgba(44, 40, 37, 0.05);
+  gap: 16px;
+  box-shadow: 0 4px 16px rgba(45, 47, 39, 0.06);
+  align-self: flex-start;
+  margin: 4px 0;
+  transition: all 0.2s ease;
 }
 
-.report-card-info {
+.report-card-compact-slot:hover {
+  border-color: #BFBCAE;
+  box-shadow: 0 6px 20px rgba(45, 47, 39, 0.09);
+}
+
+.report-card-text-box {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
-.report-card-title {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--text-primary);
+.report-card-title-text {
+  font-size: 0.94rem;
+  font-weight: 700;
+  color: #2A3022;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  letter-spacing: -0.01em;
 }
 
-.report-card-desc {
+.report-card-short-desc {
   font-size: 0.78rem;
-  color: var(--text-secondary);
+  color: #626756;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
 }
 
-.btn-open-report {
-  padding: 8px 14px;
-  border-radius: 10px;
-  background-color: var(--text-primary);
-  color: var(--bg-card);
-  border: none;
-  font-size: 0.82rem;
-  font-weight: 500;
+.circle-arrow-btn-soft {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(116, 123, 97, 0.14);
+  color: #555D46;
+  border: 1px solid rgba(116, 123, 97, 0.28);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.18s ease;
 }
 
-.btn-open-report:active {
-  opacity: 0.85;
+.circle-arrow-btn-soft:hover {
+  background: #747B61;
+  color: #FFF;
+  border-color: #5A614A;
+  transform: scale(1.06);
 }
 
 /* 전체화면 분석 보고서 오버레이 */
@@ -2035,61 +2099,63 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   background-color: var(--bg-card); /* 헤더 2 배경색과 일치 */
 }
 
-/* 보고서 제목 서식: 과도한 크기 배제, 1px 단위의 정갈한 학술/논문 서체 */
-.report-body-scroll h1 {
-  font-size: 1.15rem;
+/* 보고서 및 대화창 마크다운 서식: 넉넉한 상하 간격 및 불렛 22px 들여쓰기 */
+.chat-bubble h1, .report-body-scroll h1 {
+  font-size: 1.18rem;
   font-weight: 700;
-  color: var(--text-primary);
-  margin: 28px 0 14px 0;
+  color: #2A3022;
+  margin: 24px 0 12px 0;
   padding-bottom: 8px;
-  border-bottom: 1.5px solid var(--border-strong);
+  border-bottom: 1.5px solid #D8D6C9;
   letter-spacing: -0.01em;
 }
 
-.report-body-scroll h1:first-child {
+.chat-bubble h1:first-child, .report-body-scroll h1:first-child {
   margin-top: 0;
 }
 
-.report-body-scroll h2 {
-  font-size: 1.06rem;
+.chat-bubble h2, .report-body-scroll h2 {
+  font-size: 1.08rem;
   font-weight: 650;
-  color: var(--text-primary);
+  color: #2A3022;
   margin: 22px 0 10px 0;
   letter-spacing: -0.01em;
 }
 
-.report-body-scroll h3 {
+.chat-bubble h3, .report-body-scroll h3 {
   font-size: 0.98rem;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: #555A48;
   margin: 16px 0 8px 0;
   letter-spacing: -0.01em;
 }
 
-.report-body-scroll p {
+.chat-bubble p, .report-body-scroll p {
   font-size: 0.92rem;
   line-height: 1.72;
   margin: 6px 0 14px 0;
   color: var(--text-primary);
 }
 
+.chat-bubble ul, .chat-bubble ol,
 .report-body-scroll ul, .report-body-scroll ol {
-  margin: 6px 0 14px 0;
-  padding-left: 22px;
+  margin: 10px 0 14px 0;
+  padding-left: 22px !important; /* 불렛 벽붙음 해결: 22px 들여쓰기 */
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.report-body-scroll li {
+.chat-bubble li, .report-body-scroll li {
   font-size: 0.92rem;
   line-height: 1.68;
   color: var(--text-primary);
+  padding-left: 2px;
 }
 
 .report-body-scroll blockquote {
-  margin: 8px 0 14px 0;
-  padding: 10px 14px;
+  margin: 12px 0 16px 0;
+  padding: 12px 16px;
   border-left: 3px solid var(--border-strong);
   background-color: rgba(230, 225, 216, 0.25);
   border-radius: 0 8px 8px 0;
@@ -2098,10 +2164,10 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   line-height: 1.6;
 }
 
-.report-body-scroll hr {
+.chat-bubble hr, .report-body-scroll hr {
   border: none;
-  border-top: 1px dashed var(--border-strong);
-  margin: 26px 0;
+  border-top: 1.5px dashed #D1CFC2;
+  margin: 24px 0;
 }
 
 /* ==========================================================================
