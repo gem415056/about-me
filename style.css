@@ -2442,6 +2442,106 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   color: #FAF8F2 !important;
 }
 
+/* 번호 매겨진 목록 내부 서브 불릿 (6px 기준 마이크로 인덴트) */
+.md-sub-bullet {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 6px !important;
+  margin: 4px 0 !important;
+  font-size: 0.94em !important;
+  line-height: 1.64 !important;
+}
+
+.md-sub-bullet.sub-level-1 { margin-left: 6px !important; }
+.md-sub-bullet.sub-level-2 { margin-left: 12px !important; }
+.md-sub-bullet.sub-level-3 { margin-left: 18px !important; }
+.md-sub-bullet.sub-level-4 { margin-left: 24px !important; }
+
+.md-sub-bullet-dot {
+  color: #747B61 !important;
+  font-weight: 700 !important;
+  line-height: inherit !important;
+  flex-shrink: 0 !important;
+}
+
+.md-sub-bullet-text {
+  flex: 1 !important;
+  line-height: inherit !important;
+  word-break: break-word !important;
+}
+
+.chat-bubble.user .md-sub-bullet-dot,
+.chat-bubble.user .md-sub-bullet-text {
+  color: #FAF8F2 !important;
+}
+
+.chat-bubble ul li.sub-level-1, .report-body-scroll ul li.sub-level-1 { margin-left: 6px !important; }
+.chat-bubble ul li.sub-level-2, .report-body-scroll ul li.sub-level-2 { margin-left: 12px !important; }
+.chat-bubble ul li.sub-level-3, .report-body-scroll ul li.sub-level-3 { margin-left: 18px !important; }
+
+/* ==========================================================================
+   코드 블록 (타입 B: 세이지 & 오트밀, 기울임 ZERO, 순수 아이콘 복사)
+   ========================================================================== */
+.md-code-block {
+  background: #EDEAE1 !important;
+  border: 1.5px solid #C8C4B5 !important;
+  border-radius: 14px !important;
+  overflow: hidden !important;
+  margin: 12px 0 16px 0 !important;
+  box-shadow: 0 3px 12px rgba(45, 47, 39, 0.05) !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+}
+
+.md-code-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 6px 14px !important;
+  background: #E2DDD2 !important;
+  border-bottom: 1.5px solid #C8C4B5 !important;
+}
+
+.md-code-lang {
+  font-size: 0.76rem !important;
+  color: #555B49 !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.03em !important;
+}
+
+.md-code-copy-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 4px !important;
+  color: #747B61 !important;
+  cursor: pointer !important;
+  border-radius: 4px !important;
+  transition: color 0.2s, transform 0.1s !important;
+}
+
+.md-code-copy-btn:hover {
+  color: #2A3022 !important;
+  transform: scale(1.15) !important;
+}
+
+.md-code-body {
+  padding: 12px 14px !important;
+  margin: 0 !important;
+  overflow-x: auto !important;
+  font-size: 0.86rem !important;
+  line-height: 1.6 !important;
+  color: #2A3022 !important;
+  font-style: normal !important;
+}
+
+.md-code-body code,
+.md-code-body pre,
+.md-code-body span {
+  font-style: normal !important;
+}
+
 /* 통합 인용구 섹션 */
 .integrated-quote-section {
   background: #F3F1E8;

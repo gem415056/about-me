@@ -543,9 +543,9 @@ const MarkdownParser = {
     });
   },
 
-  // [핵심 3] 불릿 및 순서 목록 파서 (AI 원본 번호 완벽 보존 & 항목 내부 엔터 줄바꿈 보존)
+  // [핵심 3] 불릿 및 순서 목록 파서 (AI 원본 번호 & 하위/하위하위 다계층 6px 마이크로 인덴트)
   parseLists(text) {
-    // 1. 번호 매겨진 목록 (1. 2. 3. 또는 1) 2) 3)) - AI 원본 번호 및 내부 줄바꿈(<br>) 완벽 보존
+    // 1. 번호 매겨진 목록 (1. 2. 3. 또는 1) 2) 3)) 및 내부 다계층 서브 불릿(*, -) 중첩 파싱
     const lines = text.split('\n');
     const newLines = [];
     let inNumberedItem = false;
@@ -554,8 +554,21 @@ const MarkdownParser = {
 
     const flushNumberedItem = () => {
       if (inNumberedItem) {
-        const innerContent = currentContentLines.join('<br>').trim();
-        newLines.push(`<div class="md-numbered-item"><span class="md-num-label">${currentNum}</span><div class="md-num-content">${innerContent}</div></div>`);
+        let innerHtml = '';
+        for (let j = 0; j < currentContentLines.length; j++) {
+          const part = currentContentLines[j];
+          if (!part) {
+            innerHtml += '<br>';
+          } else if (part.startsWith('<div class="md-sub-bullet')) {
+            innerHtml += part;
+          } else {
+            if (innerHtml && !innerHtml.endsWith('<br>') && !innerHtml.endsWith('</div>')) {
+              innerHtml += '<br>';
+            }
+            innerHtml += part;
+          }
+        }
+        newLines.push(`<div class="md-numbered-item"><span class="md-num-label">${currentNum}</span><div class="md-num-content">${innerHtml.trim()}</div></div>`);
         inNumberedItem = false;
         currentNum = '';
         currentContentLines = [];
@@ -564,30 +577,54 @@ const MarkdownParser = {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      const match = line.match(/^[ \t]*(\d{1,2}[\.\)])[ \t]+(.*)/);
+      const numMatch = line.match(/^[ \t]*(\d{1,2}[\.\)])[ \t]+(.*)/);
+      const subBulletMatch = line.match(/^([ \t]{2,})([*•\-]|\d+[\.\)])[ \t]+(.*)/);
 
-      if (match) {
+      if (numMatch && (!inNumberedItem || !/^[ \t]{2,}/.test(line))) {
         flushNumberedItem();
         inNumberedItem = true;
-        currentNum = match[1];
-        currentContentLines = [match[2]];
+        currentNum = numMatch[1];
+        currentContentLines = [numMatch[2]];
+      } else if (inNumberedItem && subBulletMatch) {
+        const indentSpaces = subBulletMatch[1].replace(/\t/g, '  ').length;
+        let level = 1;
+        let dotSymbol = '•';
+        if (indentSpaces >= 6) {
+          level = 3;
+          dotSymbol = '·';
+        } else if (indentSpaces >= 4) {
+          level = 2;
+          dotSymbol = '-';
+        }
+
+        const subContent = subBulletMatch[3];
+        currentContentLines.push(`<div class="md-sub-bullet sub-level-${level}"><span class="md-sub-bullet-dot">${dotSymbol}</span><span class="md-sub-bullet-text">${subContent}</span></div>`);
       } else if (inNumberedItem) {
         const trimmed = line.trim();
         if (!trimmed) {
           const nextLine = lines[i + 1];
           if (nextLine && /^[ \t]*\d{1,2}[\.\)][ \t]+/.test(nextLine)) {
             flushNumberedItem();
+          } else if (nextLine && /^[ \t]{2,}[*•\-]/.test(nextLine)) {
+            // 바로 다음 줄이 서브 불릿이면 번호 항목 유지
           } else if (nextLine && nextLine.trim().length > 0 && !/^[ \t]*(?:[#>\-*]|```|<)/.test(nextLine)) {
             currentContentLines.push('');
           } else {
             flushNumberedItem();
             newLines.push(line);
           }
-        } else if (/^[ \t]*(?:[#>\-*]|```|<h[1-6]|<table|<div|<blockquote|<hr)/i.test(line)) {
+        } else if (/^[ \t]{0,1}(?:[#>\-*]|```|<h[1-6]|<table|<div|<blockquote|<hr)/i.test(line)) {
+          // 최상위 블록 요소가 오면 번호 항목 종료
           flushNumberedItem();
           newLines.push(line);
         } else {
-          currentContentLines.push(line.replace(/^[ \t]{1,4}/, ''));
+          // 서브 불릿의 이어지는 줄이거나 번호 항목의 본문 이어짐
+          const lastIdx = currentContentLines.length - 1;
+          if (lastIdx >= 0 && currentContentLines[lastIdx].startsWith('<div class="md-sub-bullet') && /^[ \t]{4,}/.test(line)) {
+            currentContentLines[lastIdx] = currentContentLines[lastIdx].replace('</span></div>', `<br>${line.trim()}</span></div>`);
+          } else {
+            currentContentLines.push(line.replace(/^[ \t]{1,4}/, ''));
+          }
         }
       } else {
         newLines.push(line);
@@ -596,12 +633,18 @@ const MarkdownParser = {
     flushNumberedItem();
     text = newLines.join('\n');
 
-    // 2. 불릿 목록 (- or *)
-    text = text.replace(/(?:^[ \t]*[-*][ \t]+.+?(?:\n[ \t]{2,}.+?)*(\n|$))+/gm, (match) => {
-      const rawItems = match.trim().split(/\n(?=[ \t]*[-*][ \t]+)/);
+    // 2. 최상위 및 순수 불릿 목록 (- or *) 다계층 파싱
+    text = text.replace(/(?:^[ \t]*[-*•][ \t]+.+?(?:\n[ \t]{2,}.+?)*(\n|$))+/gm, (match) => {
+      const rawItems = match.trim().split(/\n(?=[ \t]*[-*•][ \t]+)/);
       const items = rawItems.map(item => {
-        const cleaned = item.replace(/^[ \t]*[-*][ \t]+/, '').replace(/\n[ \t]{2,}/g, '<br>');
-        return `<li>${cleaned.trim()}</li>`;
+        const indentSpaces = (item.match(/^[ \t]*/)[0] || '').replace(/\t/g, '  ').length;
+        let levelClass = '';
+        if (indentSpaces >= 6) levelClass = ' sub-level-3';
+        else if (indentSpaces >= 4) levelClass = ' sub-level-2';
+        else if (indentSpaces >= 2) levelClass = ' sub-level-1';
+
+        const cleaned = item.replace(/^[ \t]*[-*•][ \t]+/, '').replace(/\n[ \t]{2,}/g, '<br>');
+        return `<li class="${levelClass}">${cleaned.trim()}</li>`;
       }).join('');
       return `<ul>${items}</ul>`;
     });
@@ -730,14 +773,21 @@ const MarkdownParser = {
     // 1. CRLF 개행 표준화
     let processed = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
-    // 1.5. JSON 게이지 블록 변환
+    // 1.5. JSON 게이지 블록 변환 (게이지 데이터가 아니면 일반 코드 블록으로 안전 전환)
     processed = processed.replace(/```json\s*([\s\S]*?)\s*```/g, (match, jsonStr) => {
       try {
         const data = JSON.parse(jsonStr.trim());
-        return this.renderJsonGauge(data);
+        const rendered = this.renderJsonGauge(data);
+        if (rendered) return rendered;
+        return this.renderCodeBlock(jsonStr.trim(), 'JSON');
       } catch (e) {
-        return match;
+        return this.renderCodeBlock(jsonStr.trim(), 'JSON');
       }
+    });
+
+    // 1.6. 일반 마크다운 코드 블록 (```lang ... ```) 변환 (Type B: 세이지 & 오트밀, 기울임 ZERO, 순수 아이콘 복사)
+    processed = processed.replace(/```([a-zA-Z0-9_\-#+]*)\s*([\s\S]*?)\s*```/g, (match, lang, code) => {
+      return this.renderCodeBlock(code, lang || 'CODE');
     });
 
     // 2. 마크다운 테이블 변환
@@ -791,6 +841,42 @@ const MarkdownParser = {
     }).filter(Boolean).join('');
 
     return processed;
+  },
+
+  // 코드 블록 렌더러 (타입 B: 세이지 & 오트밀, 기울임 ZERO, 순수 복사 아이콘)
+  renderCodeBlock(code, lang = 'CODE') {
+    const safeCode = this.escapeHtml((code || '').trim());
+    const displayLang = (lang || 'CODE').toUpperCase();
+    return `
+      <div class="md-code-block">
+        <div class="md-code-header">
+          <span class="md-code-lang">${displayLang}</span>
+          <button type="button" class="md-code-copy-btn" title="코드 복사" onclick="MarkdownParser.copyCodeBlock(this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+          </button>
+        </div>
+        <pre class="md-code-body"><code>${safeCode}</code></pre>
+      </div>
+    `;
+  },
+
+  // 코드 블록 클립보드 복사 핸들러
+  copyCodeBlock(btn) {
+    const codeBlock = btn.closest('.md-code-block');
+    if (!codeBlock) return;
+    const codeEl = codeBlock.querySelector('.md-code-body code');
+    if (!codeEl) return;
+    const text = codeEl.textContent || '';
+    navigator.clipboard.writeText(text).then(() => {
+      const originalSvg = btn.innerHTML;
+      btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5D664D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check"><path d="M20 6 9 17l-5-5"/></svg>`;
+      if (typeof UIManager !== 'undefined' && UIManager.showToast) {
+        UIManager.showToast('코드가 클립보드에 복사되었습니다.');
+      }
+      setTimeout(() => {
+        btn.innerHTML = originalSvg;
+      }, 1800);
+    });
   },
 
   escapeHtml(str) {
