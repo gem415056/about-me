@@ -127,7 +127,11 @@ const Router = {
 // 5. 모바일 가상 키보드 뷰포트 관리자 (KeyboardViewportManager)
 const KeyboardViewportManager = {
   init() {
-    if (!window.visualViewport) return;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    // [안드로이드 & 일반 PC] 브라우저 고유의 네이티브 뷰포트 정렬을 그대로 유지하여 화면 들썩거림을 100% 방지
+    if (!isIOS || !window.visualViewport) return;
 
     const handleViewportChange = () => {
       // 윈도우 스크롤 락 (사파리 튕김 방지)
@@ -135,22 +139,35 @@ const KeyboardViewportManager = {
         window.scrollTo(0, 0);
       }
 
-      // 키보드가 화면을 가리는 높이 계산
-      const activeChatScroll = document.querySelector('.view-section.active .chat-messages-container');
-      if (!activeChatScroll) return;
-
       const keyboardHeight = window.innerHeight - window.visualViewport.height;
-      if (keyboardHeight > 80) {
-        // 키보드 + 자동완성(QuickType) 툴바 높이까지 고려하여 대화창 하단 여백을 넉넉하게 확장
-        activeChatScroll.style.paddingBottom = `${keyboardHeight + 100}px`;
-        const activeEl = document.activeElement;
-        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
-          setTimeout(() => {
-            activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }, 100);
+
+      // 1) 대화창 영역 여백 보정 (아이폰 전용)
+      const activeChatScroll = document.querySelector('.view-section.active .chat-messages-container');
+      if (activeChatScroll) {
+        if (keyboardHeight > 80) {
+          activeChatScroll.style.paddingBottom = `${keyboardHeight + 100}px`;
+          const activeEl = document.activeElement;
+          if (activeEl && !activeEl.closest('.app-modal') && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+            setTimeout(() => {
+              activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+          }
+        } else {
+          activeChatScroll.style.paddingBottom = '';
         }
-      } else {
-        activeChatScroll.style.paddingBottom = '';
+      }
+
+      // 2) 설정 모달창 / 명식 모달창 여백 보정 (아이폰 API 설정창 앱체크 키 가림 완벽 해결)
+      const openModal = document.querySelector('.app-modal:not(.hidden)');
+      if (openModal) {
+        const modalBody = openModal.querySelector('.modal-body');
+        if (modalBody) {
+          if (keyboardHeight > 80) {
+            modalBody.style.paddingBottom = `${keyboardHeight + 100}px`;
+          } else {
+            modalBody.style.paddingBottom = '';
+          }
+        }
       }
     };
 
@@ -161,12 +178,22 @@ const KeyboardViewportManager = {
       }
     });
 
-    // 모든 input, textarea 포커스 시에도 부드럽게 화면 중심 스크롤 보정
+    // 아이폰 전용 포커스 중심축 스크롤 보정
     document.addEventListener('focusin', (e) => {
-      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
-        setTimeout(() => {
-          e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 280);
+      if (!e.target) return;
+      const tag = e.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+        const modalBody = e.target.closest('.modal-body');
+        if (modalBody) {
+          modalBody.style.paddingBottom = '260px';
+          setTimeout(() => {
+            e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 280);
+        } else if (!e.target.closest('.app-modal')) {
+          setTimeout(() => {
+            e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 280);
+        }
       }
     });
   }
@@ -836,7 +863,9 @@ const MarkdownParser = {
 
     // [선택 안내] 삭제 및 요청 문구로 깔끔하게 교체
     if (!scenarioTitle || scenarioTitle.includes('선택 안내') || scenarioTitle === '💡') {
-      scenarioTitle = '아래 보기 중 가장 가까운 마음 속 생각이나 반응을 골라주세요!';
+      scenarioTitle = '아래 보기 중 가장 가까운 마음 속 생각이나 반응을 골라주세요! (다중 선택 가능)';
+    } else if (!scenarioTitle.includes('다중 선택 가능')) {
+      scenarioTitle = scenarioTitle.replace(/골라주세요!?/, '골라주세요! (다중 선택 가능)');
     }
 
     if (!directChoice) {
@@ -963,8 +992,12 @@ const MarkdownParser = {
     const storyField = quoteSection.querySelector(`#onboarding-story-${msgId}`);
     const submitBtn = quoteSection.querySelector(`#btn-submit-onboarding-${msgId}`);
 
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
     const ensureCaretVisible = (textarea) => {
-      if (!window.visualViewport) return;
+      // 안드로이드 및 PC에서는 화면이 들썩거리지 않도록 인위적인 스크롤 완전 건너뜀
+      if (!isIOS || !window.visualViewport) return;
       requestAnimationFrame(() => {
         const activeChatScroll = textarea.closest('.chat-messages-container');
         if (!activeChatScroll) return;
@@ -1011,7 +1044,7 @@ const MarkdownParser = {
 
         submitBtn.disabled = true;
         submitBtn.style.opacity = '0.6';
-        submitBtn.innerHTML = `<span>선택 반영됨 ✓</span>`;
+        submitBtn.innerHTML = `<span style="display:inline-flex; align-items:center; justify-content:center; gap:4px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check preview-icon"><path d="M20 6 9 17l-5-5"/></svg>선택 반영됨</span>`;
       });
     }
   },
@@ -1037,8 +1070,12 @@ const MarkdownParser = {
       });
     };
 
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
     const ensureCaretVisible = (textarea) => {
-      if (!window.visualViewport) return;
+      // 안드로이드 및 PC에서는 화면이 들썩거리지 않도록 인위적인 스크롤 완전 건너뜀
+      if (!isIOS || !window.visualViewport) return;
       requestAnimationFrame(() => {
         const activeChatScroll = textarea.closest('.chat-messages-container');
         if (!activeChatScroll) return;
@@ -1166,7 +1203,7 @@ const MarkdownParser = {
 
         submitBtn.disabled = true;
         submitBtn.style.opacity = '0.6';
-        submitBtn.innerHTML = `<span>선택 반영됨 ✓</span>`;
+        submitBtn.innerHTML = `<span style="display:inline-flex; align-items:center; justify-content:center; gap:4px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check preview-icon"><path d="M20 6 9 17l-5-5"/></svg>선택 반영됨</span>`;
       });
     }
   }

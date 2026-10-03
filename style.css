@@ -1653,16 +1653,27 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   font-weight: 400; /* 6번 직접 입력 포함 모두 동일한 일반 굵기 */
 }
 
+.order-badge-placeholder {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+
 .order-badge-clean {
   font-size: 0.68rem;
   font-weight: 700;
-  padding: 2px 7px;
+  line-height: 1;
+  padding: 3px 6px;
   border-radius: 4px;
   background: #747B61;
   color: #FFF;
   margin-left: 6px;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   vertical-align: middle;
+  position: relative;
+  top: -1px; /* 글자 및 가운데 점(·)과 완벽한 수평 중심축 일치 */
   letter-spacing: -0.02em;
 }
 
