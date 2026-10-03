@@ -2416,7 +2416,7 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
 .md-numbered-item {
   display: flex !important;
   align-items: flex-start !important;
-  gap: 8px !important;
+  gap: 4px !important;
   margin: 6px 0 !important;
   line-height: 1.68 !important;
 }
@@ -2425,7 +2425,6 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   font-weight: 700 !important;
   color: #2A3022 !important;
   flex-shrink: 0 !important;
-  min-width: 18px !important;
   font-variant-numeric: tabular-nums !important;
   line-height: inherit !important;
 }
@@ -2446,21 +2445,21 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
 .md-sub-bullet {
   display: flex !important;
   align-items: flex-start !important;
-  gap: 6px !important;
+  gap: 4px !important;
   margin: 4px 0 !important;
   font-size: 0.94em !important;
   line-height: 1.64 !important;
 }
 
-/* 첫 번째 서브 불릿: 기존 코드 6px 마진 유지 */
+/* 첫 번째 서브 불릿: 상위 본문 텍스트 시작선에 완벽 일치 (0px) */
 .md-sub-bullet,
-.md-sub-bullet.sub-level-1 { margin-left: 6px !important; }
+.md-sub-bullet.sub-level-1 { margin-left: 0 !important; }
 
-/* 두 번째 서브 불릿: 첫 번째 불릿의 텍스트 시작점(6px + dot + gap)에 칼정렬 */
-.md-sub-bullet.sub-level-2 { margin-left: 18px !important; }
+/* 두 번째 서브 불릿: 첫 번째 불릿의 텍스트 시작점(dot 10px + gap 4px = 14px)에 도트 시작선 칼정렬 */
+.md-sub-bullet.sub-level-2 { margin-left: 14px !important; }
 
-/* 세 번째 서브 불릿: 두 번째 불릿의 텍스트 시작점에 칼정렬 */
-.md-sub-bullet.sub-level-3 { margin-left: 30px !important; }
+/* 세 번째 서브 불릿: 두 번째 불릿의 텍스트 시작점(14px + 14px = 28px)에 칼정렬 */
+.md-sub-bullet.sub-level-3 { margin-left: 28px !important; }
 
 /* 네 번째 서브 불릿 */
 .md-sub-bullet.sub-level-4 { margin-left: 42px !important; }
@@ -2470,6 +2469,9 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   font-weight: 700 !important;
   line-height: inherit !important;
   flex-shrink: 0 !important;
+  display: inline-block !important;
+  width: 10px !important;
+  text-align: left !important;
 }
 
 .md-sub-bullet-text {

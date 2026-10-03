@@ -586,15 +586,18 @@ const MarkdownParser = {
         currentNum = numMatch[1];
         currentContentLines = [numMatch[2]];
       } else if (inNumberedItem && subBulletMatch) {
-        const indentSpaces = subBulletMatch[1].replace(/\t/g, '  ').length;
+        const indentSpaces = subBulletMatch[1].replace(/\t/g, '    ').length;
         let level = 1;
         let dotSymbol = '•';
-        if (indentSpaces >= 6) {
+        if (indentSpaces >= 9) {
           level = 3;
           dotSymbol = '·';
-        } else if (indentSpaces >= 4) {
+        } else if (indentSpaces >= 5) {
           level = 2;
           dotSymbol = '-';
+        } else {
+          level = 1;
+          dotSymbol = '•';
         }
 
         const subContent = subBulletMatch[3];
