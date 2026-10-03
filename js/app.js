@@ -902,7 +902,7 @@ const MarkdownParser = {
   },
 
   // [핵심 5] 심리학 전용 대화형 선택지 & 도시에 파서 (체크박스, 순서 추적, 밑줄 입력창, 원클릭 전송)
-  parseChoiceDossier(rawText, msgId) {
+  parseChoiceDossier(rawText, msgId, choiceState = null) {
     if (!rawText) return { hasChoices: false, html: '' };
 
     // 선택지 번호(1. or 1.:)와 직접 입력 또는 답변 보충 포함 여부 감지 (인용구 > 유무 무관, [ ] 체크박스 유무 무관)
@@ -1024,46 +1024,61 @@ const MarkdownParser = {
       supplementObj = { placeholder: '답변 일부 발췌, 재조립, 기타 메모를 자유롭게 입력' };
     }
 
+    const selList = (choiceState && Array.isArray(choiceState.orderedSelections)) ? choiceState.orderedSelections : [];
+    const isSubmitted = Boolean(choiceState && choiceState.submitted);
+
     let choicesHtml = '';
     choices.forEach(ch => {
+      const selIdx = selList.findIndex(item => item.id === ch.id);
+      const isChecked = selIdx !== -1;
+      const badgeText = isChecked ? `${selIdx + 1}번째 선택` : '';
+      const badgeClass = isChecked ? 'order-badge-placeholder order-badge-clean' : 'order-badge-placeholder';
+
       choicesHtml += `
         <div class="choice-item-row" data-choice-id="${ch.id}" data-choice-text="${this.escapeHtml(ch.text)}">
-          <input type="checkbox" class="choice-chk" id="chk-${msgId}-${ch.id}">
-          <span class="choice-label-text">${this.parseInline(ch.label)} <span class="order-badge-placeholder" id="badge-${msgId}-${ch.id}"></span></span>
+          <input type="checkbox" class="choice-chk" id="chk-${msgId}-${ch.id}" ${isChecked ? 'checked' : ''}>
+          <span class="choice-label-text">${this.parseInline(ch.label)} <span class="${badgeClass}" id="badge-${msgId}-${ch.id}">${badgeText}</span></span>
         </div>
       `;
     });
 
     // 6. 직접 입력 (일반 굵기 400 + 단일 밑줄)
+    const directIdx = selList.findIndex(item => item.id === 6 || item.isDirect);
+    const isDirectChecked = directIdx !== -1;
+    const directBadgeText = isDirectChecked ? `${directIdx + 1}번째 선택` : '';
+    const directBadgeClass = isDirectChecked ? 'order-badge-placeholder order-badge-clean' : 'order-badge-placeholder';
+    const directVal = (choiceState && typeof choiceState.directValue === 'string') ? choiceState.directValue : '';
+
     choicesHtml += `
       <div class="choice-item-row choice-row-direct" data-choice-id="6">
-        <input type="checkbox" class="choice-chk" id="chk-${msgId}-6">
+        <input type="checkbox" class="choice-chk" id="chk-${msgId}-6" ${isDirectChecked ? 'checked' : ''}>
         <div style="flex: 1;">
-          <span class="choice-label-text">6. 직접 입력 <span class="order-badge-placeholder" id="badge-${msgId}-6"></span></span>
+          <span class="choice-label-text">6. 직접 입력 <span class="${directBadgeClass}" id="badge-${msgId}-6">${directBadgeText}</span></span>
           <div style="margin-top: 4px;">
-            <textarea id="field-${msgId}-direct" class="single-underline-field field-direct" rows="1" placeholder="${this.escapeHtml(directChoice.placeholder)}"></textarea>
+            <textarea id="field-${msgId}-direct" class="single-underline-field field-direct" rows="1" placeholder="${this.escapeHtml(directChoice.placeholder)}">${this.escapeHtml(directVal)}</textarea>
           </div>
         </div>
       </div>
     `;
 
     // 답변 보충 (단일 밑줄)
+    const suppVal = (choiceState && typeof choiceState.supplementValue === 'string') ? choiceState.supplementValue : '';
     const supplementHtml = `
       <div class="supplement-divider-box">
         <div class="supplement-label">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
           <span>답변 보충</span>
         </div>
-        <textarea id="field-${msgId}-supplement" class="single-underline-field field-supplement" rows="1" placeholder="${this.escapeHtml(supplementObj.placeholder)}"></textarea>
+        <textarea id="field-${msgId}-supplement" class="single-underline-field field-supplement" rows="1" placeholder="${this.escapeHtml(supplementObj.placeholder)}">${this.escapeHtml(suppVal)}</textarea>
       </div>
     `;
 
-    // 선택 완료 버튼 (컴팩트 & 완벽 중앙 정렬)
+    // 선택 완료 버튼 (컴팩트 & 완벽 중앙 정렬, 제출 완료 상태 영구 보존)
     const submitBtnHtml = `
       <div class="confirm-action-row">
-        <button type="button" class="btn-submit-choice-compact" id="btn-submit-${msgId}">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-check"><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></svg>
-          <span>선택 완료!</span>
+        <button type="button" class="btn-submit-choice-compact" id="btn-submit-${msgId}" ${isSubmitted ? 'disabled style="opacity: 0.6;"' : ''}>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="lucide ${isSubmitted ? 'lucide-check' : 'lucide-check-check'}"><path d="M20 6 9 17l-5-5"/>${isSubmitted ? '' : '<path d="m22 10-7.5 7.5L13 16"/>'}</svg>
+          <span>${isSubmitted ? '선택 반영됨' : '선택 완료!'}</span>
         </button>
       </div>
     `;
@@ -1084,7 +1099,14 @@ const MarkdownParser = {
   },
 
   // [신규] 심리학 첫 진입 시 전용 온보딩 선택 카드 (톤 2줄 옵션 + 닉네임 밑줄 + 첫 이야기 밑줄 + 선택완료)
-  renderPsychologyOnboarding(msgId) {
+  renderPsychologyOnboarding(msgId, choiceState = null) {
+    const isSubmitted = Boolean(choiceState && choiceState.submitted);
+    const savedTone = choiceState?.tone || '적당히 위트 있고 편안한 존댓말 쓰기';
+    const isBanmal = savedTone.includes('반말');
+    const isJondaet = !isBanmal;
+    const nickVal = (choiceState && typeof choiceState.nickname === 'string') ? choiceState.nickname : '';
+    const storyVal = (choiceState && typeof choiceState.story === 'string') ? choiceState.story : '';
+
     return `
       <div class="ai-dialogue-body">
         본격적으로 이야기를 시작하기 전에, 가장 편안한 대화 환경부터 맞춰볼게요!
@@ -1095,11 +1117,11 @@ const MarkdownParser = {
           <div class="onboarding-q-title">1. 어떤 대화 톤이 편하신가요?</div>
           <div class="onboarding-tone-options">
             <label class="choice-item-row onboarding-tone-row">
-              <input type="radio" name="tone-${msgId}" class="choice-chk" value="친구처럼 거침없이 반말로 티키타카 하기">
+              <input type="radio" name="tone-${msgId}" class="choice-chk" value="친구처럼 거침없이 반말로 티키타카 하기" ${isBanmal ? 'checked' : ''}>
               <span class="choice-label-text">친구처럼 거침없이 반말로 티키타카 하기</span>
             </label>
             <label class="choice-item-row onboarding-tone-row">
-              <input type="radio" name="tone-${msgId}" class="choice-chk" value="적당히 위트 있고 편안한 존댓말 쓰기">
+              <input type="radio" name="tone-${msgId}" class="choice-chk" value="적당히 위트 있고 편안한 존댓말 쓰기" ${isJondaet ? 'checked' : ''}>
               <span class="choice-label-text">적당히 위트 있고 편안한 존댓말 쓰기</span>
             </label>
           </div>
@@ -1109,7 +1131,7 @@ const MarkdownParser = {
         <div class="onboarding-question-block" style="margin-top: 14px;">
           <div class="onboarding-q-title">2. 대화하는 동안 제가 어떤 호칭(닉네임)으로 불러드리면 좋을까요?</div>
           <div style="margin-top: 6px;">
-            <textarea id="onboarding-nickname-${msgId}" class="single-underline-field" rows="1" placeholder="불러드릴 호칭(닉네임)"></textarea>
+            <textarea id="onboarding-nickname-${msgId}" class="single-underline-field" rows="1" placeholder="불러드릴 호칭(닉네임)">${this.escapeHtml(nickVal)}</textarea>
           </div>
         </div>
 
@@ -1117,22 +1139,22 @@ const MarkdownParser = {
         <div class="onboarding-question-block" style="margin-top: 14px;">
           <div class="onboarding-q-title">3. 지금 머릿속에 가장 먼저 떠오르는 이야기 하나만 편하게 꺼내주세요!</div>
           <div style="margin-top: 6px;">
-            <textarea id="onboarding-story-${msgId}" class="single-underline-field" rows="1" placeholder="재밌게 본 영화/유튜브, 직장/친구 일화, 취미, 고민 등"></textarea>
+            <textarea id="onboarding-story-${msgId}" class="single-underline-field" rows="1" placeholder="재밌게 본 영화/유튜브, 직장/친구 일화, 취미, 고민 등">${this.escapeHtml(storyVal)}</textarea>
           </div>
         </div>
 
         <!-- 컴팩트 선택 완료 버튼 (직접 입력칸 및 답변 보충칸 완전 배제) -->
         <div class="confirm-action-row" style="margin-top: 16px;">
-          <button type="button" class="btn-submit-choice-compact" id="btn-submit-onboarding-${msgId}">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-check"><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></svg>
-            <span>선택 완료!</span>
+          <button type="button" class="btn-submit-choice-compact" id="btn-submit-onboarding-${msgId}" ${isSubmitted ? 'disabled style="opacity: 0.6;"' : ''}>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="lucide ${isSubmitted ? 'lucide-check' : 'lucide-check-check'}"><path d="M20 6 9 17l-5-5"/>${isSubmitted ? '' : '<path d="m22 10-7.5 7.5L13 16"/>'}</svg>
+            <span>${isSubmitted ? '선택 반영됨' : '선택 완료!'}</span>
           </button>
         </div>
       </div>
     `;
   },
 
-  bindOnboardingEvents(containerEl, msgId) {
+  bindOnboardingEvents(containerEl, msgId, choiceState = null) {
     const quoteSection = containerEl.querySelector(`.onboarding-quote-section[data-msg-id="${msgId}"]`);
     if (!quoteSection) return;
 
@@ -1165,11 +1187,17 @@ const MarkdownParser = {
       ensureCaretVisible(textarea);
     };
 
-    if (nicknameField) nicknameField.addEventListener('input', () => handleAutoResize(nicknameField));
-    if (storyField) storyField.addEventListener('input', () => handleAutoResize(storyField));
+    if (nicknameField) {
+      handleAutoResize(nicknameField);
+      nicknameField.addEventListener('input', () => handleAutoResize(nicknameField));
+    }
+    if (storyField) {
+      handleAutoResize(storyField);
+      storyField.addEventListener('input', () => handleAutoResize(storyField));
+    }
 
     if (submitBtn) {
-      submitBtn.addEventListener('click', () => {
+      submitBtn.addEventListener('click', async () => {
         const checkedTone = quoteSection.querySelector(`input[name="tone-${msgId}"]:checked`);
         const toneVal = checkedTone ? checkedTone.value : '적당히 위트 있고 편안한 존댓말 쓰기';
         const nickVal = nicknameField ? nicknameField.value.trim() : '';
@@ -1187,8 +1215,49 @@ const MarkdownParser = {
           `3. 첫 번째 이야기: ${storyVal}`
         ];
 
+        // 이 카드 이후의 모든 후속 대화(DOM + DB + 히스토리) 정리
+        const msgRow = containerEl.closest('.chat-message-row');
+        if (msgRow) {
+          let nextRow = msgRow.nextElementSibling;
+          while (nextRow) {
+            const toRemove = nextRow;
+            nextRow = nextRow.nextElementSibling;
+            const nId = toRemove.querySelector('.chat-bubble')?.dataset?.msgId;
+            if (nId) {
+              await DB.delete('chat_messages', nId);
+              ChatManager.activeHistory = ChatManager.activeHistory.filter(h => h.id !== nId);
+            }
+            toRemove.remove();
+          }
+        }
+
+        const targetIdx = ChatManager.activeHistory.findIndex(h => h.id === msgId);
+        if (targetIdx !== -1) {
+          const removedHistory = ChatManager.activeHistory.splice(targetIdx + 1);
+          for (const rh of removedHistory) {
+            if (rh.id) await DB.delete('chat_messages', rh.id);
+          }
+        }
+
+        const stateToSave = {
+          tone: toneVal,
+          nickname: nickVal,
+          story: storyVal,
+          submitted: true
+        };
+
+        try {
+          const msgObj = await DB.get('chat_messages', msgId);
+          if (msgObj) {
+            msgObj.choiceState = stateToSave;
+            await DB.set('chat_messages', msgObj);
+          }
+        } catch (e) {
+          console.warn('DB onboarding choiceState 저장 실패:', e);
+        }
+
         // [핵심] 사용자 말풍선 없이 즉시 AI에게 페이로드 전송
-        ChatManager.sendChoicePayload('psychology', lines.join('\n'));
+        ChatManager.sendChoicePayload('psychology', lines.join('\n'), msgId, stateToSave);
 
         submitBtn.disabled = true;
         submitBtn.style.opacity = '0.6';
@@ -1197,11 +1266,13 @@ const MarkdownParser = {
     }
   },
 
-  bindChoiceEvents(containerEl, msgId) {
+  bindChoiceEvents(containerEl, msgId, choiceState = null) {
     const quoteSection = containerEl.querySelector(`.integrated-quote-section[data-msg-id="${msgId}"]`);
     if (!quoteSection) return;
 
-    const orderedSelections = [];
+    let orderedSelections = (choiceState && Array.isArray(choiceState.orderedSelections))
+      ? JSON.parse(JSON.stringify(choiceState.orderedSelections))
+      : [];
 
     const updateBadges = () => {
       quoteSection.querySelectorAll('.order-badge-placeholder').forEach(el => {
@@ -1272,6 +1343,10 @@ const MarkdownParser = {
     const directChk = quoteSection.querySelector(`#chk-${msgId}-6`);
     const directField = quoteSection.querySelector(`#field-${msgId}-direct`);
 
+    if (directField) {
+      handleAutoResize(directField);
+    }
+
     if (directRow && directChk && directField) {
       directRow.addEventListener('click', (e) => {
         if (e.target === directField) {
@@ -1317,13 +1392,14 @@ const MarkdownParser = {
     // 답변 보충 자동 늘어남
     const suppField = quoteSection.querySelector(`#field-${msgId}-supplement`);
     if (suppField) {
+      handleAutoResize(suppField);
       suppField.addEventListener('input', () => handleAutoResize(suppField));
     }
 
     // 선택 완료 전송
     const submitBtn = quoteSection.querySelector(`#btn-submit-${msgId}`);
     if (submitBtn) {
-      submitBtn.addEventListener('click', () => {
+      submitBtn.addEventListener('click', async () => {
         const lines = [];
 
         orderedSelections.forEach(item => {
@@ -1345,9 +1421,50 @@ const MarkdownParser = {
           return;
         }
 
+        // 이 카드 이후의 모든 후속 대화(DOM + DB + 히스토리) 정리
+        const msgRow = containerEl.closest('.chat-message-row');
+        if (msgRow) {
+          let nextRow = msgRow.nextElementSibling;
+          while (nextRow) {
+            const toRemove = nextRow;
+            nextRow = nextRow.nextElementSibling;
+            const nId = toRemove.querySelector('.chat-bubble')?.dataset?.msgId;
+            if (nId) {
+              await DB.delete('chat_messages', nId);
+              ChatManager.activeHistory = ChatManager.activeHistory.filter(h => h.id !== nId);
+            }
+            toRemove.remove();
+          }
+        }
+
+        const targetIdx = ChatManager.activeHistory.findIndex(h => h.id === msgId);
+        if (targetIdx !== -1) {
+          const removedHistory = ChatManager.activeHistory.splice(targetIdx + 1);
+          for (const rh of removedHistory) {
+            if (rh.id) await DB.delete('chat_messages', rh.id);
+          }
+        }
+
+        const stateToSave = {
+          orderedSelections: JSON.parse(JSON.stringify(orderedSelections)),
+          directValue: directField ? directField.value.trim() : '',
+          supplementValue: suppField ? suppField.value.trim() : '',
+          submitted: true
+        };
+
+        try {
+          const msgObj = await DB.get('chat_messages', msgId);
+          if (msgObj) {
+            msgObj.choiceState = stateToSave;
+            await DB.set('chat_messages', msgObj);
+          }
+        } catch (e) {
+          console.warn('DB choiceState 저장 실패:', e);
+        }
+
         const payloadText = lines.join('\n');
         // [핵심] 사용자 말풍선 없이 즉시 AI에게 페이로드 전송
-        ChatManager.sendChoicePayload('psychology', payloadText);
+        ChatManager.sendChoicePayload('psychology', payloadText, msgId, stateToSave);
 
         submitBtn.disabled = true;
         submitBtn.style.opacity = '0.6';
@@ -2329,9 +2446,19 @@ const SessionManager = {
 
     let hasReport = false;
     if (messages.length === 0) {
-      // 대화가 없는 빈 세션인 경우 첫 안내 인사말을 화면에 반드시 출력
+      // 대화가 없는 빈 세션인 경우 첫 안내 인사말을 화면에 반드시 출력하고 DB에 영구 기록
       if (INITIAL_GREETINGS[session.category]) {
-        ChatUI.appendMessage(containerId, 'model', INITIAL_GREETINGS[session.category], null, true);
+        const greetingMsgId = `msg_greeting_${session.id}`;
+        const greetingMsg = {
+          id: greetingMsgId,
+          sessionId: session.id,
+          role: 'model',
+          content: INITIAL_GREETINGS[session.category],
+          isGreeting: true,
+          timestamp: Date.now()
+        };
+        await DB.set('chat_messages', greetingMsg);
+        ChatUI.appendMessage(containerId, 'model', INITIAL_GREETINGS[session.category], greetingMsgId, true);
       }
     } else {
       messages.forEach(msg => {
@@ -2340,7 +2467,7 @@ const SessionManager = {
           ChatManager.activeHistory.push({ id: msg.id, role: msg.role, content: msg.content, silent: true });
           return;
         }
-        ChatUI.appendMessage(containerId, msg.role, msg.content, msg.id, msg.isGreeting);
+        ChatUI.appendMessage(containerId, msg.role, msg.content, msg.id, msg.isGreeting, msg.choiceState);
         ChatManager.activeHistory.push({ id: msg.id, role: msg.role, content: msg.content });
         if (msg.role === 'model' && MarkdownParser.extractReport(msg.content).hasReport) {
           hasReport = true;
@@ -2623,7 +2750,7 @@ const ChatManager = {
   },
 
   // [핵심] 선택지 및 온보딩 전용 무음 페이로드 전송 (내 쪽 말풍선 없이 즉시 AI 전송)
-  async sendChoicePayload(category, payloadText) {
+  async sendChoicePayload(category, payloadText, sourceMsgId = null, sourceState = null) {
     if (this.isGenerating) return;
 
     const isPsychology = category === 'psychology';
@@ -2633,6 +2760,18 @@ const ChatManager = {
     if (!this.currentSessionId) {
       const newSession = await SessionManager.createNewSession(category);
       this.currentSessionId = newSession.id;
+    }
+
+    if (sourceMsgId && sourceState) {
+      try {
+        const sourceMsg = await DB.get('chat_messages', sourceMsgId);
+        if (sourceMsg) {
+          sourceMsg.choiceState = sourceState;
+          await DB.set('chat_messages', sourceMsg);
+        }
+      } catch (e) {
+        console.warn('DB choiceState update error:', e);
+      }
     }
 
     this.isGenerating = true;
@@ -2719,7 +2858,7 @@ const ChatManager = {
 // 6. 대화 UI 헬퍼 및 자동 스크롤 (ChatUI)
 const ChatUI = {
   // 메시지 행 추가 (말풍선 + 외곽 하단 수정/삭제 버튼, 사용자/AI 공통 적용)
-  appendMessage(containerId, role, rawContent, msgId = null, isGreeting = false) {
+  appendMessage(containerId, role, rawContent, msgId = null, isGreeting = false, choiceState = null) {
     const container = document.getElementById(containerId);
     if (!container) return null;
 
@@ -2736,13 +2875,14 @@ const ChatUI = {
     contentDiv.className = 'bubble-text-content';
 
     let currentRaw = rawContent || '';
+    let currentChoiceState = choiceState;
 
     const renderInnerContent = () => {
       if (role === 'model') {
         // [신규] 심리학 온보딩 첫 질문인 경우 전용 카드 렌더링
         if (currentRaw.includes('__PSYCHOLOGY_ONBOARDING__') || (isGreeting && containerId === 'psychology-chat-messages')) {
-          contentDiv.innerHTML = MarkdownParser.renderPsychologyOnboarding(currentMsgId);
-          MarkdownParser.bindOnboardingEvents(contentDiv, currentMsgId);
+          contentDiv.innerHTML = MarkdownParser.renderPsychologyOnboarding(currentMsgId, currentChoiceState);
+          MarkdownParser.bindOnboardingEvents(contentDiv, currentMsgId, currentChoiceState);
           return;
         }
 
@@ -2785,10 +2925,10 @@ const ChatUI = {
             const hasReportInSession = ChatManager.activeHistory.some(m => m.role === 'model' && MarkdownParser.extractReport(m.content).hasReport) ||
                                        Boolean(document.querySelector('#psychology-chat-messages .is-report-wrapper'));
             if (!hasReportInSession) {
-              const dossier = MarkdownParser.parseChoiceDossier(currentRaw, currentMsgId);
+              const dossier = MarkdownParser.parseChoiceDossier(currentRaw, currentMsgId, currentChoiceState);
               if (dossier.hasChoices) {
                 contentDiv.innerHTML = dossier.html;
-                MarkdownParser.bindChoiceEvents(contentDiv, currentMsgId);
+                MarkdownParser.bindChoiceEvents(contentDiv, currentMsgId, currentChoiceState);
                 return;
               }
             }
@@ -2806,11 +2946,14 @@ const ChatUI = {
     bubble.appendChild(contentDiv);
 
     // [핵심] 외부에서 안전하게 내용 업데이트 가능한 메서드 제공 (스트리밍 및 완료 시 사용)
-    bubble.updateRawContent = (newText) => {
+    bubble.updateRawContent = (newText, newChoiceState = null) => {
       if (newText && newText !== '생각하는 중...') {
         bubble.classList.remove('is-thinking');
       }
       currentRaw = newText;
+      if (newChoiceState !== null) {
+        currentChoiceState = newChoiceState;
+      }
       bubble.dataset.rawContent = newText;
       renderInnerContent();
     };
@@ -2835,7 +2978,7 @@ const ChatUI = {
         </button>
       `;
 
-      // 새로고침(재전송) 클릭 - 기존 내 답변 삭제 후 현재 선택/내용 그대로 다시 전송
+      // 새로고침(재전송) 클릭 - 선택지 카드는 선택 완료 버튼 재활성화, 일반 말풍선은 즉시 재전송
       actionBar.querySelector('.btn-refresh-msg').addEventListener('click', async () => {
         if (ChatManager.isGenerating) return;
 
@@ -2844,86 +2987,19 @@ const ChatUI = {
         const category = isPsychology ? 'psychology' : 'saju';
 
         // 1. 이 카드가 심리학 질문 카드(선택지 또는 온보딩)인 경우:
-        //    현재 체크된 선택지들을 읽어서 후속 실패 응답을 지우고 즉시 다시 전송!
-        const choiceDossierEl = row.querySelector('.choice-dossier-card') || row.querySelector('.onboarding-choice-card');
-        if (choiceDossierEl) {
-          // 이 질문 카드 이후의 모든 후속 메시지를 화면과 DB에서 정리
-          let nextRow = row.nextElementSibling;
-          while (nextRow) {
-            const toRemove = nextRow;
-            nextRow = nextRow.nextElementSibling;
-            const nId = toRemove.querySelector('.chat-bubble')?.dataset?.msgId;
-            if (nId) {
-              await DB.delete('chat_messages', nId);
-              ChatManager.activeHistory = ChatManager.activeHistory.filter(h => h.id !== nId);
-            }
-            toRemove.remove();
-          }
-
-          // activeHistory에서 이 질문 카드 이후의 기록(기존 silent 사용자 답변 포함) 제거
-          const targetIdx = ChatManager.activeHistory.findIndex(h => h.id === targetId);
-          if (targetIdx !== -1) {
-            const removedHistory = ChatManager.activeHistory.splice(targetIdx + 1);
-            for (const rh of removedHistory) {
-              if (rh.id) await DB.delete('chat_messages', rh.id);
-            }
-          }
-
-          // 온보딩 카드인 경우
-          if (row.querySelector('.onboarding-choice-card')) {
-            const nickInput = row.querySelector(`#field-${targetId}-nick`);
-            const storyInput = row.querySelector(`#field-${targetId}-story`);
-            const toneRadio = row.querySelector(`input[name="tone-${targetId}"]:checked`);
-            const lines = [
-              `1. 대화 말투(어조): ${toneRadio ? toneRadio.value : '친구처럼 거침없이 반말로 티키타카 하기'}`,
-              `2. 호칭(닉네임): ${nickInput ? nickInput.value.trim() : '편한 호칭으로 불러주세요'}`,
-              `3. 첫 번째 이야기: ${storyInput ? storyInput.value.trim() : ''}`
-            ];
-            await ChatManager.sendChoicePayload('psychology', lines.join('\n'));
-            return;
-          }
-
-          // 일반 선택지 카드인 경우 현재 체크박스 상태 그대로 수집
-          const orderedItems = [];
-          row.querySelectorAll('.choice-item-row:not(.choice-row-direct)').forEach(itemRow => {
-            const chk = itemRow.querySelector('.choice-chk');
-            const badge = itemRow.querySelector('.order-badge-clean');
-            if (chk && chk.checked) {
-              const text = itemRow.dataset.choiceText || itemRow.querySelector('.choice-label-text')?.textContent?.replace(/\s*\d+순위/, '')?.trim();
-              const rankText = badge ? badge.textContent.replace('순위', '').trim() : '99';
-              const rank = parseInt(rankText, 10) || 99;
-              orderedItems.push({ rank, text: text || '' });
-            }
-          });
-
-          // 6번 직접 입력
-          const directChk = row.querySelector(`#chk-${targetId}-6`);
-          const directField = row.querySelector(`#field-${targetId}-direct`);
-          if (directChk && directChk.checked) {
-            const val = directField ? directField.value.trim() : '';
-            orderedItems.push({ rank: 6, text: val ? `6번 선택: 직접 입력 ${val}` : '6번 선택: 직접 입력' });
-          }
-          orderedItems.sort((a, b) => a.rank - b.rank);
-          const lines = orderedItems.map(it => it.text).filter(Boolean);
-
-          const suppField = row.querySelector(`#field-${targetId}-supplement`);
-          if (suppField && suppField.value.trim()) {
-            lines.push(`답변 보충\n${suppField.value.trim()}`);
-          }
-
-          if (lines.length === 0) {
-            alert('선택지를 최소 1개 이상 선택하거나 텍스트를 입력해주세요!');
-            return;
-          }
-
-          const submitBtn = row.querySelector(`#btn-submit-${targetId}`);
+        //    즉시 재전송하지 않고 '선택 완료!' 버튼을 다시 활성화하여 사용자가 기존 선택을 보면서 수정할 수 있게 함
+        const quoteSection = row.querySelector('.integrated-quote-section');
+        if (quoteSection) {
+          const submitBtn = quoteSection.querySelector(`#btn-submit-${targetId}`) || quoteSection.querySelector(`#btn-submit-onboarding-${targetId}`);
           if (submitBtn) {
-            submitBtn.disabled = true;
-            submitBtn.style.opacity = '0.6';
-            submitBtn.innerHTML = `<span style="display:inline-flex; align-items:center; justify-content:center; gap:4px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check preview-icon"><path d="M20 6 9 17l-5-5"/></svg>선택 반영됨</span>`;
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.innerHTML = `
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-check"><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></svg>
+              <span>선택 완료!</span>
+            `;
+            submitBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           }
-
-          await ChatManager.sendChoicePayload('psychology', lines.join('\n'));
           return;
         }
 
@@ -2954,7 +3030,19 @@ const ChatUI = {
           return;
         }
 
-        // 3. 일반 모델 응답인 경우: 직전 사용자 질문 바탕으로 다시 생성
+        // 3. 일반 모델 응답인 경우: 직전 사용자 질문 바탕으로 다시 생성 (이 모델 응답 및 이후 응답 전부 삭제)
+        let nextRow = row.nextElementSibling;
+        while (nextRow) {
+          const toRemove = nextRow;
+          nextRow = nextRow.nextElementSibling;
+          const nId = toRemove.querySelector('.chat-bubble')?.dataset?.msgId;
+          if (nId) {
+            await DB.delete('chat_messages', nId);
+            ChatManager.activeHistory = ChatManager.activeHistory.filter(h => h.id !== nId);
+          }
+          toRemove.remove();
+        }
+
         const prevRow = row.previousElementSibling;
         if (prevRow) {
           const prevBubble = prevRow.querySelector('.chat-bubble.user');
@@ -3502,9 +3590,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     ChatManager.currentSessionId = newSession.id;
     Router.navigate(category);
 
-    // [요구사항] 대화방 화면에 첫 안내 AI 말풍선 자동 출력 (Payload에는 미포함)
+    // [요구사항] 대화방 화면에 첫 안내 AI 말풍선 자동 출력 및 DB 영구 저장
     if (INITIAL_GREETINGS[category]) {
-      ChatUI.appendMessage(containerId, 'model', INITIAL_GREETINGS[category], null, true);
+      const greetingMsgId = `msg_greeting_${newSession.id}`;
+      const greetingMsg = {
+        id: greetingMsgId,
+        sessionId: newSession.id,
+        role: 'model',
+        content: INITIAL_GREETINGS[category],
+        isGreeting: true,
+        timestamp: Date.now()
+      };
+      await DB.set('chat_messages', greetingMsg);
+      ChatUI.appendMessage(containerId, 'model', INITIAL_GREETINGS[category], greetingMsgId, true);
     }
   };
 

@@ -1664,7 +1664,7 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   height: 17px;
   border: 1.8px solid #A2A995;
   border-radius: 4px;
-  margin-top: 1.5px;
+  margin-top: 1px;
   flex-shrink: 0;
   cursor: pointer;
   display: inline-flex;
@@ -1676,7 +1676,7 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
 
 @media (max-width: 768px) {
   .choice-chk {
-    margin-top: 3px !important;
+    margin-top: 2.5px !important;
   }
 }
 
@@ -2588,7 +2588,7 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   height: 17px;
   border: 1.8px solid #A2A995;
   border-radius: 4px;
-  margin-top: 1.5px;
+  margin-top: 1px;
   flex-shrink: 0;
   cursor: pointer;
   display: flex;
@@ -2600,7 +2600,7 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
 
 @media (max-width: 768px) {
   .choice-chk {
-    margin-top: 3px !important;
+    margin-top: 2.5px !important;
   }
 }
 
