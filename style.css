@@ -1664,7 +1664,7 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   height: 17px;
   border: 1.8px solid #A2A995;
   border-radius: 4px;
-  margin-top: 2px;
+  margin-top: 2.5px;
   flex-shrink: 0;
   cursor: pointer;
   display: inline-flex;
@@ -1672,6 +1672,12 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   justify-content: center;
   background: #FFF;
   transition: all 0.18s ease;
+}
+
+@media (max-width: 768px) {
+  .choice-chk {
+    margin-top: 4px !important;
+  }
 }
 
 .choice-chk:checked {
@@ -2400,7 +2406,7 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   height: 17px;
   border: 1.8px solid #A2A995;
   border-radius: 4px;
-  margin-top: 2px;
+  margin-top: 2.5px;
   flex-shrink: 0;
   cursor: pointer;
   display: flex;
@@ -2408,6 +2414,12 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   justify-content: center;
   background: #FFF;
   transition: all 0.18s ease;
+}
+
+@media (max-width: 768px) {
+  .choice-chk {
+    margin-top: 4px !important;
+  }
 }
 
 .choice-chk:checked {
