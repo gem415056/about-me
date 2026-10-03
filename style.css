@@ -2218,16 +2218,16 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
 
 .chat-bubble ul, .chat-bubble ol,
 .report-body-scroll ul, .report-body-scroll ol {
-  margin: 10px 0 14px 0;
-  padding-left: 22px !important; /* 불렛 벽붙음 해결: 22px 들여쓰기 */
+  margin: 6px 0 10px 0;
+  padding-left: 16px !important;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .chat-bubble li, .report-body-scroll li {
   font-size: 0.92rem;
-  line-height: 1.68;
+  line-height: 1.64;
   color: var(--text-primary);
   padding-left: 2px;
 }
@@ -2442,7 +2442,7 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   color: #FAF8F2 !important;
 }
 
-/* 번호 매겨진 목록 내부 서브 불릿 (6px 기준 마이크로 인덴트) */
+/* 번호 매겨진 목록 내부 서브 불릿 (상위 텍스트 시작선 기준 완벽 정렬) */
 .md-sub-bullet {
   display: flex !important;
   align-items: flex-start !important;
@@ -2452,10 +2452,18 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   line-height: 1.64 !important;
 }
 
+/* 첫 번째 서브 불릿: 기존 코드 6px 마진 유지 */
+.md-sub-bullet,
 .md-sub-bullet.sub-level-1 { margin-left: 6px !important; }
-.md-sub-bullet.sub-level-2 { margin-left: 12px !important; }
-.md-sub-bullet.sub-level-3 { margin-left: 18px !important; }
-.md-sub-bullet.sub-level-4 { margin-left: 24px !important; }
+
+/* 두 번째 서브 불릿: 첫 번째 불릿의 텍스트 시작점(6px + dot + gap)에 칼정렬 */
+.md-sub-bullet.sub-level-2 { margin-left: 18px !important; }
+
+/* 세 번째 서브 불릿: 두 번째 불릿의 텍스트 시작점에 칼정렬 */
+.md-sub-bullet.sub-level-3 { margin-left: 30px !important; }
+
+/* 네 번째 서브 불릿 */
+.md-sub-bullet.sub-level-4 { margin-left: 42px !important; }
 
 .md-sub-bullet-dot {
   color: #747B61 !important;
@@ -2474,10 +2482,6 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
 .chat-bubble.user .md-sub-bullet-text {
   color: #FAF8F2 !important;
 }
-
-.chat-bubble ul li.sub-level-1, .report-body-scroll ul li.sub-level-1 { margin-left: 6px !important; }
-.chat-bubble ul li.sub-level-2, .report-body-scroll ul li.sub-level-2 { margin-left: 12px !important; }
-.chat-bubble ul li.sub-level-3, .report-body-scroll ul li.sub-level-3 { margin-left: 18px !important; }
 
 /* ==========================================================================
    코드 블록 (타입 B: 세이지 & 오트밀, 기울임 ZERO, 순수 아이콘 복사)
