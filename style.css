@@ -973,14 +973,31 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   }
 }
 
-/* 사용자 말풍선 (우측: 미디엄 세이지 + 화이트 텍스트 전역 적용) */
+/* 사용자 말풍선 (우측: 미디엄 세이지 + 부드러운 웜화이트 텍스트 전역 적용) */
 .chat-bubble.user {
   align-self: flex-end;
   background-color: #747B61 !important;
-  color: #FFFFFF !important;
+  color: #FAF8F2 !important;
   border: 1px solid #5A614A !important;
   border-bottom-right-radius: 5px;
   box-shadow: 0 3px 12px rgba(45, 47, 39, 0.12);
+}
+
+.chat-bubble.user,
+.chat-bubble.user p,
+.chat-bubble.user div,
+.chat-bubble.user span:not(.manse-chip-badge):not(.manse-chip-badge span) {
+  color: #FAF8F2 !important;
+}
+
+.chat-bubble.user p {
+  font-size: 0.94rem;
+  line-height: 1.6;
+  margin: 0 !important;
+}
+
+.chat-bubble.user p + p {
+  margin-top: 6px !important;
 }
 
 /* AI 말풍선 (좌측: 따뜻한 내추럴 오트밀 톤) */
@@ -1618,15 +1635,21 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   margin-bottom: 4px !important;
 }
 
+.choices-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
 .choice-item-row {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 6px;
+  gap: 8px;
+  margin-bottom: 2px;
   cursor: pointer;
   user-select: none;
-  padding: 4px 6px;
-  border-radius: 8px;
+  padding: 2px 4px;
+  border-radius: 6px;
   transition: background 0.15s ease;
 }
 
@@ -1637,11 +1660,11 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
 .choice-chk {
   appearance: none;
   -webkit-appearance: none;
-  width: 18px;
-  height: 18px;
+  width: 17px;
+  height: 17px;
   border: 1.8px solid #A2A995;
-  border-radius: 5px;
-  margin-top: 1.5px;
+  border-radius: 4px;
+  margin-top: 2px;
   flex-shrink: 0;
   cursor: pointer;
   display: inline-flex;
@@ -1665,7 +1688,7 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
 
 .choice-label-text {
   font-size: 0.88rem;
-  line-height: 1.42;
+  line-height: 1.44;
   color: #3E4236;
   flex: 1;
   font-weight: 400; /* 6번 직접 입력 포함 모두 동일한 일반 굵기 */
@@ -2130,11 +2153,15 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   letter-spacing: -0.01em;
 }
 
-.chat-bubble p, .report-body-scroll p {
+.chat-bubble.model p, .report-body-scroll p {
   font-size: 0.92rem;
   line-height: 1.72;
   margin: 6px 0 14px 0;
   color: var(--text-primary);
+}
+
+.chat-bubble.model p:last-child {
+  margin-bottom: 0;
 }
 
 .chat-bubble ul, .chat-bubble ol,
@@ -2353,13 +2380,13 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
 .choice-item-row {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 8px;
+  margin-bottom: 2px !important;
   cursor: pointer;
   user-select: none;
-  padding: 5px 6px;
+  padding: 2px 4px !important;
   border-radius: 6px;
-  transition: background 0.15s;
+  transition: background 0.15s ease;
 }
 
 .choice-item-row:hover {
@@ -2369,10 +2396,10 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
 .choice-chk {
   appearance: none;
   -webkit-appearance: none;
-  width: 19px;
-  height: 19px;
+  width: 17px;
+  height: 17px;
   border: 1.8px solid #A2A995;
-  border-radius: 5px;
+  border-radius: 4px;
   margin-top: 2px;
   flex-shrink: 0;
   cursor: pointer;
@@ -2391,13 +2418,13 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
 .choice-chk:checked::after {
   content: '✓';
   color: #FFF;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .choice-label-text {
   font-size: 0.88rem;
-  line-height: 1.5;
+  line-height: 1.44 !important;
   color: #3E4236;
   flex: 1;
   font-weight: 400;
