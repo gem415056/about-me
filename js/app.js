@@ -606,13 +606,10 @@ const MarkdownParser = {
         const trimmed = line.trim();
         if (!trimmed) {
           const nextLine = lines[i + 1];
-          if (nextLine && /^[ \t]*\d{1,2}[\.\)][ \t]+/.test(nextLine)) {
-            flushNumberedItem();
-          } else if (nextLine && /^[ \t]{2,}[*•\-]/.test(nextLine)) {
-            // 바로 다음 줄이 서브 불릿이면 번호 항목 유지
-          } else if (nextLine && nextLine.trim().length > 0 && !/^[ \t]*(?:[#>\-*]|```|<)/.test(nextLine)) {
-            currentContentLines.push('');
+          if (nextLine && /^[ \t]{2,}[*•\-]/.test(nextLine)) {
+            // 바로 다음 줄이 서브 불릿인 경우만 번호 항목 유지
           } else {
+            // 빈 줄 후 일반 텍스트나 다음 번호, 블록이 올 때 즉시 번호 항목 종료
             flushNumberedItem();
             newLines.push(line);
           }
@@ -621,12 +618,16 @@ const MarkdownParser = {
           flushNumberedItem();
           newLines.push(line);
         } else {
-          // 서브 불릿의 이어지는 줄이거나 번호 항목의 본문 이어짐
+          // 서브 불릿의 이어지는 줄이거나 번호 항목의 본문 이어짐 (들여쓰기가 있는 경우)
           const lastIdx = currentContentLines.length - 1;
           if (lastIdx >= 0 && currentContentLines[lastIdx].startsWith('<div class="md-sub-bullet') && /^[ \t]{4,}/.test(line)) {
             currentContentLines[lastIdx] = currentContentLines[lastIdx].replace('</span></div>', `<br>${line.trim()}</span></div>`);
-          } else {
+          } else if (/^[ \t]{1,4}/.test(line)) {
             currentContentLines.push(line.replace(/^[ \t]{1,4}/, ''));
+          } else {
+            // 들여쓰기 없는 일반 텍스트 줄이 오면 번호 항목 종료하고 일반 텍스트로 처리
+            flushNumberedItem();
+            newLines.push(line);
           }
         }
       } else {
