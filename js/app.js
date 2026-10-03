@@ -417,8 +417,8 @@ const MarkdownParser = {
       };
     }
 
-    // 패턴 B: AI가 실수로 [REPORT_START] 태그를 빼먹고 '# 1부'로 바로 시작한 경우 자동 안전 구출!
-    const implicitRegex = /(#\s*1부[\s\S]*)/i;
+    // 패턴 B: AI가 실수로 [REPORT_START] 태그를 빼먹고 '# 1부', '1부.', '**1부**', '심층 분석 보고서' 등으로 바로 시작한 경우 자동 안전 구출!
+    const implicitRegex = /(?:#+\s*1부|(?:\*\*|\[)?1부(?:\*\*|\])?\s*[\.:\-\–]|#+\s*심층\s*분석\s*보고서|(?:\*\*|\[)?심층\s*분석\s*보고서(?:\*\*|\])?)([\s\S]*)/i;
     const implicitMatch = rawText.match(implicitRegex);
 
     if (implicitMatch) {
@@ -2219,11 +2219,29 @@ const SessionManager = {
 
     if (isPsychology) {
       const psychInputBar = document.getElementById('psychology-input-bar');
+      const psychInput = document.getElementById('psychology-input');
       if (psychInputBar) {
         if (hasReport) {
           psychInputBar.classList.remove('hidden');
+          // 보고서 이후 사용자 메시지가 이미 전송된 적이 있는지 확인
+          let reportSeen = false;
+          let hasUserPostReport = false;
+          for (const m of messages) {
+            if (m.role === 'model' && MarkdownParser.extractReport(m.content).hasReport) {
+              reportSeen = true;
+            } else if (reportSeen && m.role === 'user' && !m.silent) {
+              hasUserPostReport = true;
+              break;
+            }
+          }
+          if (psychInput) {
+            psychInput.placeholder = hasUserPostReport ? '' : '분석 보고서에 대해 궁금한 점을 편하게 질문해주세요...';
+          }
         } else {
           psychInputBar.classList.add('hidden');
+          if (psychInput) {
+            psychInput.placeholder = '분석 보고서에 대해 궁금한 점을 편하게 질문해주세요...';
+          }
         }
       }
     }
@@ -2345,6 +2363,9 @@ const ChatManager = {
     sendBtn.disabled = true;
     inputEl.value = '';
     inputEl.style.height = 'auto';
+    if (isPsychology) {
+      inputEl.placeholder = '';
+    }
 
     // 활성 세션이 없으면 자동 생성
     if (!this.currentSessionId) {
@@ -2389,6 +2410,7 @@ const ChatManager = {
     // 4. AI 답변 말풍선 미리 생성 (고유 ID 즉시 발급)
     const modelMsgId = `msg_${Date.now()}_m_${Math.random().toString(36).substr(2, 6)}`;
     const modelBubble = ChatUI.appendMessage(containerId, 'model', '생각하는 중...', modelMsgId);
+    if (modelBubble) modelBubble.classList.add('is-thinking');
     let hasScrolledToTop = false;
 
     // 5. AI 통신 호출
@@ -2499,6 +2521,7 @@ const ChatManager = {
     // AI 답변 말풍선 미리 생성
     const modelMsgId = `msg_${Date.now()}_m_${Math.random().toString(36).substr(2, 6)}`;
     const modelBubble = ChatUI.appendMessage(containerId, 'model', '생각하는 중...', modelMsgId);
+    if (modelBubble) modelBubble.classList.add('is-thinking');
     let hasScrolledToTop = false;
 
     await AIEngine.sendRequest({
@@ -2594,6 +2617,7 @@ const ChatUI = {
 
         const extracted = MarkdownParser.extractReport(currentRaw);
         if (extracted.hasReport) {
+          bubble.classList.remove('is-thinking');
           // 뒤 배경 말풍선 지저분함 전면 제거: bubble에 is-report-wrapper 부여하여 투명/무패딩/무테두리로 전환
           bubble.classList.add('is-report-wrapper');
           contentDiv.innerHTML = '';
@@ -2624,15 +2648,20 @@ const ChatUI = {
             psychInputBar.classList.remove('hidden');
           }
         } else {
-          // 심리학 대화방 모델 응답인 경우 대화형 선택지 도시에 파싱 적용
+          // 심리학 대화방 모델 응답인 경우
           if (containerId === 'psychology-chat-messages') {
-            const dossier = MarkdownParser.parseChoiceDossier(currentRaw, currentMsgId);
-            if (dossier.hasChoices) {
-              contentDiv.innerHTML = dossier.html;
-              MarkdownParser.bindChoiceEvents(contentDiv, currentMsgId);
-            } else {
-              contentDiv.innerHTML = MarkdownParser.parse(currentRaw);
+            // [요구사항 3] 보고서 출력 이후 후속 대화인 경우 선택지 파서 해제 -> 일반 마크다운 파서 적용
+            const hasReportInSession = ChatManager.activeHistory.some(m => m.role === 'model' && MarkdownParser.extractReport(m.content).hasReport) ||
+                                       Boolean(document.querySelector('#psychology-chat-messages .is-report-wrapper'));
+            if (!hasReportInSession) {
+              const dossier = MarkdownParser.parseChoiceDossier(currentRaw, currentMsgId);
+              if (dossier.hasChoices) {
+                contentDiv.innerHTML = dossier.html;
+                MarkdownParser.bindChoiceEvents(contentDiv, currentMsgId);
+                return;
+              }
             }
+            contentDiv.innerHTML = MarkdownParser.parse(currentRaw);
           } else {
             contentDiv.innerHTML = MarkdownParser.parse(currentRaw);
           }
@@ -2647,6 +2676,9 @@ const ChatUI = {
 
     // [핵심] 외부에서 안전하게 내용 업데이트 가능한 메서드 제공 (스트리밍 및 완료 시 사용)
     bubble.updateRawContent = (newText) => {
+      if (newText && newText !== '생각하는 중...') {
+        bubble.classList.remove('is-thinking');
+      }
       currentRaw = newText;
       bubble.dataset.rawContent = newText;
       renderInnerContent();
@@ -2661,6 +2693,9 @@ const ChatUI = {
       const actionBar = document.createElement('div');
       actionBar.className = 'bubble-action-bar-outside';
       actionBar.innerHTML = `
+        <button type="button" class="bubble-action-btn btn-refresh-msg" title="다시 전송 (새로고침)">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-refresh-cw"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+        </button>
         <button type="button" class="bubble-action-btn btn-edit-msg" title="메시지 수정">
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pen-line"><path d="M13 21h8"/><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>
         </button>
@@ -2668,6 +2703,150 @@ const ChatUI = {
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eraser"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/><path d="m5.082 11.09 8.828 8.828"/></svg>
         </button>
       `;
+
+      // 새로고침(재전송) 클릭 - 기존 내 답변 삭제 후 현재 선택/내용 그대로 다시 전송
+      actionBar.querySelector('.btn-refresh-msg').addEventListener('click', async () => {
+        if (ChatManager.isGenerating) return;
+
+        const targetId = bubble.dataset.msgId || currentMsgId;
+        const isPsychology = containerId === 'psychology-chat-messages';
+        const category = isPsychology ? 'psychology' : 'saju';
+
+        // 1. 이 카드가 심리학 질문 카드(선택지 또는 온보딩)인 경우:
+        //    현재 체크된 선택지들을 읽어서 후속 실패 응답을 지우고 즉시 다시 전송!
+        const choiceDossierEl = row.querySelector('.choice-dossier-card') || row.querySelector('.onboarding-choice-card');
+        if (choiceDossierEl) {
+          // 이 질문 카드 이후의 모든 후속 메시지를 화면과 DB에서 정리
+          let nextRow = row.nextElementSibling;
+          while (nextRow) {
+            const toRemove = nextRow;
+            nextRow = nextRow.nextElementSibling;
+            const nId = toRemove.querySelector('.chat-bubble')?.dataset?.msgId;
+            if (nId) {
+              await DB.delete('chat_messages', nId);
+              ChatManager.activeHistory = ChatManager.activeHistory.filter(h => h.id !== nId);
+            }
+            toRemove.remove();
+          }
+
+          // activeHistory에서 이 질문 카드 이후의 기록(기존 silent 사용자 답변 포함) 제거
+          const targetIdx = ChatManager.activeHistory.findIndex(h => h.id === targetId);
+          if (targetIdx !== -1) {
+            const removedHistory = ChatManager.activeHistory.splice(targetIdx + 1);
+            for (const rh of removedHistory) {
+              if (rh.id) await DB.delete('chat_messages', rh.id);
+            }
+          }
+
+          // 온보딩 카드인 경우
+          if (row.querySelector('.onboarding-choice-card')) {
+            const nickInput = row.querySelector(`#field-${targetId}-nick`);
+            const storyInput = row.querySelector(`#field-${targetId}-story`);
+            const toneRadio = row.querySelector(`input[name="tone-${targetId}"]:checked`);
+            const lines = [
+              `1. 대화 말투(어조): ${toneRadio ? toneRadio.value : '친구처럼 거침없이 반말로 티키타카 하기'}`,
+              `2. 호칭(닉네임): ${nickInput ? nickInput.value.trim() : '편한 호칭으로 불러주세요'}`,
+              `3. 첫 번째 이야기: ${storyInput ? storyInput.value.trim() : ''}`
+            ];
+            await ChatManager.sendChoicePayload('psychology', lines.join('\n'));
+            return;
+          }
+
+          // 일반 선택지 카드인 경우 현재 체크박스 상태 그대로 수집
+          const orderedItems = [];
+          row.querySelectorAll('.choice-item-row:not(.choice-row-direct)').forEach(itemRow => {
+            const chk = itemRow.querySelector('.choice-chk');
+            const badge = itemRow.querySelector('.order-badge-clean');
+            if (chk && chk.checked) {
+              const text = itemRow.dataset.choiceText || itemRow.querySelector('.choice-label-text')?.textContent?.replace(/\s*\d+순위/, '')?.trim();
+              const rankText = badge ? badge.textContent.replace('순위', '').trim() : '99';
+              const rank = parseInt(rankText, 10) || 99;
+              orderedItems.push({ rank, text: text || '' });
+            }
+          });
+
+          // 6번 직접 입력
+          const directChk = row.querySelector(`#chk-${targetId}-6`);
+          const directField = row.querySelector(`#field-${targetId}-direct`);
+          if (directChk && directChk.checked) {
+            const val = directField ? directField.value.trim() : '';
+            orderedItems.push({ rank: 6, text: val ? `6번 선택: 직접 입력 ${val}` : '6번 선택: 직접 입력' });
+          }
+          orderedItems.sort((a, b) => a.rank - b.rank);
+          const lines = orderedItems.map(it => it.text).filter(Boolean);
+
+          const suppField = row.querySelector(`#field-${targetId}-supplement`);
+          if (suppField && suppField.value.trim()) {
+            lines.push(`답변 보충\n${suppField.value.trim()}`);
+          }
+
+          if (lines.length === 0) {
+            alert('선택지를 최소 1개 이상 선택하거나 텍스트를 입력해주세요!');
+            return;
+          }
+
+          const submitBtn = row.querySelector(`#btn-submit-${targetId}`);
+          if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = '0.6';
+            submitBtn.innerHTML = `<span style="display:inline-flex; align-items:center; justify-content:center; gap:4px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check preview-icon"><path d="M20 6 9 17l-5-5"/></svg>선택 반영됨</span>`;
+          }
+
+          await ChatManager.sendChoicePayload('psychology', lines.join('\n'));
+          return;
+        }
+
+        // 2. 사용자 말풍선인 경우 (사주 질문, 심리학 후속 질의응답 등):
+        if (role === 'user') {
+          const userContent = currentRaw;
+          // 이 메시지 및 이후 후속 메시지 제거
+          let nextRow = row.nextElementSibling;
+          while (nextRow) {
+            const toRemove = nextRow;
+            nextRow = nextRow.nextElementSibling;
+            const nId = toRemove.querySelector('.chat-bubble')?.dataset?.msgId;
+            if (nId) {
+              await DB.delete('chat_messages', nId);
+              ChatManager.activeHistory = ChatManager.activeHistory.filter(h => h.id !== nId);
+            }
+            toRemove.remove();
+          }
+          if (targetId) {
+            await DB.delete('chat_messages', targetId);
+            ChatManager.activeHistory = ChatManager.activeHistory.filter(h => h.id !== targetId);
+          }
+          row.remove();
+
+          const inputEl = document.getElementById(isPsychology ? 'psychology-input' : 'saju-input');
+          if (inputEl) inputEl.value = userContent;
+          await ChatManager.sendMessage(category);
+          return;
+        }
+
+        // 3. 일반 모델 응답인 경우: 직전 사용자 질문 바탕으로 다시 생성
+        const prevRow = row.previousElementSibling;
+        if (prevRow) {
+          const prevBubble = prevRow.querySelector('.chat-bubble.user');
+          if (prevBubble) {
+            const prevText = prevBubble.dataset.rawContent || prevBubble.textContent;
+            const prevId = prevBubble.dataset.msgId;
+            if (targetId) {
+              await DB.delete('chat_messages', targetId);
+              ChatManager.activeHistory = ChatManager.activeHistory.filter(h => h.id !== targetId);
+            }
+            row.remove();
+            if (prevId) {
+              await DB.delete('chat_messages', prevId);
+              ChatManager.activeHistory = ChatManager.activeHistory.filter(h => h.id !== prevId);
+            }
+            prevRow.remove();
+
+            const inputEl = document.getElementById(isPsychology ? 'psychology-input' : 'saju-input');
+            if (inputEl) inputEl.value = prevText;
+            await ChatManager.sendMessage(category);
+          }
+        }
+      });
 
       // 수정 클릭 시: 본문 완전 숨김 + AI 완성본 본문이 온전히 들어간 텍스트에리어 활성화
       actionBar.querySelector('.btn-edit-msg').addEventListener('click', () => {
@@ -2777,6 +2956,18 @@ const ChatUI = {
             if (h.id && targetId) return h.id !== targetId;
             return !(h.role === role && h.content === currentRaw);
           });
+
+          // 만약 심리학 질문에 대한 모델 응답을 삭제한 경우, 직전 silent 사용자 답변도 정리하고 버튼 복원
+          const prevRow = row.previousElementSibling;
+          if (prevRow) {
+            const submitBtn = prevRow.querySelector('[id^="btn-submit-"]');
+            if (submitBtn) {
+              submitBtn.disabled = false;
+              submitBtn.style.opacity = '1';
+              submitBtn.innerHTML = '선택 완료';
+            }
+          }
+
           row.remove();
         }
       });
@@ -3171,7 +3362,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 심리학인 경우 하단 입력창을 기본 숨김 (보고서 출력 후 노출)
     if (category === 'psychology') {
       const psychInputBar = document.getElementById('psychology-input-bar');
+      const psychInput = document.getElementById('psychology-input');
       if (psychInputBar) psychInputBar.classList.add('hidden');
+      if (psychInput) psychInput.placeholder = '분석 보고서에 대해 궁금한 점을 편하게 질문해주세요...';
     }
 
     const newSession = await SessionManager.createNewSession(category);

@@ -1997,14 +1997,59 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   display: block !important;
 }
 
-/* 대화창 내부 결과 보고서 슬롯 (뒤 배경 말풍선 제거 + 아담한 단독 콤팩트 카드) */
+/* 대화창 내부 결과 보고서 슬롯 (뒤 배경 말풍선 100% 제거 + 아담한 단독 콤팩트 카드) */
+#psychology-chat-messages .chat-bubble.model.is-report-wrapper,
+#saju-chat-messages .chat-bubble.model.is-report-wrapper,
 .chat-bubble.is-report-wrapper {
   background: transparent !important;
+  background-color: transparent !important;
   border: none !important;
   padding: 0 !important;
   box-shadow: none !important;
   width: fit-content !important;
   max-width: 100% !important;
+  margin: 0 !important;
+}
+
+#psychology-chat-messages .chat-bubble.model.is-report-wrapper .bubble-text-content,
+#saju-chat-messages .chat-bubble.model.is-report-wrapper .bubble-text-content,
+.chat-bubble.is-report-wrapper .bubble-text-content {
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* 생각하는 중... 말풍선 완벽 광학 정중앙 정렬 (한국어 폰트 광학 중심축 보정) */
+#psychology-chat-messages .chat-bubble.model.is-thinking,
+#saju-chat-messages .chat-bubble.model.is-thinking,
+.chat-bubble.is-thinking {
+  width: fit-content !important;
+  max-width: fit-content !important;
+  padding: 9px 18px !important;
+  font-size: 0.9rem !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 38px !important;
+  border-radius: 20px !important;
+  box-sizing: border-box !important;
+}
+
+#psychology-chat-messages .chat-bubble.model.is-thinking .bubble-text-content,
+#psychology-chat-messages .chat-bubble.model.is-thinking p,
+#saju-chat-messages .chat-bubble.model.is-thinking .bubble-text-content,
+#saju-chat-messages .chat-bubble.model.is-thinking p,
+.chat-bubble.is-thinking .bubble-text-content,
+.chat-bubble.is-thinking p {
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  transform: translateY(-1.5px) !important;
 }
 
 .report-card-compact-slot {
