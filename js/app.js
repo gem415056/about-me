@@ -543,23 +543,64 @@ const MarkdownParser = {
     });
   },
 
-  // [핵심 3] 불릿 및 순서 목록 파서 (하위 들여쓰기 설명문 완벽 통합)
+  // [핵심 3] 불릿 및 순서 목록 파서 (AI 원본 번호 완벽 보존 & 항목 내부 엔터 줄바꿈 보존)
   parseLists(text) {
-    // 1. 번호 매겨진 목록 (1. 2. 3.)
-    text = text.replace(/(?:^[ \t]*\d+\.[ \t]+.+?(?:\n[ \t]{2,}.+?)*(\n|$))+/gm, (match) => {
-      const rawItems = match.trim().split(/\n(?=[ \t]*\d+\.[ \t]+)/);
-      const items = rawItems.map(item => {
-        const cleaned = item.replace(/^[ \t]*\d+\.[ \t]+/, '').replace(/\n[ \t]{2,}/g, ' ');
-        return `<li>${cleaned.trim()}</li>`;
-      }).join('');
-      return `<ol>${items}</ol>`;
-    });
+    // 1. 번호 매겨진 목록 (1. 2. 3. 또는 1) 2) 3)) - AI 원본 번호 및 내부 줄바꿈(<br>) 완벽 보존
+    const lines = text.split('\n');
+    const newLines = [];
+    let inNumberedItem = false;
+    let currentNum = '';
+    let currentContentLines = [];
+
+    const flushNumberedItem = () => {
+      if (inNumberedItem) {
+        const innerContent = currentContentLines.join('<br>').trim();
+        newLines.push(`<div class="md-numbered-item"><span class="md-num-label">${currentNum}</span><div class="md-num-content">${innerContent}</div></div>`);
+        inNumberedItem = false;
+        currentNum = '';
+        currentContentLines = [];
+      }
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const match = line.match(/^[ \t]*(\d{1,2}[\.\)])[ \t]+(.*)/);
+
+      if (match) {
+        flushNumberedItem();
+        inNumberedItem = true;
+        currentNum = match[1];
+        currentContentLines = [match[2]];
+      } else if (inNumberedItem) {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          const nextLine = lines[i + 1];
+          if (nextLine && /^[ \t]*\d{1,2}[\.\)][ \t]+/.test(nextLine)) {
+            flushNumberedItem();
+          } else if (nextLine && nextLine.trim().length > 0 && !/^[ \t]*(?:[#>\-*]|```|<)/.test(nextLine)) {
+            currentContentLines.push('');
+          } else {
+            flushNumberedItem();
+            newLines.push(line);
+          }
+        } else if (/^[ \t]*(?:[#>\-*]|```|<h[1-6]|<table|<div|<blockquote|<hr)/i.test(line)) {
+          flushNumberedItem();
+          newLines.push(line);
+        } else {
+          currentContentLines.push(line.replace(/^[ \t]{1,4}/, ''));
+        }
+      } else {
+        newLines.push(line);
+      }
+    }
+    flushNumberedItem();
+    text = newLines.join('\n');
 
     // 2. 불릿 목록 (- or *)
     text = text.replace(/(?:^[ \t]*[-*][ \t]+.+?(?:\n[ \t]{2,}.+?)*(\n|$))+/gm, (match) => {
       const rawItems = match.trim().split(/\n(?=[ \t]*[-*][ \t]+)/);
       const items = rawItems.map(item => {
-        const cleaned = item.replace(/^[ \t]*[-*][ \t]+/, '').replace(/\n[ \t]{2,}/g, ' ');
+        const cleaned = item.replace(/^[ \t]*[-*][ \t]+/, '').replace(/\n[ \t]{2,}/g, '<br>');
         return `<li>${cleaned.trim()}</li>`;
       }).join('');
       return `<ul>${items}</ul>`;

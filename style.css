@@ -2412,6 +2412,36 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   font-weight: 500;
 }
 
+/* 마크다운 AI 번호 목록 (원본 숫자 100% 보존 & 칼정렬 뷰포트 레이아웃) */
+.md-numbered-item {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 8px !important;
+  margin: 6px 0 !important;
+  line-height: 1.68 !important;
+}
+
+.md-num-label {
+  font-weight: 700 !important;
+  color: #2A3022 !important;
+  flex-shrink: 0 !important;
+  min-width: 18px !important;
+  font-variant-numeric: tabular-nums !important;
+  line-height: inherit !important;
+}
+
+.md-num-content {
+  flex: 1 !important;
+  color: var(--text-primary) !important;
+  line-height: inherit !important;
+  word-break: break-word !important;
+}
+
+.chat-bubble.user .md-num-label,
+.chat-bubble.user .md-num-content {
+  color: #FAF8F2 !important;
+}
+
 /* 통합 인용구 섹션 */
 .integrated-quote-section {
   background: #F3F1E8;
