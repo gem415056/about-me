@@ -1660,11 +1660,11 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
 }
 
 .order-badge-clean {
-  font-size: 0.68rem;
-  font-weight: 700;
-  line-height: 1;
-  padding: 3px 6px;
-  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 500; /* 볼드 해제 (답답함 해소 및 가독성 향상) */
+  line-height: 1.15;
+  padding: 3px 7px;
+  border-radius: 5px;
   background: #747B61;
   color: #FFF;
   margin-left: 6px;
@@ -1674,7 +1674,7 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   vertical-align: middle;
   position: relative;
   top: -1px; /* 글자 및 가운데 점(·)과 완벽한 수평 중심축 일치 */
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .single-underline-field {

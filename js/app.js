@@ -157,15 +157,26 @@ const KeyboardViewportManager = {
         }
       }
 
-      // 2) 설정 모달창 / 명식 모달창 여백 보정 (아이폰 API 설정창 앱체크 키 가림 완벽 해결)
+      // 2) 설정 모달창 / 명식 모달창 여백 및 위치 보정 (아이폰 API 설정창 앱체크 키 가림 완벽 해결)
       const openModal = document.querySelector('.app-modal:not(.hidden)');
+      const modalLayer = document.getElementById('modal-container');
       if (openModal) {
         const modalBody = openModal.querySelector('.modal-body');
         if (modalBody) {
           if (keyboardHeight > 80) {
-            modalBody.style.paddingBottom = `${keyboardHeight + 100}px`;
+            // 키보드 + 퀵타입 자동완성 툴바 위로 충분히 스크롤될 수 있도록 넉넉한 하단 공간 제공
+            modalBody.style.paddingBottom = `${keyboardHeight + 140}px`;
+            // 모달이 키보드 아래로 파묻히지 않도록, 상단 정렬로 자연스럽고 안정감 있게 올려줌 (과도하지 않게 12px 패딩)
+            if (modalLayer) {
+              modalLayer.style.alignItems = 'flex-start';
+              modalLayer.style.paddingTop = '12px';
+            }
           } else {
             modalBody.style.paddingBottom = '';
+            if (modalLayer) {
+              modalLayer.style.alignItems = '';
+              modalLayer.style.paddingTop = '';
+            }
           }
         }
       }
@@ -185,8 +196,9 @@ const KeyboardViewportManager = {
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
         const modalBody = e.target.closest('.modal-body');
         if (modalBody) {
-          modalBody.style.paddingBottom = '260px';
+          modalBody.style.paddingBottom = '340px';
           setTimeout(() => {
+            // 대화창처럼 적당한 중앙 중심 배치로 부드럽게 스크롤 (화면 밖으로 튕기지 않고 안정적 노출)
             e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }, 280);
         } else if (!e.target.closest('.app-modal')) {
@@ -2818,8 +2830,14 @@ const ModalController = {
     // [핵심] 모달이 닫히는 바로 이 순간 IndexedDB에 일괄 저장 수행
     await this.saveFormData(modalId);
 
-    if (modalEl) modalEl.classList.add('hidden');
+    if (modalEl) {
+      modalEl.classList.add('hidden');
+      const bodyEl = modalEl.querySelector('.modal-body');
+      if (bodyEl) bodyEl.style.paddingBottom = '';
+    }
     this.container.classList.add('hidden');
+    this.container.style.alignItems = '';
+    this.container.style.paddingTop = '';
     this.activeModalId = null;
 
     // 만약 서랍이 열려있지 않다면 암전도 함께 닫기
