@@ -7,7 +7,7 @@
   <meta name="description" content="나를 깊이 이해하는 두 가지 여정: 심리학과 명리학 기반 심층 분석 대화형 웹 애플리케이션">
   <meta property="og:title" content="ABOUT ME">
   <meta property="og:description" content="나를 깊이 이해하는 두 가지 여정: 심리학과 명리학 기반 심층 분석 대화형 웹 애플리케이션">
-  <link rel="stylesheet" href="style.css?v=20261004_02">
+  <link rel="stylesheet" href="style.css?v=20261004_03">
 </head>
 <body>
   <!-- 모바일 메인 뷰포트 컨테이너 -->
@@ -300,24 +300,46 @@
 
             <div>
               <label class="input-label">AI 모델 선택</label>
-              <select id="select-gemini-model" class="modal-input" style="height: 44px; padding: 0 12px;">
-                <option value="gemini-3.1-pro-preview" selected>Gemini 3.1 Pro Preview</option>
-                <option value="gemini-3.8-flash">Gemini 3.8 Flash</option>
-                <option value="gemini-3.7-flash">Gemini 3.7 Flash</option>
-                <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
-              </select>
+              <input type="hidden" id="select-gemini-model" value="gemini-3.1-pro-preview">
+              <div class="custom-dropdown" id="dropdown-model-select">
+                <button type="button" class="dropdown-trigger" id="dropdown-model-btn">
+                  <span id="dropdown-model-selected-text">Gemini 3.1 Pro Preview</span>
+                  <span class="dropdown-arrow">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="m6 9 6 6 6-6"/>
+                    </svg>
+                  </span>
+                </button>
+                <div class="dropdown-menu hidden" id="dropdown-model-menu">
+                  <div class="dropdown-item selected" data-value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</div>
+                  <div class="dropdown-item" data-value="gemini-3.8-flash">Gemini 3.8 Flash</div>
+                  <div class="dropdown-item" data-value="gemini-3.7-flash">Gemini 3.7 Flash</div>
+                  <div class="dropdown-item" data-value="gemini-3.6-flash">Gemini 3.6 Flash</div>
+                </div>
+              </div>
             </div>
 
             <div>
               <label class="input-label" for="ep-lore-reasoning-select">생각 깊이 (Reasoning)</label>
-              <select class="modal-input model-select-dropdown" id="ep-lore-reasoning-select" style="height: 44px; padding: 0 12px;">
-                <option value="off">Off (비활성)</option>
-                <option value="minimal">Minimal (기본 256)</option>
-                <option value="low">Low (1024)</option>
-                <option value="medium" selected>Medium (2048)</option>
-                <option value="high">High (4096)</option>
-                <option value="budget">Budget (직접 예산 입력)</option>
-              </select>
+              <input type="hidden" id="ep-lore-reasoning-select" value="medium">
+              <div class="custom-dropdown" id="dropdown-reasoning-select">
+                <button type="button" class="dropdown-trigger" id="dropdown-reasoning-btn">
+                  <span id="dropdown-reasoning-selected-text">Medium (2048)</span>
+                  <span class="dropdown-arrow">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="m6 9 6 6 6-6"/>
+                    </svg>
+                  </span>
+                </button>
+                <div class="dropdown-menu hidden" id="dropdown-reasoning-menu">
+                  <div class="dropdown-item" data-value="off">Off (비활성)</div>
+                  <div class="dropdown-item" data-value="minimal">Minimal (기본 256)</div>
+                  <div class="dropdown-item" data-value="low">Low (1024)</div>
+                  <div class="dropdown-item selected" data-value="medium">Medium (2048)</div>
+                  <div class="dropdown-item" data-value="high">High (4096)</div>
+                  <div class="dropdown-item" data-value="budget">Budget (직접 예산 입력)</div>
+                </div>
+              </div>
               <div id="reasoning-budget-wrapper" class="hidden" style="margin-top: 8px;">
                 <input type="number" id="ep-lore-reasoning-budget-input" class="modal-input" placeholder="생각 예산 토큰 수 입력 (예: 2048)" min="0" max="65536" step="128" style="height: 40px; padding: 0 12px; font-size: 0.88rem;">
               </div>
@@ -328,35 +350,79 @@
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px;">
                 <div>
                   <span style="display: block; font-size: 0.76rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 7px;">괴롭힘 방지</span>
-                  <select id="safety-harassment" class="modal-input" style="height: 40px; font-size: 0.82rem; padding: 0 10px;">
-                    <option value="BLOCK_NONE" selected>차단 안함</option>
-                    <option value="BLOCK_ONLY_HIGH">높은 위험만</option>
-                    <option value="BLOCK_MEDIUM_AND_ABOVE">보통 이상</option>
-                  </select>
+                  <input type="hidden" id="safety-harassment" value="BLOCK_NONE">
+                  <div class="custom-dropdown" id="dropdown-safety-harassment">
+                    <button type="button" class="dropdown-trigger dropdown-trigger-compact" id="dropdown-harassment-btn">
+                      <span id="dropdown-harassment-text">차단 안함</span>
+                      <span class="dropdown-arrow">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="m6 9 6 6 6-6"/>
+                        </svg>
+                      </span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-compact hidden" id="dropdown-harassment-menu">
+                      <div class="dropdown-item dropdown-item-compact selected" data-value="BLOCK_NONE">차단 안함</div>
+                      <div class="dropdown-item dropdown-item-compact" data-value="BLOCK_ONLY_HIGH">높은 위험만</div>
+                      <div class="dropdown-item dropdown-item-compact" data-value="BLOCK_MEDIUM_AND_ABOVE">보통 이상</div>
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <span style="display: block; font-size: 0.76rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 7px;">혐오 발언</span>
-                  <select id="safety-hate" class="modal-input" style="height: 40px; font-size: 0.82rem; padding: 0 10px;">
-                    <option value="BLOCK_NONE" selected>차단 안함</option>
-                    <option value="BLOCK_ONLY_HIGH">높은 위험만</option>
-                    <option value="BLOCK_MEDIUM_AND_ABOVE">보통 이상</option>
-                  </select>
+                  <input type="hidden" id="safety-hate" value="BLOCK_NONE">
+                  <div class="custom-dropdown" id="dropdown-safety-hate">
+                    <button type="button" class="dropdown-trigger dropdown-trigger-compact" id="dropdown-hate-btn">
+                      <span id="dropdown-hate-text">차단 안함</span>
+                      <span class="dropdown-arrow">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="m6 9 6 6 6-6"/>
+                        </svg>
+                      </span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-compact hidden" id="dropdown-hate-menu">
+                      <div class="dropdown-item dropdown-item-compact selected" data-value="BLOCK_NONE">차단 안함</div>
+                      <div class="dropdown-item dropdown-item-compact" data-value="BLOCK_ONLY_HIGH">높은 위험만</div>
+                      <div class="dropdown-item dropdown-item-compact" data-value="BLOCK_MEDIUM_AND_ABOVE">보통 이상</div>
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <span style="display: block; font-size: 0.76rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 7px;">성적 콘텐츠</span>
-                  <select id="safety-sex" class="modal-input" style="height: 40px; font-size: 0.82rem; padding: 0 10px;">
-                    <option value="BLOCK_NONE" selected>차단 안함</option>
-                    <option value="BLOCK_ONLY_HIGH">높은 위험만</option>
-                    <option value="BLOCK_MEDIUM_AND_ABOVE">보통 이상</option>
-                  </select>
+                  <input type="hidden" id="safety-sex" value="BLOCK_NONE">
+                  <div class="custom-dropdown" id="dropdown-safety-sex">
+                    <button type="button" class="dropdown-trigger dropdown-trigger-compact" id="dropdown-sex-btn">
+                      <span id="dropdown-sex-text">차단 안함</span>
+                      <span class="dropdown-arrow">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="m6 9 6 6 6-6"/>
+                        </svg>
+                      </span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-compact hidden" id="dropdown-sex-menu">
+                      <div class="dropdown-item dropdown-item-compact selected" data-value="BLOCK_NONE">차단 안함</div>
+                      <div class="dropdown-item dropdown-item-compact" data-value="BLOCK_ONLY_HIGH">높은 위험만</div>
+                      <div class="dropdown-item dropdown-item-compact" data-value="BLOCK_MEDIUM_AND_ABOVE">보통 이상</div>
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <span style="display: block; font-size: 0.76rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 7px;">위험 콘텐츠</span>
-                  <select id="safety-danger" class="modal-input" style="height: 40px; font-size: 0.82rem; padding: 0 10px;">
-                    <option value="BLOCK_NONE" selected>차단 안함</option>
-                    <option value="BLOCK_ONLY_HIGH">높은 위험만</option>
-                    <option value="BLOCK_MEDIUM_AND_ABOVE">보통 이상</option>
-                  </select>
+                  <input type="hidden" id="safety-danger" value="BLOCK_NONE">
+                  <div class="custom-dropdown" id="dropdown-safety-danger">
+                    <button type="button" class="dropdown-trigger dropdown-trigger-compact" id="dropdown-danger-btn">
+                      <span id="dropdown-danger-text">차단 안함</span>
+                      <span class="dropdown-arrow">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="m6 9 6 6 6-6"/>
+                        </svg>
+                      </span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-compact hidden" id="dropdown-danger-menu">
+                      <div class="dropdown-item dropdown-item-compact selected" data-value="BLOCK_NONE">차단 안함</div>
+                      <div class="dropdown-item dropdown-item-compact" data-value="BLOCK_ONLY_HIGH">높은 위험만</div>
+                      <div class="dropdown-item dropdown-item-compact" data-value="BLOCK_MEDIUM_AND_ABOVE">보통 이상</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -416,7 +482,7 @@
     </div>
   </div>
 
-  <script src="js/db.js?v=20261004_02"></script>
-  <script src="js/app.js?v=20261004_02"></script>
+  <script src="js/db.js?v=20261004_03"></script>
+  <script src="js/app.js?v=20261004_03"></script>
 </body>
 </html>

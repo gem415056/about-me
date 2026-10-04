@@ -3333,36 +3333,49 @@ const ModalController = {
         }
         document.getElementById('setting-firestore-config').value = firestoreConfig?.value || '';
 
-        // 드롭다운 모드 복원
-        const outputMode = general?.outputMode || 'stream';
-        const labelText = outputMode === 'batch' ? '일시 출력 (답변 완성 후 한번에 표시)' : '스트리밍 출력 (실시간 생성)';
-        document.getElementById('dropdown-selected-text').textContent = labelText;
-        document.querySelectorAll('#dropdown-output-menu .dropdown-item').forEach(item => {
-          item.classList.toggle('selected', item.dataset.value === outputMode);
-        });
-
-        // 모델 및 안전필터 복원
-        if (general?.model) document.getElementById('select-gemini-model').value = general.model;
-        if (general?.safety) {
-          if (general.safety.harassment) document.getElementById('safety-harassment').value = general.safety.harassment;
-          if (general.safety.hate) document.getElementById('safety-hate').value = general.safety.hate;
-          if (general.safety.sex) document.getElementById('safety-sex').value = general.safety.sex;
-          if (general.safety.danger) document.getElementById('safety-danger').value = general.safety.danger;
-        }
-
-        // 생각 깊이 복원
-        const reasoningSelect = document.getElementById('ep-lore-reasoning-select');
-        const reasoningBudgetInput = document.getElementById('ep-lore-reasoning-budget-input');
-        const budgetWrapper = document.getElementById('reasoning-budget-wrapper');
-        if (reasoningSelect) {
-          reasoningSelect.value = general?.reasoning || 'medium';
-          if (budgetWrapper) {
-            budgetWrapper.classList.toggle('hidden', reasoningSelect.value !== 'budget');
+        // 모든 커스텀 드롭다운 값 복원 헬퍼
+        const syncCustomDropdown = (containerId, inputId, labelId, value) => {
+          const input = document.getElementById(inputId);
+          if (input) input.value = value;
+          const container = document.getElementById(containerId);
+          const label = document.getElementById(labelId);
+          if (container) {
+            let foundText = '';
+            container.querySelectorAll('.dropdown-item').forEach(item => {
+              const isSel = item.dataset.value === value;
+              item.classList.toggle('selected', isSel);
+              if (isSel) foundText = item.textContent;
+            });
+            if (label && foundText) label.textContent = foundText;
           }
+        };
+
+        // 1. 답변 출력 방식 복원
+        const outputMode = general?.outputMode || 'stream';
+        syncCustomDropdown('dropdown-output-mode', 'dropdown-output-mode', 'dropdown-selected-text', outputMode);
+
+        // 2. 모델 선택 복원
+        const modelVal = general?.model || 'gemini-3.1-pro-preview';
+        syncCustomDropdown('dropdown-model-select', 'select-gemini-model', 'dropdown-model-selected-text', modelVal);
+
+        // 3. 생각 깊이 복원
+        const reasoningVal = general?.reasoning || 'medium';
+        syncCustomDropdown('dropdown-reasoning-select', 'ep-lore-reasoning-select', 'dropdown-reasoning-selected-text', reasoningVal);
+        const budgetWrapper = document.getElementById('reasoning-budget-wrapper');
+        if (budgetWrapper) {
+          budgetWrapper.classList.toggle('hidden', reasoningVal !== 'budget');
         }
+        const reasoningBudgetInput = document.getElementById('ep-lore-reasoning-budget-input');
         if (reasoningBudgetInput) {
           reasoningBudgetInput.value = general?.reasoningBudget || 2048;
         }
+
+        // 4. 4대 안전필터 복원
+        const safety = general?.safety || {};
+        syncCustomDropdown('dropdown-safety-harassment', 'safety-harassment', 'dropdown-harassment-text', safety.harassment || 'BLOCK_NONE');
+        syncCustomDropdown('dropdown-safety-hate', 'safety-hate', 'dropdown-hate-text', safety.hate || 'BLOCK_NONE');
+        syncCustomDropdown('dropdown-safety-sex', 'safety-sex', 'dropdown-sex-text', safety.sex || 'BLOCK_NONE');
+        syncCustomDropdown('dropdown-safety-danger', 'safety-danger', 'dropdown-danger-text', safety.danger || 'BLOCK_NONE');
       }
     } catch (e) {
       console.error('데이터 로드 실패:', e);
@@ -3873,44 +3886,90 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  // 일반 설정 탭: 커스텀 드롭다운 동작 바인딩
-  const dropdownBtn = document.getElementById('dropdown-output-btn');
-  const dropdownMenu = document.getElementById('dropdown-output-menu');
-  const selectedText = document.getElementById('dropdown-selected-text');
+  // 일반 설정 탭: 모든 커스텀 드롭다운 동작 범용 바인딩
+  const setupCustomDropdown = (dropdownId, onSelect) => {
+    const container = document.getElementById(dropdownId);
+    if (!container) return;
+    const btn = container.querySelector('.dropdown-trigger');
+    const menu = container.querySelector('.dropdown-menu');
+    const textSpan = btn ? btn.querySelector('span:not(.dropdown-arrow)') : null;
+    const parent = container.parentElement;
+    const hiddenInput = parent ? parent.querySelector('input[type="hidden"]') : null;
 
-  if (dropdownBtn && dropdownMenu) {
-    dropdownBtn.addEventListener('click', (e) => {
+    if (!btn || !menu) return;
+
+    btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      dropdownMenu.classList.toggle('hidden');
-      dropdownBtn.classList.toggle('open');
+      const isAlreadyOpen = btn.classList.contains('open');
+
+      // 다른 열려있는 모든 커스텀 드롭다운 닫기
+      document.querySelectorAll('.custom-dropdown').forEach(dd => {
+        dd.classList.remove('open');
+        const b = dd.querySelector('.dropdown-trigger');
+        const m = dd.querySelector('.dropdown-menu');
+        if (b) b.classList.remove('open');
+        if (m) m.classList.add('hidden');
+      });
+
+      if (!isAlreadyOpen) {
+        container.classList.add('open');
+        btn.classList.add('open');
+        menu.classList.remove('hidden');
+      }
     });
 
-    dropdownMenu.addEventListener('click', (e) => {
+    menu.addEventListener('click', (e) => {
       const item = e.target.closest('.dropdown-item');
       if (!item) return;
 
-      dropdownMenu.querySelectorAll('.dropdown-item').forEach(el => el.classList.remove('selected'));
+      menu.querySelectorAll('.dropdown-item').forEach(el => el.classList.remove('selected'));
       item.classList.add('selected');
-      selectedText.textContent = item.textContent;
+      if (textSpan) textSpan.textContent = item.textContent;
+      if (hiddenInput) {
+        hiddenInput.value = item.dataset.value;
+        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }
 
-      dropdownMenu.classList.add('hidden');
-      dropdownBtn.classList.remove('open');
-    });
+      menu.classList.add('hidden');
+      btn.classList.remove('open');
+      container.classList.remove('open');
 
-    document.addEventListener('click', () => {
-      dropdownMenu.classList.add('hidden');
-      dropdownBtn.classList.remove('open');
+      if (typeof onSelect === 'function') {
+        onSelect(item.dataset.value, item.textContent);
+      }
     });
-  }
+  };
 
-  // 생각 깊이 (Reasoning) 예산 입력 필드 표시 토글
-  const reasoningSelect = document.getElementById('ep-lore-reasoning-select');
-  const reasoningBudgetWrapper = document.getElementById('reasoning-budget-wrapper');
-  if (reasoningSelect && reasoningBudgetWrapper) {
-    reasoningSelect.addEventListener('change', () => {
-      reasoningBudgetWrapper.classList.toggle('hidden', reasoningSelect.value !== 'budget');
+  // 문서 전체 클릭 시 모든 드롭다운 닫기
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.custom-dropdown').forEach(dd => {
+      dd.classList.remove('open');
+      const b = dd.querySelector('.dropdown-trigger');
+      const m = dd.querySelector('.dropdown-menu');
+      if (b) b.classList.remove('open');
+      if (m) m.classList.add('hidden');
     });
-  }
+  });
+
+  // 1. 답변 출력 방식
+  setupCustomDropdown('dropdown-output-mode');
+
+  // 2. AI 모델 선택
+  setupCustomDropdown('dropdown-model-select');
+
+  // 3. 생각 깊이 (Reasoning)
+  setupCustomDropdown('dropdown-reasoning-select', (val) => {
+    const reasoningBudgetWrapper = document.getElementById('reasoning-budget-wrapper');
+    if (reasoningBudgetWrapper) {
+      reasoningBudgetWrapper.classList.toggle('hidden', val !== 'budget');
+    }
+  });
+
+  // 4. 4대 안전 필터 설정
+  setupCustomDropdown('dropdown-safety-harassment');
+  setupCustomDropdown('dropdown-safety-hate');
+  setupCustomDropdown('dropdown-safety-sex');
+  setupCustomDropdown('dropdown-safety-danger');
 
   // App Check 토큰 발급 실시간 진단 테스트 버튼
   const btnTestAppCheck = document.getElementById('btn-test-appcheck');
