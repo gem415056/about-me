@@ -35,16 +35,12 @@ app.post('/api/gemini', async (req, res) => {
       });
     }
 
-    const { modelName = 'gemini-2.5-flash', payload, stream = true } = req.body;
+    const { modelName = 'gemini-3.8-flash', payload, stream = true } = req.body;
     const action = stream ? 'streamGenerateContent?alt=sse' : 'generateContent';
 
-    let response = await callGemini(modelName, action, apiKey, payload);
+    console.log(`[Gemini Proxy Call] Model: "${modelName}" | ThinkingConfig: ${JSON.stringify(payload?.generationConfig?.thinkingConfig)} | Temp: ${payload?.generationConfig?.temperature} | Stream: ${stream}`);
 
-    // If requested preview model is not found (404), fallback to standard available model
-    if (response.status === 404 && modelName !== 'gemini-2.5-flash') {
-      console.warn(`Model ${modelName} returned 404. Falling back to gemini-2.5-flash`);
-      response = await callGemini('gemini-2.5-flash', action, apiKey, payload);
-    }
+    let response = await callGemini(modelName, action, apiKey, payload);
 
     // If thinkingConfig causes an error on models that do not support it, retry without thinkingConfig
     if (!response.ok && payload?.generationConfig?.thinkingConfig) {

@@ -1675,17 +1675,19 @@ const VertexManager = {
     const { vertex } = await this.init(config);
     const { getGenerativeModel } = await import("https://www.gstatic.com/firebasejs/11.4.0/firebase-vertexai.js");
 
-    // Firebase Vertex AI가 정식 지원하는 모델명으로 안전 매핑 (3.x 프리뷰는 2.5-flash로 호환)
-    let cleanModel = modelName.replace(/^models\//, '');
-    if (cleanModel.startsWith('gemini-3')) {
-      cleanModel = 'gemini-2.5-flash';
+    // 사용자가 선택한 모델명 그대로 전달 (임의 치환 및 다운그레이드 일체 제거)
+    const cleanModel = modelName.replace(/^models\//, '');
+
+    const genConfig = {
+      temperature: payload.generationConfig?.temperature ?? 1.0
+    };
+    if (payload.generationConfig?.thinkingConfig) {
+      genConfig.thinkingConfig = payload.generationConfig.thinkingConfig;
     }
 
     const modelConfig = {
       model: cleanModel,
-      generationConfig: {
-        temperature: payload.generationConfig?.temperature ?? 0.7
-      },
+      generationConfig: genConfig,
       safetySettings: payload.safetySettings || []
     };
 
@@ -1902,7 +1904,7 @@ const AIEngine = {
       }
 
       // 3. 설정된 모델명 및 안전필터 Payload 결합
-      const modelName = generalSetting?.model || 'gemini-2.5-flash';
+      const modelName = generalSetting?.model || 'gemini-3.8-flash';
       const safety = generalSetting?.safety || {};
 
       payload.safetySettings = [
@@ -3378,11 +3380,11 @@ const ModalController = {
         syncCustomDropdown('dropdown-output-mode', 'dropdown-output-mode', 'dropdown-selected-text', outputMode);
 
         // 2. 모델 선택 복원
-        const modelVal = general?.model || 'gemini-3.1-pro-preview';
+        const modelVal = general?.model || 'gemini-3.8-flash';
         syncCustomDropdown('dropdown-model-select', 'select-gemini-model', 'dropdown-model-selected-text', modelVal);
 
         // 3. 생각 깊이 복원
-        const reasoningVal = general?.reasoning || 'medium';
+        const reasoningVal = general?.reasoning || 'high';
         syncCustomDropdown('dropdown-reasoning-select', 'ep-lore-reasoning-select', 'dropdown-reasoning-selected-text', reasoningVal);
         const budgetWrapper = document.getElementById('reasoning-budget-wrapper');
         if (budgetWrapper) {
@@ -3437,7 +3439,7 @@ const ModalController = {
 
         const reasoningSelect = document.getElementById('ep-lore-reasoning-select');
         const reasoningBudgetInput = document.getElementById('ep-lore-reasoning-budget-input');
-        const reasoningVal = reasoningSelect ? reasoningSelect.value : 'medium';
+        const reasoningVal = reasoningSelect ? reasoningSelect.value : 'high';
         const reasoningBudget = reasoningBudgetInput ? parseInt(reasoningBudgetInput.value, 10) : 2048;
 
         await DB.set('settings', {

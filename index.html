@@ -7,7 +7,7 @@
   <meta name="description" content="나를 깊이 이해하는 두 가지 여정: 심리학과 명리학 기반 심층 분석 대화형 웹 애플리케이션">
   <meta property="og:title" content="ABOUT ME">
   <meta property="og:description" content="나를 깊이 이해하는 두 가지 여정: 심리학과 명리학 기반 심층 분석 대화형 웹 애플리케이션">
-  <link rel="stylesheet" href="style.css?v=20261004_05">
+  <link rel="stylesheet" href="style.css?v=20261004_07">
 </head>
 <body>
   <!-- 모바일 메인 뷰포트 컨테이너 -->
@@ -300,10 +300,10 @@
 
             <div>
               <label class="input-label">AI 모델 선택</label>
-              <input type="hidden" id="select-gemini-model" value="gemini-3.1-pro-preview">
+              <input type="hidden" id="select-gemini-model" value="gemini-3.8-flash">
               <div class="custom-dropdown" id="dropdown-model-select">
                 <button type="button" class="dropdown-trigger" id="dropdown-model-btn">
-                  <span id="dropdown-model-selected-text">Gemini 3.1 Pro Preview</span>
+                  <span id="dropdown-model-selected-text">Gemini 3.8 Flash</span>
                   <span class="dropdown-arrow">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                       <path d="m6 9 6 6 6-6"/>
@@ -311,20 +311,19 @@
                   </span>
                 </button>
                 <div class="dropdown-menu hidden" id="dropdown-model-menu">
-                  <div class="dropdown-item selected" data-value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</div>
-                  <div class="dropdown-item" data-value="gemini-3.8-flash">Gemini 3.8 Flash</div>
-                  <div class="dropdown-item" data-value="gemini-3.7-flash">Gemini 3.7 Flash</div>
-                  <div class="dropdown-item" data-value="gemini-3.6-flash">Gemini 3.6 Flash</div>
+                  <div class="dropdown-item selected" data-value="gemini-3.8-flash">Gemini 3.8 Flash</div>
+                  <div class="dropdown-item" data-value="gemini-2.5-pro">Gemini 2.5 Pro</div>
+                  <div class="dropdown-item" data-value="gemini-2.5-flash">Gemini 2.5 Flash</div>
                 </div>
               </div>
             </div>
 
             <div>
               <label class="input-label" for="ep-lore-reasoning-select">생각 깊이 (Reasoning)</label>
-              <input type="hidden" id="ep-lore-reasoning-select" value="medium">
+              <input type="hidden" id="ep-lore-reasoning-select" value="high">
               <div class="custom-dropdown" id="dropdown-reasoning-select">
                 <button type="button" class="dropdown-trigger" id="dropdown-reasoning-btn">
-                  <span id="dropdown-reasoning-selected-text">Medium (2048)</span>
+                  <span id="dropdown-reasoning-selected-text">High (동적 심층 사고)</span>
                   <span class="dropdown-arrow">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                       <path d="m6 9 6 6 6-6"/>
@@ -332,11 +331,11 @@
                   </span>
                 </button>
                 <div class="dropdown-menu hidden" id="dropdown-reasoning-menu">
+                  <div class="dropdown-item selected" data-value="high">High (동적 심층 사고, AI Studio 동급)</div>
+                  <div class="dropdown-item" data-value="medium">Medium (8192)</div>
+                  <div class="dropdown-item" data-value="low">Low (2048)</div>
+                  <div class="dropdown-item" data-value="minimal">Minimal (1024)</div>
                   <div class="dropdown-item" data-value="off">Off (비활성)</div>
-                  <div class="dropdown-item" data-value="minimal">Minimal (기본 256)</div>
-                  <div class="dropdown-item" data-value="low">Low (1024)</div>
-                  <div class="dropdown-item selected" data-value="medium">Medium (2048)</div>
-                  <div class="dropdown-item" data-value="high">High (4096)</div>
                   <div class="dropdown-item" data-value="budget">Budget (직접 예산 입력)</div>
                 </div>
               </div>
@@ -482,7 +481,7 @@
     </div>
   </div>
 
-  <script src="js/db.js?v=20261004_05"></script>
-  <script src="js/app.js?v=20261004_05"></script>
+  <script src="js/db.js?v=20261004_07"></script>
+  <script src="js/app.js?v=20261004_07"></script>
 </body>
 </html>
