@@ -730,22 +730,24 @@ const MarkdownParser = {
         const domScore = scorePct;
         const subScore = 100 - domScore;
 
+        const badgeStyle = 'display: inline-block; background: #ECEFE6; color: #353C2E; border: 1px solid #D0D7C5; font-size: 0.72rem; font-weight: 700; padding: 1px 6px; border-radius: 4px;';
+
         if (isRight) {
           leftColHtml = `<span style="color: #94A3B8; font-weight: 400; font-size: 0.80rem;">${poleInfo.left} ${subScore}%</span>`;
-          rightColHtml = `<span style="color: #1E293B; font-weight: 700; font-size: 0.83rem;">${traitName} <span style="display: inline-block; background: #2A3022; color: #FFF; font-size: 0.72rem; font-weight: 700; padding: 1px 5px; border-radius: 4px; margin-left: 2px;">${domScore}%</span></span>`;
+          rightColHtml = `<span style="color: #1E293B; font-weight: 700; font-size: 0.83rem;">${traitName} <span style="${badgeStyle} margin-left: 3px;">${domScore}%</span></span>`;
           barHtml = `<div class="bipolar-bar-pos" style="width: ${barWidth}%;"></div>`;
         } else {
-          leftColHtml = `<span style="color: #1E293B; font-weight: 700; font-size: 0.83rem;"><span style="display: inline-block; background: #2A3022; color: #FFF; font-size: 0.72rem; font-weight: 700; padding: 1px 5px; border-radius: 4px; margin-right: 2px;">${domScore}%</span> ${traitName}</span>`;
+          leftColHtml = `<span style="color: #1E293B; font-weight: 700; font-size: 0.83rem;"><span style="${badgeStyle} margin-right: 3px;">${domScore}%</span> ${traitName}</span>`;
           rightColHtml = `<span style="color: #94A3B8; font-weight: 400; font-size: 0.80rem;">${poleInfo.right} ${subScore}%</span>`;
           barHtml = `<div class="bipolar-bar-neg" style="width: ${barWidth}%;"></div>`;
         }
 
         rowsHtml += `
           <div class="bipolar-item-row" style="margin-bottom: 16px;">
-            <div class="bipolar-meta-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              ${leftColHtml}
-              <span style="font-weight: 700; color: #2A3022; font-size: 0.85rem; letter-spacing: -0.2px;">${poleInfo.axisTitle}</span>
-              ${rightColHtml}
+            <div class="bipolar-meta-row" style="display: grid; grid-template-columns: 1fr auto 1fr; width: 100%; align-items: center; margin-bottom: 6px;">
+              <div style="text-align: left;">${leftColHtml}</div>
+              <div style="text-align: center; font-weight: 700; color: #2A3022; font-size: 0.85rem; letter-spacing: -0.2px; padding: 0 8px;">${poleInfo.axisTitle}</div>
+              <div style="text-align: right;">${rightColHtml}</div>
             </div>
             <div class="bipolar-track">
               <div class="bipolar-center-pin-subtle"></div>
@@ -760,7 +762,7 @@ const MarkdownParser = {
         <div class="report-card-container">
           <div class="report-card-header">
             <h4 class="report-card-title">🧩 MBTI 5대 성향 축 선호 지표${typeLabel ? ` (${typeLabel})` : ''}</h4>
-            <p class="report-card-desc">양극 스펙트럼 기준 선호도 및 활성 비율 (합계 100% 양방향 밸런스)</p>
+            <p class="report-card-desc">양극 스펙트럼 기준 선호도 및 활성 비율</p>
           </div>
           ${rowsHtml}
         </div>
@@ -785,18 +787,20 @@ const MarkdownParser = {
         let leftColHtml = '';
         let rightColHtml = '';
 
+        const badgeStyle = 'display: inline-block; background: #ECEFE6; color: #353C2E; border: 1px solid #D0D7C5; font-size: 0.72rem; font-weight: 700; padding: 1px 6px; border-radius: 4px;';
+
         if (rawScore > 50) {
           const score = Math.min(100, rawScore);
           const subScore = 100 - score;
           const barWidth = (score / 100) * 50;
           leftColHtml = `<span style="color: #94A3B8; font-weight: 400; font-size: 0.80rem;">${pole.left} ${subScore}%</span>`;
-          rightColHtml = `<span style="color: #1E293B; font-weight: 700; font-size: 0.83rem;">${pole.right} <span style="display: inline-block; background: #2A3022; color: #FFF; font-size: 0.72rem; font-weight: 700; padding: 1px 5px; border-radius: 4px; margin-left: 2px;">${score}%</span></span>`;
+          rightColHtml = `<span style="color: #1E293B; font-weight: 700; font-size: 0.83rem;">${pole.right} <span style="${badgeStyle} margin-left: 3px;">${score}%</span></span>`;
           barHtml = `<div class="bipolar-bar-pos" style="width: ${barWidth}%;"></div>`;
         } else if (rawScore < 50) {
           const score = Math.min(100, 100 - rawScore);
           const subScore = 100 - score;
           const barWidth = (score / 100) * 50;
-          leftColHtml = `<span style="color: #1E293B; font-weight: 700; font-size: 0.83rem;"><span style="display: inline-block; background: #2A3022; color: #FFF; font-size: 0.72rem; font-weight: 700; padding: 1px 5px; border-radius: 4px; margin-right: 2px;">${score}%</span> ${pole.left}</span>`;
+          leftColHtml = `<span style="color: #1E293B; font-weight: 700; font-size: 0.83rem;"><span style="${badgeStyle} margin-right: 3px;">${score}%</span> ${pole.left}</span>`;
           rightColHtml = `<span style="color: #94A3B8; font-weight: 400; font-size: 0.80rem;">${pole.right} ${subScore}%</span>`;
           barHtml = `<div class="bipolar-bar-neg" style="width: ${barWidth}%;"></div>`;
         } else {
@@ -807,10 +811,10 @@ const MarkdownParser = {
 
         rowsHtml += `
           <div class="bipolar-item-row" style="margin-bottom: 16px;">
-            <div class="bipolar-meta-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              ${leftColHtml}
-              <span style="font-weight: 700; color: #2A3022; font-size: 0.85rem; letter-spacing: -0.2px;">${key}</span>
-              ${rightColHtml}
+            <div class="bipolar-meta-row" style="display: grid; grid-template-columns: 1fr auto 1fr; width: 100%; align-items: center; margin-bottom: 6px;">
+              <div style="text-align: left;">${leftColHtml}</div>
+              <div style="text-align: center; font-weight: 700; color: #2A3022; font-size: 0.85rem; letter-spacing: -0.2px; padding: 0 8px;">${key}</div>
+              <div style="text-align: right;">${rightColHtml}</div>
             </div>
             <div class="bipolar-track">
               <div class="bipolar-center-pin-subtle"></div>
@@ -824,7 +828,7 @@ const MarkdownParser = {
         <div class="report-card-container">
           <div class="report-card-header">
             <h4 class="report-card-title">🧬 Big Five 5대 요인 분석</h4>
-            <p class="report-card-desc">기저 기질의 스펙트럼 밸런스 (합계 100% 양방향 밸런스)</p>
+            <p class="report-card-desc">기저 기질의 스펙트럼 밸런스</p>
           </div>
           ${rowsHtml}
         </div>
