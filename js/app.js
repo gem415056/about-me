@@ -595,16 +595,16 @@ const MarkdownParser = {
       } else if (inNumberedItem && subBulletMatch) {
         const indentSpaces = subBulletMatch[1].replace(/\t/g, '    ').length;
         let level = 1;
-        let dotSymbol = '•';
+        let dotSymbol = '-';
         if (indentSpaces >= 9) {
           level = 3;
           dotSymbol = '·';
         } else if (indentSpaces >= 5) {
           level = 2;
-          dotSymbol = '-';
+          dotSymbol = '▪';
         } else {
           level = 1;
-          dotSymbol = '•';
+          dotSymbol = '-';
         }
 
         const subContent = subBulletMatch[3];
@@ -644,20 +644,28 @@ const MarkdownParser = {
     flushNumberedItem();
     text = newLines.join('\n');
 
-    // 2. 최상위 및 순수 불릿 목록 (- or *) 다계층 파싱
+    // 2. 최상위 및 순수 불릿 목록 (- or * or •) 다계층 파싱 (1단계: -, 2단계: ▪, 3단계: ·)
     text = text.replace(/(?:^[ \t]*[-*•][ \t]+.+?(?:\n[ \t]{2,}.+?)*(\n|$))+/gm, (match) => {
       const rawItems = match.trim().split(/\n(?=[ \t]*[-*•][ \t]+)/);
       const items = rawItems.map(item => {
-        const indentSpaces = (item.match(/^[ \t]*/)[0] || '').replace(/\t/g, '  ').length;
-        let levelClass = '';
-        if (indentSpaces >= 6) levelClass = ' sub-level-3';
-        else if (indentSpaces >= 4) levelClass = ' sub-level-2';
-        else if (indentSpaces >= 2) levelClass = ' sub-level-1';
+        const indentSpaces = (item.match(/^[ \t]*/)[0] || '').replace(/\t/g, '    ').length;
+        let level = 1;
+        let dotSymbol = '-';
+        if (indentSpaces >= 6) {
+          level = 3;
+          dotSymbol = '·';
+        } else if (indentSpaces >= 2) {
+          level = 2;
+          dotSymbol = '▪';
+        } else {
+          level = 1;
+          dotSymbol = '-';
+        }
 
         const cleaned = item.replace(/^[ \t]*[-*•][ \t]+/, '').replace(/\n[ \t]{2,}/g, '<br>');
-        return `<li class="${levelClass}">${cleaned.trim()}</li>`;
+        return `<div class="md-bullet-item bullet-level-${level}"><span class="md-sub-bullet-dot">${dotSymbol}</span><span class="md-sub-bullet-text">${cleaned.trim()}</span></div>`;
       }).join('');
-      return `<ul>${items}</ul>`;
+      return `<div class="md-bullet-group">${items}</div>`;
     });
 
     return text;
@@ -1108,9 +1116,9 @@ const MarkdownParser = {
   // [신규] 심리학 첫 진입 시 전용 온보딩 선택 카드 (톤 2줄 옵션 + 닉네임 밑줄 + 첫 이야기 밑줄 + 선택완료)
   renderPsychologyOnboarding(msgId, choiceState = null) {
     const isSubmitted = Boolean(choiceState && choiceState.submitted);
-    const savedTone = choiceState?.tone || '적당히 위트 있고 편안한 존댓말 쓰기';
+    const savedTone = (choiceState && typeof choiceState.tone === 'string') ? choiceState.tone : '';
     const isBanmal = savedTone.includes('반말');
-    const isJondaet = !isBanmal;
+    const isJondaet = savedTone.includes('존댓말');
     const nickVal = (choiceState && typeof choiceState.nickname === 'string') ? choiceState.nickname : '';
     const storyVal = (choiceState && typeof choiceState.story === 'string') ? choiceState.story : '';
 
@@ -1206,7 +1214,11 @@ const MarkdownParser = {
     if (submitBtn) {
       submitBtn.addEventListener('click', async () => {
         const checkedTone = quoteSection.querySelector(`input[name="tone-${msgId}"]:checked`);
-        const toneVal = checkedTone ? checkedTone.value : '적당히 위트 있고 편안한 존댓말 쓰기';
+        if (!checkedTone) {
+          alert('1번 질문에서 원하시는 대화 톤을 선택해주세요!');
+          return;
+        }
+        const toneVal = checkedTone.value;
         const nickVal = nicknameField ? nicknameField.value.trim() : '';
         const storyVal = storyField ? storyField.value.trim() : '';
 

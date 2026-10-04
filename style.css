@@ -2441,8 +2441,17 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   color: #FAF8F2 !important;
 }
 
-/* 번호 매겨진 목록 내부 서브 불릿 (상위 텍스트 시작선 기준 완벽 정렬) */
-.md-sub-bullet {
+/* 마크다운 순수 불릿 목록 그룹 */
+.md-bullet-group {
+  margin: 6px 0 10px 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+}
+
+/* 번호 매겨진 목록 내부 서브 불릿 및 순수 불릿 항목 (상위 텍스트 시작선 기준 완벽 정렬) */
+.md-sub-bullet,
+.md-bullet-item {
   display: flex !important;
   align-items: flex-start !important;
   gap: 4px !important;
@@ -2451,17 +2460,17 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   line-height: 1.64 !important;
 }
 
-/* 첫 번째 서브 불릿: 상위 본문 텍스트 시작선에 완벽 일치 (0px) */
+/* 순수 불릿 목록 들여쓰기 (1단계: 0px [-], 2단계: 14px [▪], 3단계: 28px [·]) */
+.md-bullet-item.bullet-level-1 { margin-left: 0 !important; }
+.md-bullet-item.bullet-level-2 { margin-left: 14px !important; }
+.md-bullet-item.bullet-level-3 { margin-left: 28px !important; }
+.md-bullet-item.bullet-level-4 { margin-left: 42px !important; }
+
+/* 번호 목록 내부 서브 불릿 들여쓰기 (상위 본문 텍스트 시작선 기준: 1단계: 0px [-], 2단계: 14px [▪], 3단계: 28px [·]) */
 .md-sub-bullet,
 .md-sub-bullet.sub-level-1 { margin-left: 0 !important; }
-
-/* 두 번째 서브 불릿: 첫 번째 불릿의 텍스트 시작점(dot 10px + gap 4px = 14px)에 도트 시작선 칼정렬 */
 .md-sub-bullet.sub-level-2 { margin-left: 14px !important; }
-
-/* 세 번째 서브 불릿: 두 번째 불릿의 텍스트 시작점(14px + 14px = 28px)에 칼정렬 */
 .md-sub-bullet.sub-level-3 { margin-left: 28px !important; }
-
-/* 네 번째 서브 불릿 */
 .md-sub-bullet.sub-level-4 { margin-left: 42px !important; }
 
 .md-sub-bullet-dot {
