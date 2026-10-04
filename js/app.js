@@ -688,6 +688,22 @@ const MarkdownParser = {
         { keyName: '정서', axisTitle: '정서 반응', left: '정서 안정·확신 (A)', right: '위협 각성·민감 (T)', leftCode: 'A', rightCode: 'T', leftDefault: '자기확신형 (A)', rightDefault: '민감형 (T)' }
       ];
 
+      // 단극 게이지 연동: 수치 범위별(10~20% 단위) 바 색상 함수
+      const getPosBarColor = (score) => {
+        if (score > 80) return '#4B533C';
+        if (score > 60) return '#5D664D';
+        if (score > 40) return '#747B61';
+        if (score > 20) return '#959F89';
+        return '#B2B9A8';
+      };
+      const getNegBarColor = (score) => {
+        if (score > 80) return '#8C4E2D';
+        if (score > 60) return '#A3603B';
+        if (score > 40) return '#B97C58';
+        if (score > 20) return '#CF9776';
+        return '#E2B599';
+      };
+
       let rowsHtml = '';
       keys.forEach(key => {
         if (key === '도출유형') return;
@@ -730,16 +746,19 @@ const MarkdownParser = {
         const domScore = scorePct;
         const subScore = 100 - domScore;
 
-        const badgeStyle = 'display: inline-block; background: #ECEFE6; color: #353C2E; border: 1px solid #D0D7C5; font-size: 0.72rem; font-weight: 700; padding: 1px 6px; border-radius: 4px;';
+        // 올리브 배경 + 웜화이트 텍스트 + 세로 정중앙 정렬 배지
+        const badgeStyle = 'display: inline-flex; align-items: center; justify-content: center; background: #747B61; color: #FFFDF5; font-size: 0.70rem; font-weight: 700; padding: 1px 5px; border-radius: 4px; line-height: 1; vertical-align: middle; height: 16px; margin: 0 3px;';
 
         if (isRight) {
+          const barColor = getPosBarColor(domScore);
           leftColHtml = `<span style="color: #94A3B8; font-weight: 400; font-size: 0.80rem;">${poleInfo.left} ${subScore}%</span>`;
-          rightColHtml = `<span style="color: #1E293B; font-weight: 700; font-size: 0.83rem;">${traitName} <span style="${badgeStyle} margin-left: 3px;">${domScore}%</span></span>`;
-          barHtml = `<div class="bipolar-bar-pos" style="width: ${barWidth}%;"></div>`;
+          rightColHtml = `<span style="color: #1E293B; font-weight: 700; font-size: 0.83rem;">${traitName} <span style="${badgeStyle}">${domScore}%</span></span>`;
+          barHtml = `<div class="bipolar-bar-pos" style="width: ${barWidth}%; background: ${barColor};"></div>`;
         } else {
-          leftColHtml = `<span style="color: #1E293B; font-weight: 700; font-size: 0.83rem;"><span style="${badgeStyle} margin-right: 3px;">${domScore}%</span> ${traitName}</span>`;
+          const barColor = getNegBarColor(domScore);
+          leftColHtml = `<span style="color: #1E293B; font-weight: 700; font-size: 0.83rem;"><span style="${badgeStyle}">${domScore}%</span> ${traitName}</span>`;
           rightColHtml = `<span style="color: #94A3B8; font-weight: 400; font-size: 0.80rem;">${poleInfo.right} ${subScore}%</span>`;
-          barHtml = `<div class="bipolar-bar-neg" style="width: ${barWidth}%;"></div>`;
+          barHtml = `<div class="bipolar-bar-neg" style="width: ${barWidth}%; background: ${barColor};"></div>`;
         }
 
         rowsHtml += `
@@ -778,6 +797,21 @@ const MarkdownParser = {
         '신경증': { left: '정서적 안정', right: '위협 민감' }
       };
 
+      const getPosBarColor = (score) => {
+        if (score > 80) return '#4B533C';
+        if (score > 60) return '#5D664D';
+        if (score > 40) return '#747B61';
+        if (score > 20) return '#959F89';
+        return '#B2B9A8';
+      };
+      const getNegBarColor = (score) => {
+        if (score > 80) return '#8C4E2D';
+        if (score > 60) return '#A3603B';
+        if (score > 40) return '#B97C58';
+        if (score > 20) return '#CF9776';
+        return '#E2B599';
+      };
+
       let rowsHtml = '';
       keys.forEach(key => {
         const pole = BIG_FIVE_POLES[key] || { left: '낮음', right: '높음' };
@@ -787,22 +821,24 @@ const MarkdownParser = {
         let leftColHtml = '';
         let rightColHtml = '';
 
-        const badgeStyle = 'display: inline-block; background: #ECEFE6; color: #353C2E; border: 1px solid #D0D7C5; font-size: 0.72rem; font-weight: 700; padding: 1px 6px; border-radius: 4px;';
+        const badgeStyle = 'display: inline-flex; align-items: center; justify-content: center; background: #747B61; color: #FFFDF5; font-size: 0.70rem; font-weight: 700; padding: 1px 5px; border-radius: 4px; line-height: 1; vertical-align: middle; height: 16px; margin: 0 3px;';
 
         if (rawScore > 50) {
           const score = Math.min(100, rawScore);
           const subScore = 100 - score;
           const barWidth = (score / 100) * 50;
+          const barColor = getPosBarColor(score);
           leftColHtml = `<span style="color: #94A3B8; font-weight: 400; font-size: 0.80rem;">${pole.left} ${subScore}%</span>`;
-          rightColHtml = `<span style="color: #1E293B; font-weight: 700; font-size: 0.83rem;">${pole.right} <span style="${badgeStyle} margin-left: 3px;">${score}%</span></span>`;
-          barHtml = `<div class="bipolar-bar-pos" style="width: ${barWidth}%;"></div>`;
+          rightColHtml = `<span style="color: #1E293B; font-weight: 700; font-size: 0.83rem;">${pole.right} <span style="${badgeStyle}">${score}%</span></span>`;
+          barHtml = `<div class="bipolar-bar-pos" style="width: ${barWidth}%; background: ${barColor};"></div>`;
         } else if (rawScore < 50) {
           const score = Math.min(100, 100 - rawScore);
           const subScore = 100 - score;
           const barWidth = (score / 100) * 50;
-          leftColHtml = `<span style="color: #1E293B; font-weight: 700; font-size: 0.83rem;"><span style="${badgeStyle} margin-right: 3px;">${score}%</span> ${pole.left}</span>`;
+          const barColor = getNegBarColor(score);
+          leftColHtml = `<span style="color: #1E293B; font-weight: 700; font-size: 0.83rem;"><span style="${badgeStyle}">${score}%</span> ${pole.left}</span>`;
           rightColHtml = `<span style="color: #94A3B8; font-weight: 400; font-size: 0.80rem;">${pole.right} ${subScore}%</span>`;
-          barHtml = `<div class="bipolar-bar-neg" style="width: ${barWidth}%;"></div>`;
+          barHtml = `<div class="bipolar-bar-neg" style="width: ${barWidth}%; background: ${barColor};"></div>`;
         } else {
           leftColHtml = `<span style="color: #64748B; font-weight: 500; font-size: 0.80rem;">${pole.left} 50%</span>`;
           rightColHtml = `<span style="color: #64748B; font-weight: 500; font-size: 0.80rem;">${pole.right} 50%</span>`;
