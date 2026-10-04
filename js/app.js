@@ -746,18 +746,15 @@ const MarkdownParser = {
         const domScore = scorePct;
         const subScore = 100 - domScore;
 
-        // 올리브 배경 + 웜화이트 텍스트 + 옆 글자 텍스트 높이(14px)와 1:1 일치하는 콤팩트 배지
-        const badgeStyle = 'display: inline-flex; align-items: center; justify-content: center; background: #747B61; color: #FFFDF5; font-size: 0.65rem; font-weight: 700; padding: 0 4px; border-radius: 3px; height: 14px; line-height: 1; flex-shrink: 0; box-sizing: border-box;';
-
         if (isRight) {
           const barColor = getPosBarColor(domScore);
-          leftColHtml = `<span style="display: inline-flex; align-items: center; color: #94A3B8; font-weight: 400; font-size: 0.80rem;">${poleInfo.left} ${subScore}%</span>`;
-          rightColHtml = `<span style="display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; color: #1E293B; font-weight: 700; font-size: 0.83rem;"><span>${traitName}</span><span style="${badgeStyle}">${domScore}%</span></span>`;
+          leftColHtml = `<span class="bipolar-pole-label muted">${poleInfo.left} ${subScore}%</span>`;
+          rightColHtml = `<span class="bipolar-pole-label right-aligned"><span>${traitName}</span><span class="bipolar-badge">${domScore}%</span></span>`;
           barHtml = `<div class="bipolar-bar-pos" style="width: ${barWidth}%; background: ${barColor};"></div>`;
         } else {
           const barColor = getNegBarColor(domScore);
-          leftColHtml = `<span style="display: inline-flex; align-items: center; justify-content: flex-start; gap: 4px; color: #1E293B; font-weight: 700; font-size: 0.83rem;"><span style="${badgeStyle}">${domScore}%</span><span>${traitName}</span></span>`;
-          rightColHtml = `<span style="display: inline-flex; align-items: center; color: #94A3B8; font-weight: 400; font-size: 0.80rem;">${poleInfo.right} ${subScore}%</span>`;
+          leftColHtml = `<span class="bipolar-pole-label left-aligned"><span class="bipolar-badge">${domScore}%</span><span>${traitName}</span></span>`;
+          rightColHtml = `<span class="bipolar-pole-label muted">${poleInfo.right} ${subScore}%</span>`;
           barHtml = `<div class="bipolar-bar-neg" style="width: ${barWidth}%; background: ${barColor};"></div>`;
         }
 
@@ -821,27 +818,25 @@ const MarkdownParser = {
         let leftColHtml = '';
         let rightColHtml = '';
 
-        const badgeStyle = 'display: inline-flex; align-items: center; justify-content: center; background: #747B61; color: #FFFDF5; font-size: 0.65rem; font-weight: 700; padding: 0 4px; border-radius: 3px; height: 14px; line-height: 1; flex-shrink: 0; box-sizing: border-box;';
-
         if (rawScore > 50) {
           const score = Math.min(100, rawScore);
           const subScore = 100 - score;
           const barWidth = (score / 100) * 50;
           const barColor = getPosBarColor(score);
-          leftColHtml = `<span style="display: inline-flex; align-items: center; color: #94A3B8; font-weight: 400; font-size: 0.80rem;">${pole.left} ${subScore}%</span>`;
-          rightColHtml = `<span style="display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; color: #1E293B; font-weight: 700; font-size: 0.83rem;"><span>${pole.right}</span><span style="${badgeStyle}">${score}%</span></span>`;
+          leftColHtml = `<span class="bipolar-pole-label muted">${pole.left} ${subScore}%</span>`;
+          rightColHtml = `<span class="bipolar-pole-label right-aligned"><span>${pole.right}</span><span class="bipolar-badge">${score}%</span></span>`;
           barHtml = `<div class="bipolar-bar-pos" style="width: ${barWidth}%; background: ${barColor};"></div>`;
         } else if (rawScore < 50) {
           const score = Math.min(100, 100 - rawScore);
           const subScore = 100 - score;
           const barWidth = (score / 100) * 50;
           const barColor = getNegBarColor(score);
-          leftColHtml = `<span style="display: inline-flex; align-items: center; justify-content: flex-start; gap: 4px; color: #1E293B; font-weight: 700; font-size: 0.83rem;"><span style="${badgeStyle}">${score}%</span><span>${pole.left}</span></span>`;
-          rightColHtml = `<span style="display: inline-flex; align-items: center; color: #94A3B8; font-weight: 400; font-size: 0.80rem;">${pole.right} ${subScore}%</span>`;
+          leftColHtml = `<span class="bipolar-pole-label left-aligned"><span class="bipolar-badge">${score}%</span><span>${pole.left}</span></span>`;
+          rightColHtml = `<span class="bipolar-pole-label muted">${pole.right} ${subScore}%</span>`;
           barHtml = `<div class="bipolar-bar-neg" style="width: ${barWidth}%; background: ${barColor};"></div>`;
         } else {
-          leftColHtml = `<span style="display: inline-flex; align-items: center; color: #64748B; font-weight: 500; font-size: 0.80rem;">${pole.left} 50%</span>`;
-          rightColHtml = `<span style="display: inline-flex; align-items: center; color: #64748B; font-weight: 500; font-size: 0.80rem;">${pole.right} 50%</span>`;
+          leftColHtml = `<span class="bipolar-pole-label muted">${pole.left} 50%</span>`;
+          rightColHtml = `<span class="bipolar-pole-label muted">${pole.right} 50%</span>`;
           barHtml = ``;
         }
 

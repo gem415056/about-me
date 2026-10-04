@@ -1968,12 +1968,51 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
 }
 
 .bipolar-meta-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.82rem;
-  font-weight: 600;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  width: 100%;
+  align-items: center;
   margin-bottom: 6px;
-  color: #626756;
+}
+
+.bipolar-pole-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.83rem;
+  font-weight: 700;
+  color: #1E293B;
+  line-height: 1.2;
+}
+
+.bipolar-pole-label.right-aligned {
+  justify-content: flex-end;
+}
+
+.bipolar-pole-label.left-aligned {
+  justify-content: flex-start;
+}
+
+.bipolar-pole-label.muted {
+  font-weight: 400;
+  color: #94A3B8;
+}
+
+.bipolar-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #747B61;
+  color: #FFFDF5;
+  font-size: 0.68em;
+  font-weight: 700;
+  height: 1.25em;
+  padding: 1.5px 5px 0px 5px;
+  border-radius: 3px;
+  line-height: 1;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  vertical-align: middle;
 }
 
 .bipolar-track {
