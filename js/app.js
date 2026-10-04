@@ -466,26 +466,25 @@ const MarkdownParser = {
       const headers = splitCells(headerLine);
       if (headers.length === 0) return tableMarkdown;
 
-      // 게이지 표 여부 감지: 오직 보고서(isReport === true) 모드일 때만 게이지 표 적용
-      const hasGauge = isReport && (
-                        tableMarkdown.includes('░') ||
-                        tableMarkdown.includes('█') ||
-                        tableMarkdown.includes('■') ||
-                        tableMarkdown.includes('▓') ||
-                        tableMarkdown.includes('▰') ||
-                        tableMarkdown.includes('%') ||
-                        /게이지|스펙트럼|활성도|에너지|비중|프로파일|추진력/i.test(headerLine)
-                      );
+      // 게이지 표 여부 감지: 오직 보고서(isReport === true) 모드에서 실제 아스키 게이지 기호(░, █ 등)나 게이지 명시 헤더가 있을 때만 게이지 표 적용
+      const hasAsciiGauge = /[░█■□▪▫▓▒▰▱●○]/.test(tableMarkdown);
+      const hasGaugeHeader = /게이지|스펙트럼|시각화|차트|그래프/i.test(headerLine);
+      const hasGauge = isReport && (hasAsciiGauge || hasGaugeHeader);
 
       let tableHtml = `\n\n<div class="report-table-wrapper"><table class="${hasGauge ? 'report-gauge-table' : 'report-standard-table'}">`;
       tableHtml += `<thead><tr>`;
       headers.forEach((h, idx) => {
         let colClass = '';
         if (hasGauge) {
-          if (idx === 0) colClass = 'col-label';
-          else if (headers.length === 4 && idx === 1) colClass = 'col-sub-label';
-          else if ((headers.length === 4 && idx === 2) || (headers.length === 3 && idx === 1)) colClass = 'col-gauge-track';
-          else colClass = 'col-percent';
+          if (/게이지|스펙트럼|시각화|차트|그래프/i.test(h)) {
+            colClass = 'col-gauge-track';
+          } else if (idx === 0) {
+            colClass = 'col-label';
+          } else if (headers.length === 4 && idx === 1) {
+            colClass = 'col-sub-label';
+          } else if (/백분율|비율|점수|퍼센트|%/i.test(h)) {
+            colClass = 'col-percent';
+          }
         }
         tableHtml += `<th class="${colClass}">${h}</th>`;
       });
@@ -500,7 +499,7 @@ const MarkdownParser = {
 
         tableHtml += `<tr>`;
         cells.forEach((cell, idx) => {
-          const isGaugeCell = /[░█■□▪▫▓▒▰▱●○]/.test(cell) || (hasGauge && ((headers.length === 4 && idx === 2) || (headers.length === 3 && idx === 1)));
+          const isGaugeCell = /[░█■□▪▫▓▒▰▱●○]/.test(cell) || (hasGauge && /게이지|스펙트럼|시각화|차트|그래프/i.test(headers[idx] || ''));
 
           if (isGaugeCell) {
             let finalPercent = percentVal;
@@ -533,7 +532,8 @@ const MarkdownParser = {
           } else {
             let colClass = '';
             if (hasGauge) {
-              colClass = idx === 0 ? 'col-label' : (headers.length === 4 && idx === 1 ? 'col-sub-label' : '');
+              if (idx === 0) colClass = 'col-label';
+              else if (headers.length === 4 && idx === 1) colClass = 'col-sub-label';
             }
             tableHtml += `<td class="${colClass}">${cell}</td>`;
           }
@@ -672,12 +672,77 @@ const MarkdownParser = {
     if (!data || typeof data !== 'object') return '';
 
     const keys = Object.keys(data);
-    const isBigFive = keys.some(k => k === '개방성' || k === '외향성' || k === '성실성');
-    const isMbtiAxis = keys.some(k => 
-      k.includes('E') || k.includes('I') || k.includes('N') || k.includes('S') || 
-      k.includes('F') || k.includes('T') || k.includes('J') || k.includes('P') || k.includes('A') ||
-      k.includes('에너지') || k.includes('정보') || k.includes('판단') || k.includes('생활') || k.includes('정서')
-    ) && !keys.some(k => k.includes('기능:'));
+    const isDisc = keys.some(k => 
+      k.includes('주도') || k.includes('사교') || k.includes('안정형') || k.includes('신중') ||
+      /^[DISC][\s:：()_]/i.test(k) || k.includes('DISC')
+    ) || (keys.some(k => k === 'D' || k === 'D형') && keys.some(k => k === 'I' || k === 'I형'));
+
+    const isBigFive = keys.some(k => k === '개방성' || k === '외향성' || k === '우호성' || k === '성실성' || k === '신경증');
+    const isCognitive = keys.some(k => k.includes('기능:') || /^(Ti|Te|Fi|Fe|Ni|Ne|Si|Se)\b/.test(k));
+    const isEnneagram = keys.some(k => k === '자기보존' || k === '일대일' || k === '사회적' || k.includes('에니어그램'));
+    const isMcClelland = keys.some(k => k.includes('성취욕구') || k.includes('권력욕구') || k.includes('친교욕구'));
+
+    const isMbtiAxis = !isDisc && !isBigFive && !isCognitive && !isEnneagram && !isMcClelland && (
+      keys.some(k => 
+        k.includes('에너지') || k.includes('정보') || k.includes('생활') || k.includes('정서') ||
+        (k.includes('판단') && !k.includes('기능:')) ||
+        k.includes('외향형') || k.includes('내향형') || k.includes('직관형') || k.includes('감각형') ||
+        k.includes('사고형') || k.includes('감정형') || k.includes('판단형') || k.includes('인식형') ||
+        /^(E\/I|N\/S|T\/F|J\/P|A\/T)\b/i.test(k)
+      )
+    );
+
+    // 1. DISC 4대 행동 양식 전용 단극 게이지 렌더러
+    if (isDisc) {
+      const DISC_LABELS = {
+        'D': '주도형 (Dominance)',
+        'I': '사교형 (Influence)',
+        'S': '안정형 (Steadiness)',
+        'C': '신중형 (Conscientiousness)'
+      };
+
+      const typeLabel = data['도출유형'];
+      let rowsHtml = '';
+      keys.forEach(key => {
+        if (key === '도출유형') return;
+        const score = Math.min(100, Math.max(0, parseInt(data[key], 10) || 0));
+
+        let displayName = key;
+        const cleanKey = key.replace(/[:：\s].*$/, '').trim().toUpperCase();
+        if (DISC_LABELS[cleanKey]) {
+          displayName = DISC_LABELS[cleanKey];
+        }
+
+        let barColor = '#747B61';
+        if (score > 80) barColor = '#4B533C';
+        else if (score > 60) barColor = '#5D664D';
+        else if (score > 40) barColor = '#747B61';
+        else if (score > 20) barColor = '#959F89';
+        else barColor = '#B2B9A8';
+
+        rowsHtml += `
+          <div class="unipolar-item-row">
+            <div class="unipolar-meta-row">
+              <span style="font-weight: 600; color: #1E293B;">${displayName}</span>
+              <span style="font-weight: 700; color: #2A3022;">${score}%</span>
+            </div>
+            <div class="unipolar-track">
+              <div class="unipolar-fill-bar" style="width: ${score}%; background: ${barColor};"></div>
+            </div>
+          </div>
+        `;
+      });
+
+      return `
+        <div class="report-card-container">
+          <div class="report-card-header">
+            <h4 class="report-card-title">🎭 DISC 4대 행동 양식${typeLabel ? ` (${typeLabel})` : ''}</h4>
+            <p class="report-card-desc">사회적 가면 및 현실 처세 페르소나</p>
+          </div>
+          ${rowsHtml}
+        </div>
+      `;
+    }
 
     if (isMbtiAxis && !isBigFive) {
       const MBTI_AXIS_POLES = [
@@ -877,8 +942,8 @@ const MarkdownParser = {
     } else if (keys.some(k => k === '자기보존' || k === '일대일' || k === '사회적')) {
       title = `⚓ 에니어그램 본능 삼원소${typeLabel ? ` (${typeLabel})` : ''}`;
       desc = '본능적 에너지 집중 비중';
-    } else if (keys.some(k => k === '주도형' || k === '사교형' || k === '안정형' || k === '신중형')) {
-      title = '🎭 DISC 4대 행동 양식';
+    } else if (isDisc || keys.some(k => k.includes('주도') || k.includes('사교') || k.includes('안정') || k.includes('신중'))) {
+      title = `🎭 DISC 4대 행동 양식${typeLabel ? ` (${typeLabel})` : ''}`;
       desc = '사회적 가면 및 현실 처세 페르소나';
     } else if (keys.some(k => k === '성취욕구' || k === '권력욕구' || k === '친교욕구')) {
       title = '⚡ 맥클리랜드 3대 동기 엔진';
