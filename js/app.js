@@ -770,21 +770,25 @@ const MarkdownParser = {
     `;
   },
 
-  // [핵심 4] 마크다운 본체 파서
-  parse(text) {
+  // [핵심 4] 마크다운 본체 파서 (isReport가 true일 때만 게이지바 렌더링, 일반 대화는 표준 표/코드블록 유지)
+  parse(text, isReport = false) {
     if (!text) return '';
 
     // 1. CRLF 개행 표준화
     let processed = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
-    // 1.5. JSON 게이지 블록 변환 (게이지 데이터가 아니면 일반 코드 블록으로 안전 전환)
+    // 1.5. JSON 게이지 블록 변환 (오직 보고서 화면에서만 게이지바로 변환, 일반 대화에서는 일반 코드블록으로 보존)
     processed = processed.replace(/```json\s*([\s\S]*?)\s*```/g, (match, jsonStr) => {
-      try {
-        const data = JSON.parse(jsonStr.trim());
-        const rendered = this.renderJsonGauge(data);
-        if (rendered) return rendered;
-        return this.renderCodeBlock(jsonStr.trim(), 'JSON');
-      } catch (e) {
+      if (isReport) {
+        try {
+          const data = JSON.parse(jsonStr.trim());
+          const rendered = this.renderJsonGauge(data);
+          if (rendered) return rendered;
+          return this.renderCodeBlock(jsonStr.trim(), 'JSON');
+        } catch (e) {
+          return this.renderCodeBlock(jsonStr.trim(), 'JSON');
+        }
+      } else {
         return this.renderCodeBlock(jsonStr.trim(), 'JSON');
       }
     });
@@ -797,7 +801,11 @@ const MarkdownParser = {
     // 2. 마크다운 테이블 변환
     processed = this.parseMarkdownTable(processed);
 
-    // 3. 헤더 변환
+    // 3. 7단계 마크다운 헤더 변환 (긴 기호부터 순차 치환)
+    processed = processed.replace(/^####### (.*$)/gim, '<div class="md-h7">$1</div>');
+    processed = processed.replace(/^###### (.*$)/gim, '<h6>$1</h6>');
+    processed = processed.replace(/^##### (.*$)/gim, '<h5>$1</h5>');
+    processed = processed.replace(/^#### (.*$)/gim, '<h4>$1</h4>');
     processed = processed.replace(/^### (.*$)/gim, '<h3>$1</h3>');
     processed = processed.replace(/^## (.*$)/gim, '<h2>$1</h2>');
     processed = processed.replace(/^# (.*$)/gim, '<h1>$1</h1>');
@@ -838,7 +846,7 @@ const MarkdownParser = {
       const trimmed = block.trim();
       if (!trimmed) return '';
       // 이미 블록 레벨 태그로 시작하는 경우 p 태그로 감싸지 않음
-      if (/^<(h[1-6]|table|div|ul|ol|blockquote|hr)/i.test(trimmed)) {
+      if (/^<(h[1-6]|div class="md-h7"|table|div|ul|ol|blockquote|hr)/i.test(trimmed)) {
         return trimmed;
       }
       return `<p>${trimmed.replace(/\n/g, '<br>')}</p>`;
@@ -2155,8 +2163,8 @@ const ReportController = {
     if (this.isOpen) return;
     this.isOpen = true;
 
-    // 보고서 마크다운 파싱 렌더링
-    this.body.innerHTML = MarkdownParser.parse(reportRawText);
+    // 보고서 마크다운 파싱 렌더링 (게이지바 시각화 활성화)
+    this.body.innerHTML = MarkdownParser.parse(reportRawText, true);
     this.view.classList.remove('hidden');
 
     // 뒤로가기 스택에 보고서 닫기 등록 (모바일 뒤로가기 시 1단계 닫힘 보장)
