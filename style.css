@@ -1978,11 +1978,11 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
 .bipolar-pole-label {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   font-size: 0.83rem;
   font-weight: 700;
   color: #1E293B;
-  line-height: 1.2;
+  line-height: 1;
 }
 
 .bipolar-pole-label.right-aligned {
@@ -2004,11 +2004,10 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   justify-content: center;
   background-color: #747B61;
   color: #FFFDF5;
-  font-size: 0.68em;
+  font-size: 0.75rem;
   font-weight: 700;
-  height: 1.25em;
-  padding: 1.5px 5px 0px 5px;
-  border-radius: 3px;
+  padding: 3px 8px;
+  border-radius: 5px;
   line-height: 1;
   box-sizing: border-box;
   flex-shrink: 0;
