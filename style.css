@@ -2583,13 +2583,13 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   display: flex !important;
   align-items: flex-start !important;
   gap: 4px !important;
-  margin: 6px 0 !important;
-  line-height: 1.68 !important;
+  margin: 2px 0 !important;
+  line-height: 1.66 !important;
 }
 
 .md-num-label {
-  font-weight: 700 !important;
-  color: #2A3022 !important;
+  font-weight: 400 !important;
+  color: inherit !important;
   flex-shrink: 0 !important;
   font-variant-numeric: tabular-nums !important;
   line-height: inherit !important;
@@ -2609,10 +2609,10 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
 
 /* 마크다운 순수 불릿 목록 그룹 */
 .md-bullet-group {
-  margin: 6px 0 10px 0 !important;
+  margin: 2px 0 4px 0 !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 4px !important;
+  gap: 2px !important;
 }
 
 /* 번호 매겨진 목록 내부 서브 불릿 및 순수 불릿 항목 (상위 텍스트 시작선 기준 완벽 정렬) */
@@ -2621,9 +2621,9 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   display: flex !important;
   align-items: flex-start !important;
   gap: 4px !important;
-  margin: 4px 0 !important;
+  margin: 1px 0 !important;
   font-size: 0.94em !important;
-  line-height: 1.64 !important;
+  line-height: 1.66 !important;
 }
 
 /* 순수 불릿 목록 들여쓰기 (1단계: 0px [-], 2단계: 14px [▪], 3단계: 28px [·]) */

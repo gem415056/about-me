@@ -429,8 +429,8 @@ const MarkdownParser = {
     };
   },
 
-  // [핵심 2] 마크다운 테이블 파서 (스펙트럼 포인터 & 프로그레스 바 & 표준 표 자동 시각화)
-  parseMarkdownTable(text) {
+  // [핵심 2] 마크다운 테이블 파서 (isReport===true일 때만 게이지 표 지원, 일반 대화는 무조건 표준 표)
+  parseMarkdownTable(text, isReport = false) {
     return text.replace(/(?:^[ \t]*\|?[^\n]+\|[^\n]*(?:\n|$)){2,}/gm, (tableMarkdown) => {
       const rawLines = tableMarkdown.trim().split('\n').map(l => l.trim()).filter(Boolean);
       if (rawLines.length < 2) return tableMarkdown;
@@ -457,14 +457,16 @@ const MarkdownParser = {
       const headers = splitCells(headerLine);
       if (headers.length === 0) return tableMarkdown;
 
-      // 게이지 표 여부 감지: 특수문자, 퍼센트, 게이지 관련 키워드 전수 감지
-      const hasGauge = tableMarkdown.includes('░') ||
-                       tableMarkdown.includes('█') ||
-                       tableMarkdown.includes('■') ||
-                       tableMarkdown.includes('▓') ||
-                       tableMarkdown.includes('▰') ||
-                       tableMarkdown.includes('%') ||
-                       /게이지|스펙트럼|활성도|에너지|비중|프로파일|추진력/i.test(headerLine);
+      // 게이지 표 여부 감지: 오직 보고서(isReport === true) 모드일 때만 게이지 표 적용
+      const hasGauge = isReport && (
+                        tableMarkdown.includes('░') ||
+                        tableMarkdown.includes('█') ||
+                        tableMarkdown.includes('■') ||
+                        tableMarkdown.includes('▓') ||
+                        tableMarkdown.includes('▰') ||
+                        tableMarkdown.includes('%') ||
+                        /게이지|스펙트럼|활성도|에너지|비중|프로파일|추진력/i.test(headerLine)
+                      );
 
       let tableHtml = `\n\n<div class="report-table-wrapper"><table class="${hasGauge ? 'report-gauge-table' : 'report-standard-table'}">`;
       tableHtml += `<thead><tr>`;
@@ -798,8 +800,8 @@ const MarkdownParser = {
       return this.renderCodeBlock(code, lang || 'CODE');
     });
 
-    // 2. 마크다운 테이블 변환
-    processed = this.parseMarkdownTable(processed);
+    // 2. 마크다운 테이블 변환 (isReport 모드만 게이지 표 지원)
+    processed = this.parseMarkdownTable(processed, isReport);
 
     // 3. 7단계 마크다운 헤더 변환 (긴 기호부터 순차 치환)
     processed = processed.replace(/^####### (.*$)/gim, '<div class="md-h7">$1</div>');
