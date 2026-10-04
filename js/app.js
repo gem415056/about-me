@@ -681,11 +681,11 @@ const MarkdownParser = {
 
     if (isMbtiAxis && !isBigFive) {
       const MBTI_AXIS_POLES = [
-        { keyName: '에너지', left: '외부 확장·교류 (E)', right: '내면 충전·심화 (I)', leftCode: 'E', rightCode: 'I', leftDefault: '외향형 (E)', rightDefault: '내향형 (I)' },
-        { keyName: '정보', left: '직관 비약·통찰 (N)', right: '감각 경험·현실 (S)', leftCode: 'N', rightCode: 'S', leftDefault: '직관형 (N)', rightDefault: '감각형 (S)' },
-        { keyName: '판단', left: '정서 공감·관계 (F)', right: '원리 논리·체계 (T)', leftCode: 'F', rightCode: 'T', leftDefault: '감정형 (F)', rightDefault: '사고형 (T)' },
-        { keyName: '생활', left: '목표 통제·규율 (J)', right: '상황 적응·유연 (P)', leftCode: 'J', rightCode: 'P', leftDefault: '판단형 (J)', rightDefault: '인식형 (P)' },
-        { keyName: '정서', left: '정서 안정·확신 (A)', right: '위협 각성·민감 (T)', leftCode: 'A', rightCode: 'T', leftDefault: '자기확신형 (A)', rightDefault: '민감형 (T)' }
+        { keyName: '에너지', axisTitle: '에너지 방향', left: '외부 확장·교류 (E)', right: '내면 충전·심화 (I)', leftCode: 'E', rightCode: 'I', leftDefault: '외향형 (E)', rightDefault: '내향형 (I)' },
+        { keyName: '정보', axisTitle: '정보 수용', left: '직관 비약·통찰 (N)', right: '감각 경험·현실 (S)', leftCode: 'N', rightCode: 'S', leftDefault: '직관형 (N)', rightDefault: '감각형 (S)' },
+        { keyName: '판단', axisTitle: '판단 근거', left: '정서 공감·관계 (F)', right: '원리 논리·체계 (T)', leftCode: 'F', rightCode: 'T', leftDefault: '감정형 (F)', rightDefault: '사고형 (T)' },
+        { keyName: '생활', axisTitle: '생활 양식', left: '목표 통제·규율 (J)', right: '상황 적응·유연 (P)', leftCode: 'J', rightCode: 'P', leftDefault: '판단형 (J)', rightDefault: '인식형 (P)' },
+        { keyName: '정서', axisTitle: '정서 반응', left: '정서 안정·확신 (A)', right: '위협 각성·민감 (T)', leftCode: 'A', rightCode: 'T', leftDefault: '자기확신형 (A)', rightDefault: '민감형 (T)' }
       ];
 
       let rowsHtml = '';
@@ -694,14 +694,13 @@ const MarkdownParser = {
 
         let poleInfo = MBTI_AXIS_POLES.find(p => key.includes(p.keyName) || key.includes(p.leftCode) || key.includes(p.rightCode));
         if (!poleInfo) {
-          poleInfo = { left: '좌측 성향', right: '우측 성향', leftCode: 'L', rightCode: 'R', leftDefault: '좌측 성향', rightDefault: '우측 성향' };
+          poleInfo = { axisTitle: '성향 축', left: '좌측 성향', right: '우측 성향', leftCode: 'L', rightCode: 'R', leftDefault: '좌측 성향', rightDefault: '우측 성향' };
         }
 
         const valStr = String(data[key] || '').trim();
         const numMatch = valStr.match(/\d+/);
         let scorePct = numMatch ? Math.min(100, Math.max(0, parseInt(numMatch[0], 10))) : 50;
 
-        // 키 또는 값에서 도출된 우세 방향 감지 (예: "에너지 방향: 내향성 (I)": 80)
         const combinedText = `${key} ${valStr}`;
         let isRight = false;
 
@@ -713,11 +712,9 @@ const MarkdownParser = {
           isRight = scorePct >= 50;
         }
 
-        // 바 길이: 0~100% 수치를 중앙 핀(0%) 기준 해당 측면 50% 폭으로 맵핑
         const barWidth = (scorePct / 100) * 50;
         let barHtml = '';
 
-        // 키의 콜론 뒷부분에 작성된 명칭(예: "내향성 (I)")이 있으면 그대로 채택
         let traitName = '';
         if (key.includes(':')) {
           traitName = key.split(':')[1].trim();
@@ -728,20 +725,27 @@ const MarkdownParser = {
           traitName = isRight ? poleInfo.rightDefault : poleInfo.leftDefault;
         }
 
-        const labelText = `${traitName} ${scorePct}%`;
+        let leftColHtml = '';
+        let rightColHtml = '';
+        const domScore = scorePct;
+        const subScore = 100 - domScore;
 
         if (isRight) {
+          leftColHtml = `<span style="color: #94A3B8; font-weight: 400; font-size: 0.80rem;">${poleInfo.left} ${subScore}%</span>`;
+          rightColHtml = `<span style="color: #1E293B; font-weight: 700; font-size: 0.83rem;">${traitName} <span style="display: inline-block; background: #2A3022; color: #FFF; font-size: 0.72rem; font-weight: 700; padding: 1px 5px; border-radius: 4px; margin-left: 2px;">${domScore}%</span></span>`;
           barHtml = `<div class="bipolar-bar-pos" style="width: ${barWidth}%;"></div>`;
         } else {
+          leftColHtml = `<span style="color: #1E293B; font-weight: 700; font-size: 0.83rem;"><span style="display: inline-block; background: #2A3022; color: #FFF; font-size: 0.72rem; font-weight: 700; padding: 1px 5px; border-radius: 4px; margin-right: 2px;">${domScore}%</span> ${traitName}</span>`;
+          rightColHtml = `<span style="color: #94A3B8; font-weight: 400; font-size: 0.80rem;">${poleInfo.right} ${subScore}%</span>`;
           barHtml = `<div class="bipolar-bar-neg" style="width: ${barWidth}%;"></div>`;
         }
 
         rowsHtml += `
-          <div class="bipolar-item-row">
-            <div class="bipolar-meta-row">
-              <span>${poleInfo.left}</span>
-              <span style="font-weight: 700; color: #2A3022;">${labelText}</span>
-              <span>${poleInfo.right}</span>
+          <div class="bipolar-item-row" style="margin-bottom: 16px;">
+            <div class="bipolar-meta-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              ${leftColHtml}
+              <span style="font-weight: 700; color: #2A3022; font-size: 0.85rem; letter-spacing: -0.2px;">${poleInfo.axisTitle}</span>
+              ${rightColHtml}
             </div>
             <div class="bipolar-track">
               <div class="bipolar-center-pin-subtle"></div>
@@ -756,7 +760,7 @@ const MarkdownParser = {
         <div class="report-card-container">
           <div class="report-card-header">
             <h4 class="report-card-title">🧩 MBTI 5대 성향 축 선호 지표${typeLabel ? ` (${typeLabel})` : ''}</h4>
-            <p class="report-card-desc">양극 스펙트럼 기준 선호도 및 활성 비율 (중앙 0% 기준 양쪽 100%)</p>
+            <p class="report-card-desc">양극 스펙트럼 기준 선호도 및 활성 비율 (합계 100% 양방향 밸런스)</p>
           </div>
           ${rowsHtml}
         </div>
@@ -778,29 +782,35 @@ const MarkdownParser = {
         const rawScore = parseInt(data[key], 10) || 50;
 
         let barHtml = '';
-        let labelText = '';
+        let leftColHtml = '';
+        let rightColHtml = '';
 
         if (rawScore > 50) {
           const score = Math.min(100, rawScore);
-          labelText = `${pole.right} ${score}%`;
+          const subScore = 100 - score;
           const barWidth = (score / 100) * 50;
+          leftColHtml = `<span style="color: #94A3B8; font-weight: 400; font-size: 0.80rem;">${pole.left} ${subScore}%</span>`;
+          rightColHtml = `<span style="color: #1E293B; font-weight: 700; font-size: 0.83rem;">${pole.right} <span style="display: inline-block; background: #2A3022; color: #FFF; font-size: 0.72rem; font-weight: 700; padding: 1px 5px; border-radius: 4px; margin-left: 2px;">${score}%</span></span>`;
           barHtml = `<div class="bipolar-bar-pos" style="width: ${barWidth}%;"></div>`;
         } else if (rawScore < 50) {
           const score = Math.min(100, 100 - rawScore);
-          labelText = `${pole.left} ${score}%`;
+          const subScore = 100 - score;
           const barWidth = (score / 100) * 50;
+          leftColHtml = `<span style="color: #1E293B; font-weight: 700; font-size: 0.83rem;"><span style="display: inline-block; background: #2A3022; color: #FFF; font-size: 0.72rem; font-weight: 700; padding: 1px 5px; border-radius: 4px; margin-right: 2px;">${score}%</span> ${pole.left}</span>`;
+          rightColHtml = `<span style="color: #94A3B8; font-weight: 400; font-size: 0.80rem;">${pole.right} ${subScore}%</span>`;
           barHtml = `<div class="bipolar-bar-neg" style="width: ${barWidth}%;"></div>`;
         } else {
-          labelText = `균형 50%`;
+          leftColHtml = `<span style="color: #64748B; font-weight: 500; font-size: 0.80rem;">${pole.left} 50%</span>`;
+          rightColHtml = `<span style="color: #64748B; font-weight: 500; font-size: 0.80rem;">${pole.right} 50%</span>`;
           barHtml = ``;
         }
 
         rowsHtml += `
-          <div class="bipolar-item-row">
-            <div class="bipolar-meta-row">
-              <span>${pole.left}</span>
-              <span style="font-weight: 700; color: #2A3022;">${labelText}</span>
-              <span>${pole.right}</span>
+          <div class="bipolar-item-row" style="margin-bottom: 16px;">
+            <div class="bipolar-meta-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              ${leftColHtml}
+              <span style="font-weight: 700; color: #2A3022; font-size: 0.85rem; letter-spacing: -0.2px;">${key}</span>
+              ${rightColHtml}
             </div>
             <div class="bipolar-track">
               <div class="bipolar-center-pin-subtle"></div>
@@ -814,7 +824,7 @@ const MarkdownParser = {
         <div class="report-card-container">
           <div class="report-card-header">
             <h4 class="report-card-title">🧬 Big Five 5대 요인 분석</h4>
-            <p class="report-card-desc">기저 기질의 스펙트럼 밸런스 (중앙 0% 기준 양쪽 100%)</p>
+            <p class="report-card-desc">기저 기질의 스펙트럼 밸런스 (합계 100% 양방향 밸런스)</p>
           </div>
           ${rowsHtml}
         </div>
