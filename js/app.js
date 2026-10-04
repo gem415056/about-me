@@ -333,14 +333,21 @@ const SajuManager = {
     });
   },
 
-  // 이미지 스마트 압축기 (초고해상도 폰 카메라 사진 10MB -> 200KB 최적화)
-  compressImage(file, maxDim = 1200, quality = 0.82) {
+  // 만세력 이미지 고해상도 온전한 로더 (인위적 손실 압축 배제, AI Studio 수준의 최고 화질 원본 전송)
+  compressImage(file) {
     return new Promise((resolve, reject) => {
-      const img = new Image();
       const reader = new FileReader();
       reader.onload = (e) => {
+        const dataUrl = e.target.result;
+        // 스마트폰 스크린샷 및 8MB 이하 사진은 100% 무손실 원본 그대로 반환하여 글자/한자 뭉개짐을 원천 방지
+        if (!file || file.size <= 8 * 1024 * 1024) {
+          return resolve(dataUrl);
+        }
+        // 8MB 초과 초거대 파일에 한해서만 2800px 최고해상도(0.95 화질)로 안전 보존
+        const img = new Image();
         img.onload = () => {
           let { width, height } = img;
+          const maxDim = 2800;
           if (width > maxDim || height > maxDim) {
             if (width > height) {
               height = Math.round((height * maxDim) / width);
@@ -355,41 +362,19 @@ const SajuManager = {
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', quality));
+          resolve(canvas.toDataURL('image/jpeg', 0.95));
         };
-        img.onerror = () => resolve(e.target.result);
-        img.src = e.target.result;
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
       };
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
   },
 
-  compressDataUrl(dataUrl, maxDim = 1200, quality = 0.82) {
-    if (!dataUrl || dataUrl.length < 500000) return Promise.resolve(dataUrl);
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        let { width, height } = img;
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', quality));
-      };
-      img.onerror = () => resolve(dataUrl);
-      img.src = dataUrl;
-    });
+  compressDataUrl(dataUrl) {
+    // 2중 재압축 완전 제거: 원본 DataURL 100% 무손실 보존
+    return Promise.resolve(dataUrl);
   },
 
   // 새 명식 등록 처리 (Base64 변환 후 저장)
@@ -1766,20 +1751,40 @@ const AIEngine = {
   async buildContents(history, userText, attachedProfiles = []) {
     const contents = [];
 
-    // 1. 유효한 텍스트만 필터링 (오류 메시지 및 빈 메시지 완전 배제)
+    // 1. 유효한 텍스트 및 과거 턴 첨부 이미지 필터링 (대화 도중 추가된 모든 사주 이미지 온전히 유지)
     const validHistory = (history || [])
       .filter(msg => msg && msg.content && typeof msg.content === 'string' && msg.content.trim() && !msg.content.startsWith('⚠️'))
-      .map(msg => ({
-        role: msg.role === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.content.trim() }]
-      }));
+      .map(msg => {
+        const parts = [];
+        // 과거 사용자 턴에 첨부되었던 모든 만세력 이미지 보존
+        if (msg.role === 'user' && msg.attachments && Array.isArray(msg.attachments)) {
+          for (const att of msg.attachments) {
+            if (att && att.imageData) {
+              const { mimeType, data } = this.extractBase64(att.imageData);
+              if (data) {
+                parts.push({
+                  inlineData: {
+                    mimeType: mimeType || 'image/jpeg',
+                    data: data
+                  }
+                });
+              }
+            }
+          }
+        }
+        parts.push({ text: msg.content.trim() });
+        return {
+          role: msg.role === 'user' ? 'user' : 'model',
+          parts: parts
+        };
+      });
 
     // 2. Gemini Multiturn 규칙 강제: 첫 번째 항목은 무조건 'user'여야 함 (model 시작 금지)
     while (validHistory.length > 0 && validHistory[0].role !== 'user') {
       validHistory.shift();
     }
 
-    // 3. Gemini Multiturn 규칙 강제: user와 model이 번갈아 교차해야 함 (동일 role 연속 시 병합)
+    // 3. Gemini Multiturn 규칙 강제: user와 model이 번갈아 교차해야 함 (동일 role 연속 시 parts 병합)
     const alternatingHistory = [];
     for (const turn of validHistory) {
       if (alternatingHistory.length === 0) {
@@ -1787,7 +1792,7 @@ const AIEngine = {
       } else {
         const lastTurn = alternatingHistory[alternatingHistory.length - 1];
         if (lastTurn.role === turn.role) {
-          lastTurn.parts[0].text += '\n\n' + turn.parts[0].text;
+          lastTurn.parts.push(...turn.parts);
         } else {
           alternatingHistory.push(turn);
         }
@@ -1804,21 +1809,19 @@ const AIEngine = {
     // 현재 사용자 턴 조립
     const currentParts = [];
 
-    // [핵심] 첨부된 명식 이미지가 있는 경우 이름은 완전히 제외하고 순수 이미지 바이너리만 첨부 (대용량 압축 보장)
+    // [핵심] 첨부된 명식 이미지가 있는 경우 이름은 완전히 제외하고 순수 고해상도 원본 이미지 바이너리만 첨부
     if (attachedProfiles && attachedProfiles.length > 0) {
       for (const profile of attachedProfiles) {
-        let rawData = profile.imageData;
-        if (rawData && rawData.length > 500000) {
-          rawData = await SajuManager.compressDataUrl(rawData);
-        }
-        const { mimeType, data } = this.extractBase64(rawData);
-        if (data) {
-          currentParts.push({
-            inlineData: {
-              mimeType: mimeType || 'image/jpeg',
-              data: data
-            }
-          });
+        if (profile && profile.imageData) {
+          const { mimeType, data } = this.extractBase64(profile.imageData);
+          if (data) {
+            currentParts.push({
+              inlineData: {
+                mimeType: mimeType || 'image/jpeg',
+                data: data
+              }
+            });
+          }
         }
       }
     }
@@ -2483,11 +2486,22 @@ const SessionManager = {
       messages.forEach(msg => {
         // [핵심] silent 표시된 선택지 전송 사용자 메시지는 화면 말풍선 생략
         if (msg.role === 'user' && msg.silent) {
-          ChatManager.activeHistory.push({ id: msg.id, role: msg.role, content: msg.content, silent: true });
+          ChatManager.activeHistory.push({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            silent: true,
+            attachments: msg.attachments || []
+          });
           return;
         }
         ChatUI.appendMessage(containerId, msg.role, msg.content, msg.id, msg.isGreeting, msg.choiceState);
-        ChatManager.activeHistory.push({ id: msg.id, role: msg.role, content: msg.content });
+        ChatManager.activeHistory.push({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          attachments: msg.attachments || []
+        });
         if (msg.role === 'model' && MarkdownParser.extractReport(msg.content).hasReport) {
           hasReport = true;
         }
@@ -2650,20 +2664,30 @@ const ChatManager = {
       this.currentSessionId = newSession.id;
     }
 
-    // 2. 사용자 말풍선 표시 및 DB 영구 저장
+    // 2. 사용자 말풍선 표시 및 DB 영구 저장 (첨부된 만세력 프로필 이미지 원본 영구 보존)
     let displayUserText = text;
+    const attachmentsToSave = (!isPsychology && attachedProfiles.length > 0)
+      ? attachedProfiles.map(p => ({ name: p.name, imageData: p.imageData }))
+      : [];
+
     if (!isPsychology && attachedProfiles.length > 0) {
       const tagPrefix = attachedProfiles.map(p => `[${p.name}의 만세력]`).join(' ');
       displayUserText = `${tagPrefix}\n${text}`.trim();
     }
     const userMsgId = `msg_${Date.now()}_u_${Math.random().toString(36).substr(2, 6)}`;
     ChatUI.appendMessage(containerId, 'user', displayUserText, userMsgId);
-    this.activeHistory.push({ id: userMsgId, role: 'user', content: displayUserText });
+    this.activeHistory.push({
+      id: userMsgId,
+      role: 'user',
+      content: displayUserText,
+      attachments: attachmentsToSave
+    });
     await DB.set('chat_messages', {
       id: userMsgId,
       sessionId: this.currentSessionId,
       role: 'user',
       content: displayUserText,
+      attachments: attachmentsToSave,
       timestamp: Date.now()
     });
 

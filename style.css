@@ -2119,21 +2119,12 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   box-shadow: none !important;
 }
 
-/* 생각하는 중... 말풍선 완벽 광학 정중앙 정렬 (한국어 폰트 광학 중심축 보정) */
+/* 생각하는 중... 말풍선: 기존 모델 답변 카드 형태(사각 + 좌하단 꼬리 곡률 5px) 완벽 유지 */
 #psychology-chat-messages .chat-bubble.model.is-thinking,
 #saju-chat-messages .chat-bubble.model.is-thinking,
 .chat-bubble.is-thinking {
-  width: fit-content !important;
-  max-width: fit-content !important;
-  padding: 9px 18px !important;
-  font-size: 0.9rem !important;
-  line-height: 1 !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  min-height: 38px !important;
-  border-radius: 20px !important;
-  box-sizing: border-box !important;
+  border-bottom-left-radius: 5px !important;
+  opacity: 0.9;
 }
 
 #psychology-chat-messages .chat-bubble.model.is-thinking .bubble-text-content,
@@ -2144,10 +2135,7 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
 .chat-bubble.is-thinking p {
   margin: 0 !important;
   padding: 0 !important;
-  line-height: 1 !important;
-  display: flex !important;
-  align-items: center !important;
-  transform: translateY(-1.5px) !important;
+  color: var(--text-secondary);
 }
 
 .report-card-compact-slot {
@@ -2283,8 +2271,34 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   letter-spacing: -0.01em;
 }
 
-.chat-bubble h1:first-child, .report-body-scroll h1:first-child {
-  margin-top: 0;
+.chat-bubble h1:first-child, .report-body-scroll h1:first-child,
+.chat-bubble h2:first-child, .report-body-scroll h2:first-child,
+.chat-bubble h3:first-child, .report-body-scroll h3:first-child {
+  margin-top: 0 !important;
+}
+
+.chat-bubble.model .bubble-text-content > *:first-child,
+.chat-bubble.model p:first-child,
+.chat-bubble.model h1:first-child,
+.chat-bubble.model h2:first-child,
+.chat-bubble.model h3:first-child,
+.chat-bubble.model ul:first-child,
+.chat-bubble.model ol:first-child,
+.chat-bubble.model blockquote:first-child,
+.chat-bubble.model div:first-child {
+  margin-top: 0 !important;
+}
+
+.chat-bubble.model .bubble-text-content > *:last-child,
+.chat-bubble.model p:last-child,
+.chat-bubble.model h1:last-child,
+.chat-bubble.model h2:last-child,
+.chat-bubble.model h3:last-child,
+.chat-bubble.model ul:last-child,
+.chat-bubble.model ol:last-child,
+.chat-bubble.model blockquote:last-child,
+.chat-bubble.model div:last-child {
+  margin-bottom: 0 !important;
 }
 
 .chat-bubble h2, .report-body-scroll h2 {
@@ -2305,13 +2319,13 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
 
 .chat-bubble.model p, .report-body-scroll p {
   font-size: 0.92rem;
-  line-height: 1.72;
-  margin: 6px 0 14px 0;
+  line-height: 1.68;
+  margin: 0 0 10px 0;
   color: var(--text-primary);
 }
 
-.chat-bubble.model p:last-child {
-  margin-bottom: 0;
+.chat-bubble.model p + p {
+  margin-top: 8px;
 }
 
 .chat-bubble ul, .chat-bubble ol,
