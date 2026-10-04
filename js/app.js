@@ -2916,7 +2916,14 @@ const ChatUI = {
           reportCard.innerHTML = `
             <div class="report-card-text-box">
               <span class="report-card-title-text">
-                <span>📋 심층 분석 보고서</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#626756" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;">
+                  <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>
+                  <path d="M14 2v4a2 2 0 0 0 2 2h4"/>
+                  <path d="M10 9H8"/>
+                  <path d="M16 13H8"/>
+                  <path d="M16 17H8"/>
+                </svg>
+                <span>심층 분석 보고서</span>
               </span>
               <span class="report-card-short-desc">결과 보고서 생성이 완료되었습니다.</span>
             </div>
@@ -3910,7 +3917,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   const appCheckResultEl = document.getElementById('appcheck-test-result');
   if (btnTestAppCheck && appCheckResultEl) {
     btnTestAppCheck.addEventListener('click', async () => {
-      appCheckResultEl.innerHTML = '<span style="color: var(--text-secondary);">⏳ App Check 토큰 발급 테스트 중...</span>';
+      appCheckResultEl.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 6px; color: var(--text-secondary);">
+          <svg style="animation: spinAnim 0.9s linear infinite; flex-shrink: 0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+          </svg>
+          <span>App Check 토큰 발급 테스트 중...</span>
+        </div>
+      `;
       btnTestAppCheck.disabled = true;
 
       try {
@@ -3929,13 +3943,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         await VertexManager.init(config);
         const token = await VertexManager.getAppCheckToken(true);
         if (token) {
-          appCheckResultEl.innerHTML = `<span style="color: #4CAF50; font-weight: 600;">✅ App Check 7일 유효 토큰 저장 완료!</span><br><span style="color: var(--text-secondary); word-break: break-all;">(토큰: ${token.substring(0, 16)}... 7일간 재발급 없이 영구 캐시로 계속 인증됩니다)</span>`;
+          appCheckResultEl.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 6px; color: #5D664D; font-weight: 600;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5D664D" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <path d="m9 11 3 3L22 4"/>
+              </svg>
+              <span>App Check 7일 유효 토큰 저장 완료!</span>
+            </div>
+            <div style="margin-left: 20px; font-size: 0.74rem; color: var(--text-secondary); line-height: 1.45; word-break: break-all;">
+              <div style="font-family: monospace; color: #5A614A;">토큰: ${token.substring(0, 16)}...</div>
+              <div>7일간 재발급 없이 영구 캐시로 계속 인증됩니다.</div>
+            </div>
+          `;
         } else {
-          appCheckResultEl.innerHTML = `<span style="color: #E57373;">⚠️ 토큰이 반환되지 않았습니다. 사이트 키와 도메인(${window.location.hostname}) 설정을 확인하세요.</span>`;
+          appCheckResultEl.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 6px; color: #E57373;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E57373" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" x2="12" y1="8" y2="12"/>
+                <line x1="12" x2="12.01" y1="16" y2="16"/>
+              </svg>
+              <span>토큰이 반환되지 않았습니다. 사이트 키와 도메인(${window.location.hostname}) 설정을 확인하세요.</span>
+            </div>
+          `;
         }
       } catch (err) {
         console.error('[App Check 테스트 실패]:', err);
-        appCheckResultEl.innerHTML = `<span style="color: #E57373; font-weight: 600;">❌ 발급 실패:</span> <span style="color: var(--text-primary); font-size: 0.78rem;">${err.message}</span>`;
+        appCheckResultEl.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 6px; color: #E57373; font-weight: 600;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E57373" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="15" x2="9" y1="9" y2="15"/>
+              <line x1="9" x2="15" y1="9" y2="15"/>
+            </svg>
+            <span>발급 실패:</span>
+            <span style="color: var(--text-primary); font-size: 0.78rem; font-weight: normal;">${err.message}</span>
+          </div>
+        `;
       } finally {
         btnTestAppCheck.disabled = false;
       }
