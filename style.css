@@ -2616,6 +2616,25 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   content: none;
 }
 
+/* iOS 아이폰 전용 체크박스 완벽 보정 (안드로이드/PC는 기존 100% 완벽한 설정 그대로 유지) */
+@supports (-webkit-touch-callout: none) {
+  .choice-chk {
+    width: 17px !important;
+    height: 17px !important;
+    border-radius: 4px !important;
+    margin-top: 2px !important;
+    background-size: 11px 11px !important;
+  }
+}
+
+html.is-ios .choice-chk {
+  width: 17px !important;
+  height: 17px !important;
+  border-radius: 4px !important;
+  margin-top: 2px !important;
+  background-size: 11px 11px !important;
+}
+
 .choice-label-text {
   font-size: 1em;
   line-height: 1.44 !important;

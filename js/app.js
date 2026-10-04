@@ -2,6 +2,13 @@
  * ABOUT ME - Core Application & Navigation Stack Manager
  */
 
+// iOS 기기 판별 및 루트 클래스 부여
+const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+if (isIOSDevice && typeof document !== 'undefined') {
+  document.documentElement.classList.add('is-ios');
+}
+
 // 첫 진입 시 화면 전용 초기 안내 메시지 템플릿 (대화가 비어있는 세션에서도 영구 출력 보장)
 const INITIAL_GREETINGS = {
   psychology: `__PSYCHOLOGY_ONBOARDING__`,
