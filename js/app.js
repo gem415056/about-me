@@ -1747,16 +1747,16 @@ const AIEngine = {
     return { mimeType: 'image/jpeg', data: dataUrl.replace(/\s/g, '') };
   },
 
-  // 멀티모달 페이로드 빌더 (프라이버시 엄수: 이름 제외, 이미지만 패키징 & Multiturn 교차 순서 강제)
+  // 멀티모달 페이로드 빌더 (프라이버시 엄수: 이름 절대 전송 금지, 순수 이미지만 패키징 & Multiturn 교차 순서 강제)
   async buildContents(history, userText, attachedProfiles = []) {
     const contents = [];
 
-    // 1. 유효한 텍스트 및 과거 턴 첨부 이미지 필터링 (대화 도중 추가된 모든 사주 이미지 온전히 유지)
+    // 1. 유효한 텍스트 및 과거 턴 첨부 이미지 필터링 (과거 대화 내 프로필 이름 유출 원천 차단)
     const validHistory = (history || [])
       .filter(msg => msg && msg.content && typeof msg.content === 'string' && msg.content.trim() && !msg.content.startsWith('⚠️'))
       .map(msg => {
         const parts = [];
-        // 과거 사용자 턴에 첨부되었던 모든 만세력 이미지 보존
+        // 과거 사용자 턴에 첨부되었던 모든 만세력 이미지 보존 (이름 정보 없이 순수 이미지만)
         if (msg.role === 'user' && msg.attachments && Array.isArray(msg.attachments)) {
           for (const att of msg.attachments) {
             if (att && att.imageData) {
@@ -1772,7 +1772,9 @@ const AIEngine = {
             }
           }
         }
-        parts.push({ text: msg.content.trim() });
+        // [프라이버시 엄수] 과거 메시지에 남아있을 수 있는 '[...의 만세력]' 같은 이름 태그를 완벽히 제거
+        const cleanContent = msg.content.replace(/\[[^\]]+의 만세력\]\s*/g, '').trim();
+        parts.push({ text: cleanContent || '만세력을 바탕으로 사주를 분석해 주세요.' });
         return {
           role: msg.role === 'user' ? 'user' : 'model',
           parts: parts
@@ -1826,8 +1828,9 @@ const AIEngine = {
       }
     }
 
-    // 사용자 텍스트 질문 추가
-    currentParts.push({ text: userText });
+    // [프라이버시 엄수] 사용자 텍스트 질문에서 혹시 모를 이름 태그 완전 제거하여 순수 질문만 AI에 전송
+    const cleanUserText = (userText || '').replace(/\[[^\]]+의 만세력\]\s*/g, '').trim() || '만세력을 바탕으로 사주를 분석해 주세요.';
+    currentParts.push({ text: cleanUserText });
     contents.push({ role: 'user', parts: currentParts });
 
     return contents;
@@ -1866,26 +1869,26 @@ const AIEngine = {
       const payload = {
         contents: contents,
         generationConfig: {
-          temperature: 0.7
+          temperature: 1.0
         }
       };
 
-      // 생각 깊이 (Reasoning) 설정 적용
-      const reasoningMode = generalSetting?.reasoning || 'medium';
+      // 생각 깊이 (Reasoning) 설정 적용 (AI Studio와 100% 동일한 고성능 동적/심층 사고)
+      const reasoningMode = generalSetting?.reasoning || 'high';
       const customBudget = parseInt(generalSetting?.reasoningBudget, 10);
-      let thinkingBudget = 0;
+      let thinkingBudget = -1;
       if (reasoningMode === 'off') {
         thinkingBudget = 0;
       } else if (reasoningMode === 'minimal') {
-        thinkingBudget = 256;
-      } else if (reasoningMode === 'low') {
         thinkingBudget = 1024;
-      } else if (reasoningMode === 'medium') {
+      } else if (reasoningMode === 'low') {
         thinkingBudget = 2048;
+      } else if (reasoningMode === 'medium') {
+        thinkingBudget = 8192;
       } else if (reasoningMode === 'high') {
-        thinkingBudget = 4096;
+        thinkingBudget = -1; // AI Studio High와 100% 동일한 무제한 동적 사고 (Dynamic Thinking)
       } else if (reasoningMode === 'budget') {
-        thinkingBudget = !isNaN(customBudget) && customBudget > 0 ? customBudget : 2048;
+        thinkingBudget = !isNaN(customBudget) && customBudget > 0 ? customBudget : -1;
       }
 
       payload.generationConfig.thinkingConfig = {
@@ -2664,29 +2667,25 @@ const ChatManager = {
       this.currentSessionId = newSession.id;
     }
 
-    // 2. 사용자 말풍선 표시 및 DB 영구 저장 (첨부된 만세력 프로필 이미지 원본 영구 보존)
-    let displayUserText = text;
+    // 2. 사용자 말풍선 표시 및 DB 영구 저장 (프라이버시 절대 엄수: AI 및 메시지 데이터에 프로필 이름 주입 완전 배제)
+    const promptText = text || '만세력을 바탕으로 사주를 분석해 주세요.';
     const attachmentsToSave = (!isPsychology && attachedProfiles.length > 0)
-      ? attachedProfiles.map(p => ({ name: p.name, imageData: p.imageData }))
+      ? attachedProfiles.map(p => ({ imageData: p.imageData }))
       : [];
 
-    if (!isPsychology && attachedProfiles.length > 0) {
-      const tagPrefix = attachedProfiles.map(p => `[${p.name}의 만세력]`).join(' ');
-      displayUserText = `${tagPrefix}\n${text}`.trim();
-    }
     const userMsgId = `msg_${Date.now()}_u_${Math.random().toString(36).substr(2, 6)}`;
-    ChatUI.appendMessage(containerId, 'user', displayUserText, userMsgId);
+    ChatUI.appendMessage(containerId, 'user', promptText, userMsgId);
     this.activeHistory.push({
       id: userMsgId,
       role: 'user',
-      content: displayUserText,
+      content: promptText,
       attachments: attachmentsToSave
     });
     await DB.set('chat_messages', {
       id: userMsgId,
       sessionId: this.currentSessionId,
       role: 'user',
-      content: displayUserText,
+      content: promptText,
       attachments: attachmentsToSave,
       timestamp: Date.now()
     });
