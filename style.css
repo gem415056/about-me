@@ -1978,7 +1978,7 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
 .bipolar-pole-label {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 3px;
   font-size: 0.83rem;
   font-weight: 700;
   color: #1E293B;
@@ -2006,8 +2006,8 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   color: #FFFDF5;
   font-size: 0.75rem;
   font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 5px;
+  padding: 3px 3.5px;
+  border-radius: 4px;
   line-height: 1;
   box-sizing: border-box;
   flex-shrink: 0;
