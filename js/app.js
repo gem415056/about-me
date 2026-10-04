@@ -1557,16 +1557,14 @@ const VertexManager = {
       await deleteApp(this.appInstance).catch(() => {});
       this.appInstance = null;
       this.appCheckInstance = null;
-      this.vertexInstance = null;
     }
 
-    if (this.vertexInstance && this.currentConfigKey === configKey) {
-      return { app: this.appInstance, vertex: this.vertexInstance, appCheck: this.appCheckInstance };
+    if (this.appCheckInstance && this.currentConfigKey === configKey) {
+      return { app: this.appInstance, appCheck: this.appCheckInstance };
     }
 
     const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js");
     const { initializeAppCheck, ReCaptchaEnterpriseProvider, ReCaptchaV3Provider } = await import("https://www.gstatic.com/firebasejs/11.4.0/firebase-app-check.js");
-    const { getVertexAI } = await import("https://www.gstatic.com/firebasejs/11.4.0/firebase-vertexai.js");
 
     const appName = 'AboutMeVertexApp';
     let app;
@@ -1608,12 +1606,10 @@ const VertexManager = {
       }
     }
 
-    const vertex = getVertexAI(app, { location: config.location || 'us-central1' });
     this.appInstance = app;
-    this.vertexInstance = vertex;
     this.currentConfigKey = configKey;
 
-    return { app, vertex, appCheck: this.appCheckInstance };
+    return { app, appCheck: this.appCheckInstance };
   },
 
   cachedTokenData: null,
@@ -1625,7 +1621,7 @@ const VertexManager = {
     const now = Date.now();
     // 1. 메모리 캐시 확인 (만료 1분 전까지 재사용)
     if (!forceRefresh && this.cachedTokenData && this.cachedTokenData.expiresAt > now + 60000) {
-      console.log('[Firebase App Check] 메모리 캐시 토큰 사용 (유효기간 잔여:', Math.round((this.cachedTokenData.expiresAt - now) / 1000 / 60 / 60), '시간)');
+      console.log('[Firebase App Check] 메모리 캐시 토큰 사용');
       return this.cachedTokenData.token;
     }
 
@@ -1635,7 +1631,6 @@ const VertexManager = {
         const saved = await DB.get('settings', 'app_check_cached_token');
         if (saved?.value?.token && saved.value.expiresAt > now + 60000) {
           this.cachedTokenData = saved.value;
-          console.log('[Firebase App Check] 저장소 캐시 토큰 복원 (만료일:', new Date(saved.value.expiresAt).toLocaleDateString(), ')');
           return saved.value.token;
         }
       }
@@ -1646,7 +1641,6 @@ const VertexManager = {
       const { getToken } = await import("https://www.gstatic.com/firebasejs/11.4.0/firebase-app-check.js");
       const tokenResult = await getToken(this.appCheckInstance, forceRefresh);
       if (tokenResult?.token) {
-        // Firebase 설정 만료시간 또는 7일(7 * 24 * 60 * 60 * 1000ms) 캐시 적용
         const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
         const expiresAt = tokenResult.expireTimeMillis || (now + sevenDaysMs);
         const tokenData = {
@@ -1656,7 +1650,7 @@ const VertexManager = {
         };
         this.cachedTokenData = tokenData;
         await DB.set('settings', { id: 'app_check_cached_token', value: tokenData, updatedAt: now }).catch(() => {});
-        console.log('[Firebase App Check] 7일 유효기간 토큰 저장 완료');
+        console.log('[Firebase App Check] 토큰 발급 완료');
         return tokenResult.token;
       }
       return null;
@@ -1670,63 +1664,103 @@ const VertexManager = {
     }
   },
 
-  // Firebase Vertex AI 통신 요청 (스트리밍 및 배치 공통 지원)
+  // Firebase Vertex AI REST 통신 요청 (피치캣 PASTELchat과 100% 동일한 direct REST 엔드포인트 직결 방식)
   async sendRequest({ config, modelName, payload, isStream, onChunk, onComplete }) {
-    const { vertex } = await this.init(config);
-    const { getGenerativeModel } = await import("https://www.gstatic.com/firebasejs/11.4.0/firebase-vertexai.js");
+    await this.init(config);
 
-    // 사용자가 선택한 모델명 그대로 전달 (임의 치환 및 다운그레이드 일체 제거)
     const cleanModel = modelName.replace(/^models\//, '');
+    const action = isStream ? 'streamGenerateContent?alt=sse' : 'generateContent';
+    const sep = action.includes('?') ? '&' : '?';
 
-    const genConfig = {
-      temperature: payload.generationConfig?.temperature ?? 1.0
-    };
-    if (payload.generationConfig?.thinkingConfig) {
-      genConfig.thinkingConfig = payload.generationConfig.thinkingConfig;
+    // 피치캣과 100% 동일한 글로벌 버텍스 엔드포인트 URL 조립
+    const url = `https://firebasevertexai.googleapis.com/v1beta/projects/${config.projectId}/locations/global/publishers/google/models/${cleanModel}:${action}${sep}key=${config.apiKey}`;
+
+    const headers = { 'Content-Type': 'application/json' };
+    const appCheckToken = await this.getAppCheckToken().catch(() => null);
+    if (appCheckToken) {
+      headers['X-Firebase-AppCheck'] = appCheckToken;
     }
 
-    const modelConfig = {
-      model: cleanModel,
-      generationConfig: genConfig,
-      safetySettings: payload.safetySettings || []
-    };
+    console.log(`[Vertex AI REST] URL: ${url.replace(config.apiKey, '***')} | AppCheck: ${!!appCheckToken}`);
 
-    if (payload.systemInstruction?.parts?.[0]?.text) {
-      modelConfig.systemInstruction = payload.systemInstruction.parts[0].text;
-    } else if (typeof payload.systemInstruction === 'string' && payload.systemInstruction) {
-      modelConfig.systemInstruction = payload.systemInstruction;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      const errMsg = errData.error?.message || `HTTP ${response.status}`;
+      throw new Error(`Firebase Vertex AI 오류: ${errMsg}`);
     }
-
-    const model = getGenerativeModel(vertex, modelConfig);
 
     if (isStream) {
-      const result = await model.generateContentStream({ contents: payload.contents });
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
       let accumulatedText = '';
-      for await (const chunk of result.stream) {
-        let text = '';
-        try {
-          text = chunk.text();
-        } catch (e) {
-          const parts = chunk.candidates?.[0]?.content?.parts || [];
-          for (const p of parts) {
-            if (!p.thought && p.text) text += p.text;
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // 미완성된 마지막 줄 보존
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ')) {
+            const jsonStr = trimmed.substring(6);
+            if (jsonStr === '[DONE]') continue;
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const parts = parsed.candidates?.[0]?.content?.parts || [];
+              let chunk = '';
+              for (const p of parts) {
+                if (!p.thought && p.text) {
+                  chunk += p.text;
+                }
+              }
+              if (chunk) {
+                accumulatedText += chunk;
+                if (onChunk) onChunk(accumulatedText, chunk);
+              }
+            } catch (err) {}
           }
         }
-        if (text) {
-          accumulatedText += text;
-          if (onChunk) onChunk(accumulatedText, text);
+      }
+
+      if (buffer && buffer.trim()) {
+        const trimmed = buffer.trim();
+        if (trimmed.startsWith('data: ')) {
+          const jsonStr = trimmed.substring(6);
+          if (jsonStr !== '[DONE]') {
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const parts = parsed.candidates?.[0]?.content?.parts || [];
+              let chunk = '';
+              for (const p of parts) {
+                if (!p.thought && p.text) chunk += p.text;
+              }
+              if (chunk) {
+                accumulatedText += chunk;
+                if (onChunk) onChunk(accumulatedText, chunk);
+              }
+            } catch (err) {}
+          }
         }
       }
+
       if (onComplete) onComplete(accumulatedText);
       return accumulatedText;
     } else {
-      const result = await model.generateContent({ contents: payload.contents });
+      const resData = await response.json();
+      const parts = resData.candidates?.[0]?.content?.parts || [];
       let finalText = '';
-      try {
-        finalText = result.response.text();
-      } catch (e) {
-        const parts = result.response?.candidates?.[0]?.content?.parts || [];
-        finalText = parts.map(p => p.text || '').join('');
+      for (const p of parts) {
+        if (!p.thought && p.text) finalText += p.text;
       }
       if (!finalText) finalText = '답변을 생성하지 못했습니다.';
       if (onComplete) onComplete(finalText);
@@ -1923,55 +1957,16 @@ const AIEngine = {
 
       // [핵심 분기 1] Gemini API 키가 없고 Firebase Vertex AI (AI Logic) 설정이 입력되어 있는 경우
       if (!apiKey && parsedVertexConfig) {
-        try {
-          console.log('[AIEngine] Firebase Vertex AI & App Check 모드로 응답을 생성합니다.');
-          await VertexManager.sendRequest({
-            config: parsedVertexConfig,
-            modelName: cleanModel,
-            payload: payload,
-            isStream: isStream,
-            onChunk: onChunk,
-            onComplete: onComplete
-          });
-          return;
-        } catch (vertexErr) {
-          console.warn('[Firebase Vertex AI 호출 실패]:', vertexErr);
-          const vMsg = vertexErr.message || '';
-          if (vMsg.includes('reCAPTCHA') || vMsg.includes('도메인')) {
-            throw vertexErr;
-          }
-
-          // 만약 Firebase SDK 호출이 실패했으나 firebaseConfig 안에 apiKey가 있는 경우 Google Direct Gemini API로 완벽 폴백
-          if (parsedVertexConfig.apiKey) {
-            console.log('[AIEngine] Firebase Config 내 apiKey로 Google API 직접 통신을 재시도합니다.');
-            const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:${action}${sep}key=${parsedVertexConfig.apiKey}`;
-            const reqHeaders = {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': parsedVertexConfig.apiKey
-            };
-
-            const appCheckToken = await VertexManager.getAppCheckToken().catch(() => null);
-            if (appCheckToken) {
-              reqHeaders['X-Firebase-AppCheck'] = appCheckToken;
-            }
-
-            const directRes = await fetch(directUrl, {
-              method: 'POST',
-              headers: reqHeaders,
-              body: JSON.stringify(payload)
-            });
-
-            if (directRes.ok) {
-              response = directRes;
-            } else {
-              const errData = await directRes.json().catch(() => ({}));
-              const dMsg = errData.error?.message || '';
-              throw new Error(`Firebase Vertex AI 오류: ${vertexErr.message}${dMsg ? ` (원인: ${dMsg})` : ''}`);
-            }
-          } else {
-            throw new Error(`Firebase Vertex AI 오류: ${vertexErr.message}`);
-          }
-        }
+        console.log('[AIEngine] Firebase Vertex AI & App Check 모드로 응답을 생성합니다.');
+        await VertexManager.sendRequest({
+          config: parsedVertexConfig,
+          modelName: cleanModel,
+          payload: payload,
+          isStream: isStream,
+          onChunk: onChunk,
+          onComplete: onComplete
+        });
+        return;
       }
 
       // [핵심 분기 2] Gemini API 키가 등록되어 있는 경우: 프록시 우선 시도 후 404/405/네트워크 오류 시 Google 다이렉트 API로 완벽 폴백
