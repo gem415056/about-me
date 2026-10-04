@@ -392,32 +392,41 @@ const SajuManager = {
 
 // 8. 경량 마크다운 파서 & 안전화된 보고서 감지 & 게이지 비주얼 렌더러 (MarkdownParser)
 const MarkdownParser = {
-  // [핵심 1] 안전화된 보고서 분리 추출기 (보고서 발견 시 대화창에는 일체 텍스트 미노출, 순수 버튼만)
+  // [핵심 1] 안전화된 보고서 분리 추출기 (보고서 발견 시 대화창에는 일체 텍스트 미노출, 전문 수집)
   extractReport(rawText) {
     if (!rawText) return { hasReport: false, reportContent: '', chatContent: '' };
 
-    // 패턴 A: [REPORT_START] ... [REPORT_END] (엔터 유무 무관, 닫는 태그 생략도 포괄)
-    const explicitRegex = /\[REPORT_START\]([\s\S]*?)(?:\[REPORT_END\]|$)/i;
-    const explicitMatch = rawText.match(explicitRegex);
-
-    if (explicitMatch) {
-      const reportText = explicitMatch[1].trim();
+    // 패턴 A: [REPORT_START] 감지 (시작 태그부터 끝까지 또는 마지막 [REPORT_END] 전까지 전량 수집)
+    const startMatch = rawText.match(/\[REPORT_START\]/i);
+    if (startMatch) {
+      const startIndex = startMatch.index + startMatch[0].length;
+      let body = rawText.substring(startIndex);
+      // [REPORT_END] 태그가 존재하면 그 직전까지만 잘라내고, 없으면 본문 전체 유지
+      const endTagIdx = body.search(/\[REPORT_END\]/i);
+      if (endTagIdx !== -1) {
+        body = body.substring(0, endTagIdx);
+      }
       return {
         hasReport: true,
-        reportContent: reportText,
+        reportContent: body.trim(),
         chatContent: ''
       };
     }
 
-    // 패턴 B: AI가 실수로 [REPORT_START] 태그를 빼먹고 '# 1부', '1부.', '**1부**', '심층 분석 보고서' 등으로 바로 시작한 경우 자동 안전 구출!
+    // 패턴 B: AI가 실수로 [REPORT_START] 태그를 빼먹은 경우 자동 구출
     const implicitRegex = /(?:#+\s*1부|(?:\*\*|\[)?1부(?:\*\*|\])?\s*[\.:\-\–]|#+\s*심층\s*분석\s*보고서|(?:\*\*|\[)?심층\s*분석\s*보고서(?:\*\*|\])?)([\s\S]*)/i;
     const implicitMatch = rawText.match(implicitRegex);
 
     if (implicitMatch) {
       const reportStartIdx = implicitMatch.index;
+      let body = rawText.substring(reportStartIdx);
+      const endTagIdx = body.search(/\[REPORT_END\]/i);
+      if (endTagIdx !== -1) {
+        body = body.substring(0, endTagIdx);
+      }
       return {
         hasReport: true,
-        reportContent: rawText.substring(reportStartIdx).trim(),
+        reportContent: body.trim(),
         chatContent: ''
       };
     }
@@ -664,6 +673,83 @@ const MarkdownParser = {
 
     const keys = Object.keys(data);
     const isBigFive = keys.some(k => k === '개방성' || k === '외향성' || k === '성실성');
+    const isMbtiAxis = keys.some(k => 
+      k.includes('E') || k.includes('I') || k.includes('N') || k.includes('S') || 
+      k.includes('F') || k.includes('T') || k.includes('J') || k.includes('P') || k.includes('A') ||
+      k.includes('에너지') || k.includes('정보') || k.includes('판단') || k.includes('생활') || k.includes('정서')
+    ) && !keys.some(k => k.includes('기능:'));
+
+    if (isMbtiAxis && !isBigFive) {
+      const MBTI_AXIS_POLES = [
+        { keyName: '에너지', left: '외향성 (E)', right: '내향성 (I)', leftCode: 'E', rightCode: 'I' },
+        { keyName: '정보', left: '직관형 (N)', right: '감각형 (S)', leftCode: 'N', rightCode: 'S' },
+        { keyName: '판단', left: '감정형 (F)', right: '사고형 (T)', leftCode: 'F', rightCode: 'T' },
+        { keyName: '생활', left: '판단형 (J)', right: '인식형 (P)', leftCode: 'J', rightCode: 'P' },
+        { keyName: '정서', left: '자기확신형 (A)', right: '민감형 (T)', leftCode: 'A', rightCode: 'T' }
+      ];
+
+      let rowsHtml = '';
+      keys.forEach(key => {
+        if (key === '도출유형') return;
+
+        let poleInfo = MBTI_AXIS_POLES.find(p => key.includes(p.keyName) || key.includes(p.leftCode) || key.includes(p.rightCode));
+        if (!poleInfo) {
+          poleInfo = { left: '좌측 성향', right: '우측 성향', leftCode: 'L', rightCode: 'R' };
+        }
+
+        const valStr = String(data[key] || '').trim();
+        const numMatch = valStr.match(/\d+/);
+        let scorePct = numMatch ? parseInt(numMatch[0], 10) : 50;
+        scorePct = Math.min(100, Math.max(0, scorePct));
+
+        let isRight = false;
+        if (valStr.includes(poleInfo.rightCode) || valStr.includes('내향') || valStr.includes('감각') || valStr.includes('사고') || valStr.includes('인식') || valStr.includes('민감')) {
+          isRight = true;
+        } else if (valStr.includes(poleInfo.leftCode) || valStr.includes('외향') || valStr.includes('직관') || valStr.includes('감정') || valStr.includes('판단') || valStr.includes('확신')) {
+          isRight = false;
+        } else {
+          isRight = valStr.startsWith('+') || parseInt(valStr, 10) > 50;
+        }
+
+        // 바 길이: 양쪽 0~100% 스케일 (0% = 중앙, 100% = 해당 측면 50% 반쪽 트랙 가득 채움)
+        const barWidth = (scorePct / 100) * 50;
+        let barHtml = '';
+        let labelText = '';
+
+        if (isRight) {
+          labelText = `${poleInfo.right} ${scorePct}% 우세`;
+          barHtml = `<div class="bipolar-bar-pos" style="width: ${barWidth}%;"></div>`;
+        } else {
+          labelText = `${poleInfo.left} ${scorePct}% 우세`;
+          barHtml = `<div class="bipolar-bar-neg" style="width: ${barWidth}%;"></div>`;
+        }
+
+        rowsHtml += `
+          <div class="bipolar-item-row">
+            <div class="bipolar-meta-row">
+              <span>${poleInfo.left}</span>
+              <span style="font-weight: 700; color: #2A3022;">${labelText}</span>
+              <span>${poleInfo.right}</span>
+            </div>
+            <div class="bipolar-track">
+              <div class="bipolar-center-pin-subtle"></div>
+              ${barHtml}
+            </div>
+          </div>
+        `;
+      });
+
+      const typeLabel = data['도출유형'];
+      return `
+        <div class="report-card-container">
+          <div class="report-card-header">
+            <h4 class="report-card-title">🧩 MBTI 5대 성향 축 선호 지표${typeLabel ? ` (${typeLabel})` : ''}</h4>
+            <p class="report-card-desc">양극 스펙트럼 기준 선호도 및 우세 비율 (중앙 0% 기준 양쪽 100%)</p>
+          </div>
+          ${rowsHtml}
+        </div>
+      `;
+    }
 
     if (isBigFive) {
       const BIG_FIVE_POLES = {
@@ -1199,10 +1285,12 @@ const MarkdownParser = {
 
     if (nicknameField) {
       handleAutoResize(nicknameField);
+      setTimeout(() => handleAutoResize(nicknameField), 10);
       nicknameField.addEventListener('input', () => handleAutoResize(nicknameField));
     }
     if (storyField) {
       handleAutoResize(storyField);
+      setTimeout(() => handleAutoResize(storyField), 10);
       storyField.addEventListener('input', () => handleAutoResize(storyField));
     }
 
@@ -1359,6 +1447,7 @@ const MarkdownParser = {
 
     if (directField) {
       handleAutoResize(directField);
+      setTimeout(() => handleAutoResize(directField), 10);
     }
 
     if (directRow && directChk && directField) {
@@ -1407,6 +1496,7 @@ const MarkdownParser = {
     const suppField = quoteSection.querySelector(`#field-${msgId}-supplement`);
     if (suppField) {
       handleAutoResize(suppField);
+      setTimeout(() => handleAutoResize(suppField), 10);
       suppField.addEventListener('input', () => handleAutoResize(suppField));
     }
 
