@@ -746,8 +746,8 @@ const MarkdownParser = {
         const domScore = scorePct;
         const subScore = 100 - domScore;
 
-        // 올리브 배경 + 웜화이트 텍스트 + flex align-items center를 통한 라인 및 박스 내 정중앙 동시 정렬
-        const badgeStyle = 'display: inline-flex; align-items: center; justify-content: center; background: #747B61; color: #FFFDF5; font-size: 0.70rem; font-weight: 700; padding: 0 5px; border-radius: 4px; height: 17px; line-height: 1; flex-shrink: 0; box-sizing: border-box;';
+        // 올리브 배경 + 웜화이트 텍스트 + 옆 글자 텍스트 높이(14px)와 1:1 일치하는 콤팩트 배지
+        const badgeStyle = 'display: inline-flex; align-items: center; justify-content: center; background: #747B61; color: #FFFDF5; font-size: 0.65rem; font-weight: 700; padding: 0 4px; border-radius: 3px; height: 14px; line-height: 1; flex-shrink: 0; box-sizing: border-box;';
 
         if (isRight) {
           const barColor = getPosBarColor(domScore);
@@ -821,7 +821,7 @@ const MarkdownParser = {
         let leftColHtml = '';
         let rightColHtml = '';
 
-        const badgeStyle = 'display: inline-flex; align-items: center; justify-content: center; background: #747B61; color: #FFFDF5; font-size: 0.70rem; font-weight: 700; padding: 0 5px; border-radius: 4px; height: 17px; line-height: 1; flex-shrink: 0; box-sizing: border-box;';
+        const badgeStyle = 'display: inline-flex; align-items: center; justify-content: center; background: #747B61; color: #FFFDF5; font-size: 0.65rem; font-weight: 700; padding: 0 4px; border-radius: 3px; height: 14px; line-height: 1; flex-shrink: 0; box-sizing: border-box;';
 
         if (rawScore > 50) {
           const score = Math.min(100, rawScore);
