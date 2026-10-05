@@ -3079,3 +3079,154 @@ html.is-ios .choice-chk {
   transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ==========================================================================
+   에니어그램 입체 리포트 전용 스타일 (enneagram_preview.html 디자인 100% 일치)
+   ========================================================================== */
+.ennea-grid-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 680px) {
+  .ennea-grid-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+.sub-card {
+  background: #FFFFFF;
+  border: 1px solid #E5E3D8;
+  border-radius: 14px;
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.sub-card-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #2A3022;
+  margin-bottom: 12px;
+  width: 100%;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.radar-chart-box {
+  width: 100%;
+  max-width: 270px;
+  aspect-ratio: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.centers-box {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.center-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.center-label-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.center-track {
+  height: 9px;
+  background: #EAE8DF;
+  border-radius: 5px;
+  overflow: hidden;
+  position: relative;
+}
+
+.center-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.bipolar-wing-box {
+  width: 100%;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed #E0DED3;
+}
+
+.bipolar-wing-box .bipolar-track {
+  position: relative;
+  width: 100%;
+  height: 8px;
+  background: #EAE8DF;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.bipolar-wing-box .bipolar-center-pin {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: #B5B2A3;
+  z-index: 2;
+}
+
+.bipolar-wing-box .bipolar-bar-pos {
+  position: absolute;
+  left: 50%;
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  transition: width 0.6s ease;
+}
+
+.bipolar-wing-box .bipolar-bar-neg {
+  position: absolute;
+  right: 50%;
+  height: 100%;
+  border-radius: 4px 0 0 4px;
+  transition: width 0.6s ease;
+}
+
+.bottom-gauges-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 600px) {
+  .bottom-gauges-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+
+.section-divider-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #2A3022;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+
