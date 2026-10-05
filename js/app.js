@@ -493,7 +493,7 @@ function generateRadarSvgHtml(data) {
     `;
   }
 
-  return `<svg viewBox="0 0 360 330" width="100%" height="100%" style="display: block; margin: 0 auto;">${svgContent}</svg>`;
+  return `<svg viewBox="0 0 360 330" width="100%" height="100%" style="display: block; margin: 0 auto; max-width: 250px;">${svgContent}</svg>`;
 }
 
 // 3대 에너제틱 센터 SVG 도넛 차트 (구멍 지름 살짝 확장 및 타이포그래피 정밀 위계 설정)
@@ -532,7 +532,7 @@ function generateCentersDonutSvg(gut, heart, head) {
   else if (heart >= gut && heart >= head) dominantText = '가슴 중심';
 
   return `
-    <svg viewBox="0 0 200 200" style="display: block; margin: 0 auto; width: 100%; max-width: 280px; height: auto;">
+    <svg viewBox="0 0 200 200" style="display: block; margin: 0 auto; width: 100%; max-width: 110px; height: auto;">
       <g transform="rotate(-90 ${cX} ${cY})">
         <circle cx="${cX}" cy="${cY}" r="${r}" fill="none" stroke="#E5E3D8" stroke-width="46" />
         <circle cx="${cX}" cy="${cY}" r="${r}" fill="none" stroke="#5B6B54" stroke-width="46"
@@ -1130,11 +1130,11 @@ const MarkdownParser = {
     let desc = '에너지 비중 및 기능별 활성도';
     const typeLabel = data['도출유형'];
 
-    // 에니어그램 데이터 감지 (1번_개혁가, 장본능센터, 자기보존, 또는 도출유형 내 에니어그램 키워드)
-    const isEnneagramProfile = keys.some(k => k.includes('1번_개혁가') || k.includes('장본능센터') || k === '자기보존') ||
-                                (typeLabel && (typeLabel.includes('w') || typeLabel.includes('에니어그램') || typeLabel.includes('탐구자') || typeLabel.includes('조력가') || typeLabel.includes('개혁가') || typeLabel.includes('도전가') || typeLabel.includes('평화주의자')));
+    // 에니어그램 9개 유형 전체 프로파일 데이터 감지 (9개 유형 키 또는 7개 이상의 종합 키 보유 시에만 종합 차트카드 적용)
+    const has9TypeKeys = keys.some(k => k.includes('1번_개혁가') || k.includes('2번_조력가') || k.includes('3번_성취가') || k.includes('4번_예술가') || k.includes('5번_탐구자') || k.includes('6번_충실가') || k.includes('7번_열정가') || k.includes('8번_도전가') || k.includes('9번_평화주의자'));
+    const isComprehensiveEnneagram = has9TypeKeys || (keys.length >= 7 && keys.some(k => k.includes('장본능센터')) && keys.some(k => k.includes('왼쪽날개')));
 
-    if (isEnneagramProfile && (keys.some(k => k.includes('1번_개혁가')) || data['장본능센터'] !== undefined || data['자기보존'] !== undefined)) {
+    if (isComprehensiveEnneagram) {
       const typeStr = data['도출유형'] || '';
       const gut = data['장본능센터'] || 0;
       const heart = data['가슴감정센터'] || 0;
@@ -1148,79 +1148,82 @@ const MarkdownParser = {
       const rightVal = data[rightKey] || 50;
 
       const sp = data['자기보존'] || 0, sx = data['일대일'] || 0, so = data['사회적'] || 0;
+      const hasInstincts = (sp > 0 || sx > 0 || so > 0 || data['자기보존'] !== undefined);
       const intVal = data['통합_성장에너지'] || 0, disVal = data['분열_스트레스반응'] || 0;
 
       return `
-        <div class="report-card-container">
-          <div class="report-card-header">
-            <h4 class="report-card-title">무의식적 욕구 및 에니어그램 프로파일</h4>
+        <div class="report-card-container" style="padding: 18px 16px; margin: 14px 0;">
+          <div class="report-card-header" style="margin-bottom: 12px; border-bottom: 1px solid #EAE8DF; padding-bottom: 8px;">
+            <h4 class="report-card-title">⚓ 무의식적 욕구 및 에니어그램 프로파일</h4>
             ${typeStr ? `<div class="report-card-type-label">${typeStr}</div>` : ''}
           </div>
 
           <!-- 1행: 9개 유형 스펙트럼 차트 -->
-          <div style="background: #F8F7F3; border: 1px solid #E0DED3; border-radius: 14px; padding: 14px 16px; margin-bottom: 16px;">
-            <div style="font-size: 0.88rem; font-weight: 700; color: #2A3022; margin-bottom: 8px; border-bottom: 1px solid #EAE8DF; padding-bottom: 6px; display: flex; justify-content: space-between;">
+          <div style="margin-bottom: 14px;">
+            <div style="font-size: 0.82rem; font-weight: 700; color: #2A3022; margin-bottom: 4px; display: flex; justify-content: space-between;">
               <span>9개 유형별 스펙트럼</span>
-              <span style="font-size: 0.75rem; color: #626756; font-weight: normal;">100% 척도</span>
+              <span style="font-size: 0.72rem; color: #626756; font-weight: normal;">100% 척도</span>
             </div>
-            <div style="width: 100%; max-width: 380px; margin: 0 auto; display: flex; align-items: center; justify-content: center; padding: 4px 0;">
+            <div style="width: 100%; max-width: 250px; margin: 0 auto; display: flex; align-items: center; justify-content: center; padding: 2px 0;">
               ${generateRadarSvgHtml(data)}
             </div>
           </div>
 
+          <div style="border-top: 1px dashed #DDDBCF; margin: 12px 0;"></div>
+
           <!-- 2행: 2열 레이아웃 (3대 에너제틱 센터 도넛 + 날개/탄력성) -->
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-            <div style="background: #F8F7F3; border: 1px solid #E0DED3; border-radius: 14px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between;">
-              <div style="font-size: 0.84rem; font-weight: 700; color: #2A3022; border-bottom: 1px solid #EAE8DF; padding-bottom: 4px; margin-bottom: 8px;">
+          <div style="display: grid; grid-template-columns: 110px 1fr; gap: 14px; align-items: center; ${hasInstincts ? 'margin-bottom: 12px;' : ''}">
+            <div style="text-align: center;">
+              <div style="font-size: 0.78rem; font-weight: 700; color: #2A3022; margin-bottom: 4px;">
                 3대 에너제틱 센터
               </div>
-              <div style="padding: 2px 0; flex-grow: 1; display: flex; align-items: center; justify-content: center;">
+              <div style="display: flex; align-items: center; justify-content: center;">
                 ${generateCentersDonutSvg(gut, heart, head)}
               </div>
             </div>
 
-            <div style="background: #F8F7F3; border: 1px solid #E0DED3; border-radius: 14px; padding: 12px; display: flex; flex-direction: column; justify-content: center; gap: 8px;">
+            <div style="display: flex; flex-direction: column; justify-content: center; gap: 8px;">
               <div>
-                <div style="font-size: 0.84rem; font-weight: 700; color: #2A3022; margin-bottom: 6px;">날개 주도권</div>
-                <div class="unipolar-item-row" style="margin-bottom: 5px;">
-                  <div class="unipolar-meta-row" style="font-size: 0.78rem;">
+                <div style="font-size: 0.78rem; font-weight: 700; color: #2A3022; margin-bottom: 3px;">날개 주도권</div>
+                <div class="unipolar-item-row" style="margin-bottom: 3px;">
+                  <div class="unipolar-meta-row" style="font-size: 0.74rem; margin-bottom: 2px;">
                     <span>${leftName} 날개</span>
                     <span>${leftVal}%</span>
                   </div>
-                  <div class="unipolar-track" style="height: 7px;">
+                  <div class="unipolar-track" style="height: 5px;">
                     <div class="unipolar-fill-bar" style="width: ${leftVal}%; background: ${get10PercentColor(leftVal)};"></div>
                   </div>
                 </div>
                 <div class="unipolar-item-row" style="margin-bottom: 0;">
-                  <div class="unipolar-meta-row" style="font-size: 0.78rem;">
+                  <div class="unipolar-meta-row" style="font-size: 0.74rem; margin-bottom: 2px;">
                     <span>${rightName} 날개</span>
                     <span>${rightVal}%</span>
                   </div>
-                  <div class="unipolar-track" style="height: 7px;">
+                  <div class="unipolar-track" style="height: 5px;">
                     <div class="unipolar-fill-bar" style="width: ${rightVal}%; background: ${get10PercentColor(rightVal)};"></div>
                   </div>
                 </div>
               </div>
 
-              <div style="border-top: 1px dashed #E0DED3; margin: 2px 0;"></div>
+              <div style="border-top: 1px dashed #E5E3D8; margin: 1px 0;"></div>
 
               <div>
-                <div style="font-size: 0.84rem; font-weight: 700; color: #2A3022; margin-bottom: 6px;">정서적 탄력성</div>
-                <div class="unipolar-item-row" style="margin-bottom: 5px;">
-                  <div class="unipolar-meta-row" style="font-size: 0.78rem;">
+                <div style="font-size: 0.78rem; font-weight: 700; color: #2A3022; margin-bottom: 3px;">정서적 탄력성</div>
+                <div class="unipolar-item-row" style="margin-bottom: 3px;">
+                  <div class="unipolar-meta-row" style="font-size: 0.74rem; margin-bottom: 2px;">
                     <span>통합/성장</span>
                     <span>${intVal}%</span>
                   </div>
-                  <div class="unipolar-track" style="height: 7px;">
+                  <div class="unipolar-track" style="height: 5px;">
                     <div class="unipolar-fill-bar" style="width: ${intVal}%; background: ${get10PercentColor(intVal)};"></div>
                   </div>
                 </div>
                 <div class="unipolar-item-row" style="margin-bottom: 0;">
-                  <div class="unipolar-meta-row" style="font-size: 0.78rem;">
+                  <div class="unipolar-meta-row" style="font-size: 0.74rem; margin-bottom: 2px;">
                     <span>분열/스트레스</span>
                     <span>${disVal}%</span>
                   </div>
-                  <div class="unipolar-track" style="height: 7px;">
+                  <div class="unipolar-track" style="height: 5px;">
                     <div class="unipolar-fill-bar" style="width: ${disVal}%; background: ${get10PercentColor(disVal)};"></div>
                   </div>
                 </div>
@@ -1228,24 +1231,27 @@ const MarkdownParser = {
             </div>
           </div>
 
+          ${hasInstincts ? `
+          <div style="border-top: 1px dashed #DDDBCF; margin: 12px 0;"></div>
+
           <!-- 3행: 본능 삼원소 -->
-          <div style="background: #F8F7F3; border: 1px solid #E0DED3; border-radius: 14px; padding: 14px;">
-            <div style="font-size: 0.85rem; font-weight: 700; color: #2A3022; margin-bottom: 10px; border-bottom: 1px solid #EAE8DF; padding-bottom: 4px;">
+          <div>
+            <div style="font-size: 0.78rem; font-weight: 700; color: #2A3022; margin-bottom: 6px;">
               본능 삼원소 (Instinctual Subtypes)
             </div>
-            <div class="unipolar-item-row" style="margin-bottom: 8px;">
-              <div class="unipolar-meta-row"><span>자기보존 (sp)</span><span>${sp}%</span></div>
-              <div class="unipolar-track"><div class="unipolar-fill-bar" style="width: ${sp}%; background: ${get10PercentColor(sp)};"></div></div>
+            <div class="unipolar-item-row" style="margin-bottom: 5px;">
+              <div class="unipolar-meta-row" style="font-size: 0.75rem; margin-bottom: 2px;"><span>자기보존 (sp)</span><span>${sp}%</span></div>
+              <div class="unipolar-track" style="height: 6px;"><div class="unipolar-fill-bar" style="width: ${sp}%; background: ${get10PercentColor(sp)};"></div></div>
             </div>
-            <div class="unipolar-item-row" style="margin-bottom: 8px;">
-              <div class="unipolar-meta-row"><span>일대일/친밀 (sx)</span><span>${sx}%</span></div>
-              <div class="unipolar-track"><div class="unipolar-fill-bar" style="width: ${sx}%; background: ${get10PercentColor(sx)};"></div></div>
+            <div class="unipolar-item-row" style="margin-bottom: 5px;">
+              <div class="unipolar-meta-row" style="font-size: 0.75rem; margin-bottom: 2px;"><span>일대일/친밀 (sx)</span><span>${sx}%</span></div>
+              <div class="unipolar-track" style="height: 6px;"><div class="unipolar-fill-bar" style="width: ${sx}%; background: ${get10PercentColor(sx)};"></div></div>
             </div>
             <div class="unipolar-item-row" style="margin-bottom: 0;">
-              <div class="unipolar-meta-row"><span>사회적 (so)</span><span>${so}%</span></div>
-              <div class="unipolar-track"><div class="unipolar-fill-bar" style="width: ${so}%; background: ${get10PercentColor(so)};"></div></div>
+              <div class="unipolar-meta-row" style="font-size: 0.75rem; margin-bottom: 2px;"><span>사회적 (so)</span><span>${so}%</span></div>
+              <div class="unipolar-track" style="height: 6px;"><div class="unipolar-fill-bar" style="width: ${so}%; background: ${get10PercentColor(so)};"></div></div>
             </div>
-          </div>
+          </div>` : ''}
         </div>
       `;
     }
