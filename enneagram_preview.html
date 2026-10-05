@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>에니어그램 입체 리포트 프리뷰 - ABOUT ME</title>
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+    :root {
+      --bg-color: #F5F4EE;
+      --card-bg: #F8F7F3;
+      --card-border: #D8D6C9;
+      --text-main: #2A3022;
+      --text-muted: #626756;
+      --accent-sage: #3D4A3E;
+      --accent-olive: #5B6B54;
+      --accent-gold: #C29A47;
+      --accent-amber: #D98236;
+      --accent-coral: #C85A54;
+      --track-bg: #EAE8DF;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .preview-wrapper {
+      width: 100%;
+      max-width: 820px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .preview-header {
+      background: #FFFFFF;
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    }
+
+    .preview-header h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .preview-header p {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .controls-panel {
+      background: #FAF9F5;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      font-size: 0.85rem;
+    }
+
+    .control-btn {
+      background: var(--accent-sage);
+      color: #FFF;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .control-btn:hover {
+      background: #2D382E;
+      transform: translateY(-1px);
+    }
+
+    /* 메인 보고서 카통 스타일 */
+    .report-card-container {
+      background: var(--card-bg);
+      border: 1.5px solid var(--card-border);
+      border-radius: 18px;
+      padding: 22px 20px;
+      box-shadow: 0 4px 16px rgba(45, 47, 39, 0.05);
+    }
+
+    .report-card-header {
+      padding-bottom: 3px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid #E0DED3;
+    }
+
+    .report-card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .report-card-type-label {
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-top: 16px;
+      margin-bottom: 2px;
+      letter-spacing: -0.01em;
+    }
+
+    .report-card-desc {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-top: 16px;
+      margin-bottom: 2px;
+    }
+
+    /* 2열 레이아웃 (9각형 + 3대 센터/날개) */
+    .ennea-grid-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 680px) {
+      .ennea-grid-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .sub-card {
+      background: #FFFFFF;
+      border: 1px solid #E5E3D8;
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .sub-card-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 12px;
+      width: 100%;
+      text-align: left;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* SVG 9각형 레이더 차트 컨테이너 */
+    .radar-chart-box {
+      width: 100%;
+      max-width: 320px;
+      aspect-ratio: 1;
+      position: relative;
+    }
+
+    /* 3대 센터 링/바 영역 */
+    .centers-box {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .center-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .center-label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    .center-track {
+      height: 10px;
+      background: var(--track-bg);
+      border-radius: 5px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .center-fill {
+      height: 100%;
+      border-radius: 5px;
+      transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* 날개 양극성 바 */
+    .bipolar-wing-box {
+      width: 100%;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px dashed #E0DED3;
+    }
+
+    .bipolar-track {
+      position: relative;
+      width: 100%;
+      height: 8px;
+      background: var(--track-bg);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .bipolar-center-pin {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      width: 2px;
+      height: 100%;
+      background: #B5B2A3;
+      z-index: 2;
+    }
+
+    .bipolar-bar-pos {
+      position: absolute;
+      left: 50%;
+      height: 100%;
+      border-radius: 0 4px 4px 0;
+      transition: width 0.6s ease;
+    }
+
+    .bipolar-bar-neg {
+      position: absolute;
+      right: 50%;
+      height: 100%;
+      border-radius: 4px 0 0 4px;
+      transition: width 0.6s ease;
+    }
+
+    /* 단일 프로그래시브 게이지 바 목록 */
+    .unipolar-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      width: 100%;
+    }
+
+    .unipolar-item-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .unipolar-meta-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .unipolar-track {
+      width: 100%;
+      height: 8px;
+      background: var(--track-bg);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .unipolar-fill-bar {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.6s ease;
+    }
+
+    /* 하단 구분 및 주석 */
+    .section-divider-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin: 16px 0 10px 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="preview-wrapper">
+    
+    <!-- 상단 안내 및 테스트 컨트롤 -->
+    <div class="preview-header">
+      <h1>⚓ 에니어그램 입체 리포트 UI 인터랙티브 프리뷰</h1>
+      <p>실제 대화 분석 결과가 적용되었을 때 보고서 카드에 출력될 에니어그램 시각화 디자인 프리뷰입니다. 프리뷰 상단의 테스트 버튼으로 데이터 변경 시 애니메이션을 확인하실 수 있습니다.</p>
+      
+      <div class="controls-panel">
+        <span style="font-weight: 700; color: var(--text-main);">샘플 데이터 선택:</span>
+        <button class="control-btn" onclick="loadSample('5w6')">5w6 (6번날개 탐구자)</button>
+        <button class="control-btn" onclick="loadSample('2w3')">2w3 (3번날개 조력가)</button>
+        <button class="control-btn" onclick="loadSample('8w7')">8w7 (7번날개 도전가)</button>
+        <button class="control-btn" onclick="loadSample('9w1')">9w1 (1번날개 평화주의자)</button>
+      </div>
+    </div>
+
+    <!-- 리포트 카드 본체 -->
+    <div class="report-card-container">
+      
+      <!-- 카드 헤더 -->
+      <div class="report-card-header">
+        <h4 class="report-card-title">⚓ 무의식적 욕구 및 에니어그램 프로파일</h4>
+        <div class="report-card-type-label" id="typeLabel">5w6 (6번 날개를 쓰는 탐구자)</div>
+      </div>
+
+      <!-- 1행 2열: 9각형 레이더 차트 + 3대 에너제틱 센터 & 날개 -->
+      <div class="ennea-grid-row">
+        
+        <!-- 좌측: 9각형 레이더 차트 -->
+        <div class="sub-card">
+          <div class="sub-card-title">
+            <span>🕸️ 9개 유형 스펙트럼</span>
+            <span style="font-size:0.75rem; color:var(--text-muted); font-weight:400;">100% 척도</span>
+          </div>
+          <div class="radar-chart-box">
+            <svg id="enneaRadarSvg" viewBox="0 0 300 300" width="100%" height="100%">
+              <!-- JS에서 동적 그려짐 -->
+            </svg>
+          </div>
+        </div>
+
+        <!-- 우측: 3대 에너제틱 센터 & 날개 활성도 -->
+        <div class="sub-card" style="justify-content: space-between;">
+          <div style="width: 100%;">
+            <div class="sub-card-title">
+              <span>🧠 3대 에너제틱 센터</span>
+              <span style="font-size:0.75rem; color:var(--text-muted); font-weight:400;">주도권 비중</span>
+            </div>
+            
+            <div class="centers-box" id="centersContainer">
+              <!-- JS 렌더링 -->
+            </div>
+          </div>
+
+          <!-- 날개 양극성 바 -->
+          <div class="bipolar-wing-box" id="wingContainer">
+            <!-- JS 렌더링 -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 2행: 본능 삼원소 & 통합/분열 지표 -->
+      <div style="background: #FFFFFF; border: 1px solid #E5E3D8; border-radius: 14px; padding: 18px;">
+        <div class="section-divider-title">
+          <span>🌿 본능 삼원소 & 정서적 역동 지표</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;" id="bottomGaugesGrid">
+          <!-- JS 렌더링 -->
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    // 샘플 테스트 데이터셋
+    const sampleDataMap = {
+      '5w6': {
+        "도출유형": "5w6 (6번 날개를 쓰는 탐구자)",
+        "1번_개혁가": 45,
+        "2번_조력가": 20,
+        "3번_성취가": 30,
+        "4번_예술가": 52,
+        "5번_탐구자": 95,
+        "6번_충실가": 80,
+        "7번_열정가": 38,
+        "8번_도전가": 25,
+        "9번_평화주의자": 48,
+        "장본능센터": 24,
+        "가슴감정센터": 26,
+        "머리사고센터": 50,
+        "왼쪽날개_4번": 35,
+        "오른쪽날개_6번": 65,
+        "자기보존": 88,
+        "일대일": 45,
+        "사회적": 62,
+        "통합_성장에너지": 82,
+        "분열_스트레스반응": 32
+      },
+      '2w3': {
+        "도출유형": "2w3 (3번 날개를 쓰는 조력가)",
+        "1번_개혁가": 30,
+        "2번_조력가": 92,
+        "3번_성취가": 78,
+        "4번_예술가": 40,
+        "5번_탐구자": 25,
+        "6번_충실가": 50,
+        "7번_열정가": 65,
+        "8번_도전가": 35,
+        "9번_평화주의자": 55,
+        "장본능센터": 28,
+        "가슴감정센터": 52,
+        "머리사고센터": 20,
+        "왼쪽날개_1번": 30,
+        "오른쪽날개_3번": 70,
+        "자기보존": 42,
+        "일대일": 75,
+        "사회적": 85,
+        "통합_성장에너지": 75,
+        "분열_스트레스반응": 48
+      },
+      '8w7': {
+        "도출유형": "8w7 (7번 날개를 쓰는 도전가)",
+        "1번_개혁가": 40,
+        "2번_조력가": 25,
+        "3번_성취가": 70,
+        "4번_예술가": 20,
+        "5번_탐구자": 50,
+        "6번_충실가": 35,
+        "7번_열정가": 82,
+        "8번_도전가": 96,
+        "9번_평화주의자": 30,
+        "장본능센터": 54,
+        "가슴감정센터": 22,
+        "머리사고센터": 24,
+        "왼쪽날개_7번": 68,
+        "오른쪽날개_9번": 32,
+        "자기보존": 78,
+        "일대일": 88,
+        "사회적": 50,
+        "통합_성장에너지": 85,
+        "분열_스트레스반응": 58
+      },
+      '9w1': {
+        "도출유형": "9w1 (1번 날개를 쓰는 평화주의자)",
+        "1번_개혁가": 72,
+        "2번_조력가": 55,
+        "3번_성취가": 30,
+        "4번_예술가": 45,
+        "5번_탐구자": 50,
+        "6번_충실가": 60,
+        "7번_열정가": 35,
+        "8번_도전가": 28,
+        "9번_평화주의자": 94,
+        "장본능센터": 58,
+        "가슴감정센터": 22,
+        "머리사고센터": 20,
+        "왼쪽날개_8번": 25,
+        "오른쪽날개_1번": 75,
+        "자기보존": 80,
+        "일대일": 52,
+        "사회적": 68,
+        "통합_성장에너지": 76,
+        "분열_스트레스반응": 28
+      }
+    };
+
+    let currentData = sampleDataMap['5w6'];
+
+    function renderEnneagramReport(data) {
+      document.getElementById('typeLabel').textContent = data['도출유형'] || '에니어그램 분석 결과';
+
+      // 1. 9각형 레이더 차트 그리기
+      renderRadarChart(data);
+
+      // 2. 3대 에너제틱 센터 렌더링
+      renderCenters(data);
+
+      // 3. 날개 활성도 양극바 렌더링
+      renderWingBar(data);
+
+      // 4. 하단 본능 3원소 & 통합/분열 렌더링
+      renderBottomGauges(data);
+    }
+
+    // 9각형 레이더 차트 SVG 생성
+    function renderRadarChart(data) {
+      const svg = document.getElementById('enneaRadarSvg');
+      const centerX = 150;
+      const centerY = 150;
+      const maxRadius = 105;
+      const numPoints = 9;
+
+      // 1번~9번 유형 키 순서
+      const typeKeys = [
+        "1번_개혁가", "2번_조력가", "3번_성취가", "4번_예술가",
+        "5번_탐구자", "6번_충실가", "7번_열정가", "8번_도전가", "9번_평화주의자"
+      ];
+
+      // 12시 방향(9번)이 맨 위에 오도록 -90도 회전 offset
+      const angleOffset = -Math.PI / 2;
+
+      // 각 각도 계산 함수 (0 ~ 8 index)
+      function getCoords(index, value) {
+        // index 8 (9번)이 맨 위가 되도록 조정
+        const idxAdjusted = (index + 8) % 9;
+        const angle = angleOffset + (idxAdjusted * (2 * Math.PI / numPoints));
+        const r = (value / 100) * maxRadius;
+        return {
+          x: centerX + r * Math.cos(angle),
+          y: centerY + r * Math.sin(angle)
+        };
+      }
+
+      let svgContent = '';
+
+      // 격자 원/9각형 선 (20%, 40%, 60%, 80%, 100%)
+      const levels = [0.25, 0.50, 0.75, 1.0];
+      levels.forEach(lvl => {
+        let polygonPoints = [];
+        for (let i = 0; i < numPoints; i++) {
+          const pt = getCoords(i, lvl * 100);
+          polygonPoints.push(`${pt.x.toFixed(1)},${pt.y.toFixed(1)}`);
+        }
+        svgContent += `<polygon points="${polygonPoints.join(' ')}" fill="none" stroke="#E5E3D8" stroke-width="${lvl === 1.0 ? '1.5' : '1'}" stroke-dasharray="${lvl === 1.0 ? 'none' : '3,3'}"/>`;
+      });
+
+      // 축 가이드선 (중심에서 각 꼭짓점으로)
+      for (let i = 0; i < numPoints; i++) {
+        const outerPt = getCoords(i, 100);
+        svgContent += `<line x1="${centerX}" y1="${centerY}" x2="${outerPt.x.toFixed(1)}" y2="${outerPt.y.toFixed(1)}" stroke="#EAE8DF" stroke-width="1"/>`;
+      }
+
+      // 에니어그램 상징 은은한 내부 연결선 (3-6-9 삼각형 & 1-4-2-8-5-7 헥사그램)
+      const p9 = getCoords(8, 100);
+      const p3 = getCoords(2, 100);
+      const p6 = getCoords(5, 100);
+      svgContent += `<polygon points="${p9.x},${p9.y} ${p3.x},${p3.y} ${p6.x},${p6.y}" fill="none" stroke="#D3CFBD" stroke-width="1.2" stroke-dasharray="2,2" opacity="0.6"/>`;
+
+      const p1 = getCoords(0, 100);
+      const p4 = getCoords(3, 100);
+      const p2 = getCoords(1, 100);
+      const p8 = getCoords(7, 100);
+      const p5 = getCoords(4, 100);
+      const p7 = getCoords(6, 100);
+      svgContent += `<polygon points="${p1.x},${p1.y} ${p4.x},${p4.y} ${p2.x},${p2.y} ${p8.x},${p8.y} ${p5.x},${p5.y} ${p7.x},${p7.y}" fill="none" stroke="#D3CFBD" stroke-width="1.2" stroke-dasharray="2,2" opacity="0.6"/>`;
+
+      // 사용자 실질 데이터 폴리곤 계산
+      let userPoints = [];
+      typeKeys.forEach((key, idx) => {
+        const val = data[key] || 0;
+        const pt = getCoords(idx, val);
+        userPoints.push(`${pt.x.toFixed(1)},${pt.y.toFixed(1)}`);
+      });
+
+      // 사용자 영역 렌더링 (세련된 올리브 그라데이션 필)
+      svgContent += `
+        <defs>
+          <radialGradient id="enneaGrad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#5B6B54" stop-opacity="0.55" />
+            <stop offset="100%" stop-color="#3D4A3E" stop-opacity="0.25" />
+          </radialGradient>
+        </defs>
+        <polygon points="${userPoints.join(' ')}" fill="url(#enneaGrad)" stroke="#3D4A3E" stroke-width="2.5" stroke-linejoin="round"/>
+      `;
+
+      // 각 유형 노드 및 숫자 라벨
+      typeKeys.forEach((key, idx) => {
+        const typeNum = (idx + 1);
+        const val = data[key] || 0;
+        const userPt = getCoords(idx, val);
+        const labelPt = getCoords(idx, 122); // 라벨 위치
+
+        const isHighest = val === Math.max(...typeKeys.map(k => data[k] || 0));
+
+        // 노드 점
+        svgContent += `<circle cx="${userPt.x.toFixed(1)}" cy="${userPt.y.toFixed(1)}" r="${isHighest ? '5' : '3.5'}" fill="${isHighest ? '#C29A47' : '#3D4A3E'}" stroke="#FFFFFF" stroke-width="1.5"/>`;
+
+        // 라벨 텍스트
+        svgContent += `
+          <text x="${labelPt.x.toFixed(1)}" y="${labelPt.y.toFixed(1)}" 
+                text-anchor="middle" dominant-baseline="central" 
+                font-size="${isHighest ? '11px' : '9.5px'}" 
+                font-weight="${isHighest ? '800' : '600'}" 
+                fill="${isHighest ? '#2A3022' : '#626756'}">
+            ${typeNum}번 (${val}%)
+          </text>
+        `;
+      });
+
+      svg.innerHTML = svgContent;
+    }
+
+    // 3대 에너제틱 센터
+    function renderCenters(data) {
+      const gut = data['장본능센터'] || 0;
+      const heart = data['가슴감정센터'] || 0;
+      const head = data['머리사고센터'] || 0;
+
+      const container = document.getElementById('centersContainer');
+      container.innerHTML = `
+        <div class="center-item">
+          <div class="center-label-row">
+            <span style="color: var(--text-main);">🛡️ 장(본능) 센터 (8,9,1번)</span>
+            <span style="color: var(--accent-sage); font-weight:700;">${gut}%</span>
+          </div>
+          <div class="center-track">
+            <div class="center-fill" style="width: ${gut}%; background: #5B6B54;"></div>
+          </div>
+        </div>
+
+        <div class="center-item">
+          <div class="center-label-row">
+            <span style="color: var(--text-main);">💖 가슴(감정) 센터 (2,3,4번)</span>
+            <span style="color: #C85A54; font-weight:700;">${heart}%</span>
+          </div>
+          <div class="center-track">
+            <div class="center-fill" style="width: ${heart}%; background: #C85A54;"></div>
+          </div>
+        </div>
+
+        <div class="center-item">
+          <div class="center-label-row">
+            <span style="color: var(--text-main);">💡 머리(사고) 센터 (5,6,7번)</span>
+            <span style="color: var(--accent-gold); font-weight:700;">${head}%</span>
+          </div>
+          <div class="center-track">
+            <div class="center-fill" style="width: ${head}%; background: #C29A47;"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 날개 양극바
+    function renderWingBar(data) {
+      const leftKey = Object.keys(data).find(k => k.startsWith('왼쪽날개')) || '왼쪽날개';
+      const rightKey = Object.keys(data).find(k => k.startsWith('오른쪽날개')) || '오른쪽날개';
+
+      const leftName = leftKey.replace('왼쪽날개_', '');
+      const rightName = rightKey.replace('오른쪽날개_', '');
+
+      const leftVal = data[leftKey] || 50;
+      const rightVal = data[rightKey] || 50;
+
+      const wingContainer = document.getElementById('wingContainer');
+
+      let barHtml = '';
+      let leftColHtml = '';
+      let rightColHtml = '';
+
+      if (leftVal >= rightVal) {
+        const barWidth = ((leftVal - 50) / 50) * 50;
+        leftColHtml = `<span style="font-weight:700; color:var(--text-main);"><span style="background:#5B6B54; color:#FFF; padding:1px 6px; border-radius:4px; margin-right:4px;">${leftVal}%</span> ${leftName} 날개</span>`;
+        rightColHtml = `<span style="color:var(--text-muted);">${rightName} 날개 ${rightVal}%</span>`;
+        barHtml = `<div class="bipolar-bar-neg" style="width: ${barWidth}%; background: #5B6B54;"></div>`;
+      } else {
+        const barWidth = ((rightVal - 50) / 50) * 50;
+        leftColHtml = `<span style="color:var(--text-muted);">${leftName} 날개 ${leftVal}%</span>`;
+        rightColHtml = `<span style="font-weight:700; color:var(--text-main);">${rightName} 날개 <span style="background:#C29A47; color:#FFF; padding:1px 6px; border-radius:4px; margin-left:4px;">${rightVal}%</span></span>`;
+        barHtml = `<div class="bipolar-bar-pos" style="width: ${barWidth}%; background: #C29A47;"></div>`;
+      }
+
+      wingContainer.innerHTML = `
+        <div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:6px; align-items:center;">
+          <div>${leftColHtml}</div>
+          <div style="font-size:0.78rem; font-weight:700; color:var(--text-muted);">🪽 날개 주도권</div>
+          <div>${rightColHtml}</div>
+        </div>
+        <div class="bipolar-track">
+          <div class="bipolar-center-pin"></div>
+          ${barHtml}
+        </div>
+      `;
+    }
+
+    // 하단 본능 삼원소 & 통합/분열
+    function renderBottomGauges(data) {
+      const sp = data['자기보존'] || 0;
+      const sx = data['일대일'] || 0;
+      const so = data['사회적'] || 0;
+
+      const intVal = data['통합_성장에너지'] || 0;
+      const disVal = data['분열_스트레스반응'] || 0;
+
+      const grid = document.getElementById('bottomGaugesGrid');
+      grid.innerHTML = `
+        <!-- 좌측: 본능 삼원소 -->
+        <div class="unipolar-list">
+          <div style="font-size:0.82rem; font-weight:700; color:var(--text-muted); margin-bottom:2px;">본능 삼원소 (Instinctual Subtypes)</div>
+          
+          <div class="unipolar-item-row">
+            <div class="unipolar-meta-row">
+              <span>🏠 자기보존 (sp)</span>
+              <span>${sp}%</span>
+            </div>
+            <div class="unipolar-track">
+              <div class="unipolar-fill-bar" style="width: ${sp}%; background: #5B6B54;"></div>
+            </div>
+          </div>
+
+          <div class="unipolar-item-row">
+            <div class="unipolar-meta-row">
+              <span>⚡ 일대일/친밀 (sx)</span>
+              <span>${sx}%</span>
+            </div>
+            <div class="unipolar-track">
+              <div class="unipolar-fill-bar" style="width: ${sx}%; background: #D98236;"></div>
+            </div>
+          </div>
+
+          <div class="unipolar-item-row">
+            <div class="unipolar-meta-row">
+              <span>🌐 사회적 (so)</span>
+              <span>${so}%</span>
+            </div>
+            <div class="unipolar-track">
+              <div class="unipolar-fill-bar" style="width: ${so}%; background: #4A5D4E;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 우측: 통합 및 분열 에너제틱 -->
+        <div class="unipolar-list">
+          <div style="font-size:0.82rem; font-weight:700; color:var(--text-muted); margin-bottom:2px;">정서적 탄력성 & 스트레스 역동</div>
+
+          <div class="unipolar-item-row">
+            <div class="unipolar-meta-row">
+              <span>🌱 통합/성장 에너지 (통합 방향)</span>
+              <span style="color:#3D4A3E; font-weight:700;">${intVal}%</span>
+            </div>
+            <div class="unipolar-track">
+              <div class="unipolar-fill-bar" style="width: ${intVal}%; background: #3D4A3E;"></div>
+            </div>
+          </div>
+
+          <div class="unipolar-item-row" style="margin-top: 10px;">
+            <div class="unipolar-meta-row">
+              <span>🌩️ 분열/스트레스 반응 (퇴행 방향)</span>
+              <span style="color:#C85A54; font-weight:700;">${disVal}%</span>
+            </div>
+            <div class="unipolar-track">
+              <div class="unipolar-fill-bar" style="width: ${disVal}%; background: #C85A54;"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function loadSample(key) {
+      if (sampleDataMap[key]) {
+        currentData = sampleDataMap[key];
+        renderEnneagramReport(currentData);
+      }
+    }
+
+    // 초기 실행
+    window.addEventListener('DOMContentLoaded', () => {
+      renderEnneagramReport(currentData);
+    });
+  </script>
+</body>
+</html>

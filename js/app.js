@@ -390,6 +390,188 @@ const SajuManager = {
   }
 };
 
+// 10% 단위 정밀 스펙트럼 색상 추출 함수
+function get10PercentColor(score) {
+  const val = Math.min(100, Math.max(0, parseInt(score, 10) || 0));
+  if (val >= 90) return '#3D4A3E';
+  if (val >= 80) return '#4B533C';
+  if (val >= 70) return '#555D45';
+  if (val >= 60) return '#5D664D';
+  if (val >= 50) return '#6A7259';
+  if (val >= 40) return '#747B61';
+  if (val >= 30) return '#868E77';
+  if (val >= 20) return '#959F89';
+  if (val >= 10) return '#A8B09F';
+  return '#B2B9A8';
+}
+
+// 9개 유형 스펙트럼 레이더 차트 생성 (9개 모서리 외곽 정밀 앵커링, 미감 및 밸런스 최적화)
+function generateRadarSvgHtml(data) {
+  const centerX = 180, centerY = 160, maxRadius = 90, numPoints = 9;
+  const typeKeys = ["1번_개혁가", "2번_조력가", "3번_성취가", "4번_예술가", "5번_탐구자", "6번_충실가", "7번_열정가", "8번_도전가", "9번_평화주의자"];
+  const typeNames = ["개혁가", "조력가", "성취가", "예술가", "탐구자", "충실가", "열정가", "도전가", "평화주의자"];
+
+  // 정통 에니어그램 좌표계: 9번이 맨 위(-90도 = 12시 방향), 시계방향 순서대로 1번(+40도), 2번(+80도)...
+  function getCoordsForType(typeNum, value) {
+    const step = (typeNum % 9); // 9번 -> 0, 1번 -> 1, 2번 -> 2 ...
+    const angle = (-Math.PI / 2) + (step * (2 * Math.PI / numPoints));
+    const r = (value / 100) * maxRadius;
+    return { x: centerX + r * Math.cos(angle), y: centerY + r * Math.sin(angle) };
+  }
+
+  let svgContent = '';
+
+  // 동심원 9각형 미니멀 가이드 격자선
+  [0.25, 0.50, 0.75, 1.0].forEach(lvl => {
+    let polygonPoints = [];
+    for (let i = 1; i <= numPoints; i++) {
+      const pt = getCoordsForType(i, lvl * 100);
+      polygonPoints.push(`${pt.x.toFixed(1)},${pt.y.toFixed(1)}`);
+    }
+    svgContent += `<polygon points="${polygonPoints.join(' ')}" fill="none" stroke="#E0DED3" stroke-width="${lvl === 1.0 ? '1' : '0.8'}" stroke-dasharray="${lvl === 1.0 ? 'none' : '2,2'}"/>`;
+  });
+
+  // 중심 방사선
+  for (let i = 1; i <= numPoints; i++) {
+    const outerPt = getCoordsForType(i, 100);
+    svgContent += `<line x1="${centerX}" y1="${centerY}" x2="${outerPt.x.toFixed(1)}" y2="${outerPt.y.toFixed(1)}" stroke="#EAE8DF" stroke-width="0.8"/>`;
+  }
+
+  // 사용자 실질 데이터 폴리곤 계산 (1번부터 9번까지 순서대로)
+  let userPoints = [];
+  for (let i = 1; i <= numPoints; i++) {
+    const key = typeKeys[i - 1];
+    const val = data[key] || 0;
+    const pt = getCoordsForType(i, val);
+    userPoints.push(`${pt.x.toFixed(1)},${pt.y.toFixed(1)}`);
+  }
+
+  // 부드러운 말차/올리브 38% 투명도 채우기 + 은은한 소프트 세이지 1.2px 라인
+  svgContent += `
+    <polygon points="${userPoints.join(' ')}" fill="rgba(91, 107, 84, 0.38)" stroke="#8F967E" stroke-width="1.2" stroke-linejoin="round"/>
+  `;
+
+  // 9각형의 각 모서리 가이드 지점(100% 외곽) 기준 사방 여백 정렬로 유형명 + 퍼센트 수치 정갈한 배치
+  for (let i = 1; i <= numPoints; i++) {
+    const key = typeKeys[i - 1];
+    const typeName = typeNames[i - 1];
+    const val = data[key] || 0;
+    const gridPt = getCoordsForType(i, 100);
+    const isHighest = val === Math.max(...typeKeys.map(k => data[k] || 0));
+
+    let textAnchor = "middle";
+    let offsetX = 0, offsetY = 0;
+
+    if (i === 9) {
+      textAnchor = "middle"; offsetX = 0; offsetY = -18;
+    } else if (i === 1) {
+      textAnchor = "start"; offsetX = 12; offsetY = -10;
+    } else if (i === 2) {
+      textAnchor = "start"; offsetX = 16; offsetY = 0;
+    } else if (i === 3) {
+      textAnchor = "start"; offsetX = 16; offsetY = 8;
+    } else if (i === 4) {
+      textAnchor = "start"; offsetX = 12; offsetY = 16;
+    } else if (i === 5) {
+      textAnchor = "end"; offsetX = -12; offsetY = 16;
+    } else if (i === 6) {
+      textAnchor = "end"; offsetX = -16; offsetY = 8;
+    } else if (i === 7) {
+      textAnchor = "end"; offsetX = -16; offsetY = 0;
+    } else if (i === 8) {
+      textAnchor = "end"; offsetX = -12; offsetY = -10;
+    }
+
+    const x = gridPt.x + offsetX;
+    const y = gridPt.y + offsetY;
+
+    svgContent += `
+      <text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${textAnchor}" dominant-baseline="central">
+        <tspan x="${x.toFixed(1)}" dy="-7" font-size="${isHighest ? '12px' : '11px'}" font-weight="${isHighest ? '800' : '700'}" fill="${isHighest ? '#2A3022' : '#525B48'}">${i}번 (${typeName})</tspan>
+        <tspan x="${x.toFixed(1)}" dy="15" font-size="12.5px" font-weight="800" fill="${get10PercentColor(val)}">${val}%</tspan>
+      </text>
+    `;
+  }
+
+  return `<svg viewBox="0 0 360 330" width="100%" height="100%" style="display: block; margin: 0 auto;">${svgContent}</svg>`;
+}
+
+// 3대 에너제틱 센터 SVG 도넛 차트 (구멍 지름 살짝 확장 및 타이포그래피 정밀 위계 설정)
+function generateCentersDonutSvg(gut, heart, head) {
+  const cX = 100, cY = 100, r = 65, circumference = 2 * Math.PI * r;
+  const total = (gut + heart + head) || 1;
+
+  const pGut = gut / total;
+  const pHeart = heart / total;
+  const pHead = head / total;
+
+  const gutLen = pGut * circumference;
+  const heartLen = pHeart * circumference;
+  const headLen = pHead * circumference;
+
+  const gutOffset = 0;
+  const heartOffset = -gutLen;
+  const headOffset = -(gutLen + heartLen);
+
+  // 색상 링 내부 라벨 위치 좌표 (r=65px 지점)
+  const angleGut = pGut * (2 * Math.PI);
+  const angleHeart = pHeart * (2 * Math.PI);
+  const angleHead = pHead * (2 * Math.PI);
+
+  const midGut = -Math.PI / 2 + (angleGut / 2);
+  const midHeart = -Math.PI / 2 + angleGut + (angleHeart / 2);
+  const midHead = -Math.PI / 2 + angleGut + angleHeart + (angleHead / 2);
+
+  const textR = 65;
+  const ptGut = { x: cX + textR * Math.cos(midGut), y: cY + textR * Math.sin(midGut) };
+  const ptHeart = { x: cX + textR * Math.cos(midHeart), y: cY + textR * Math.sin(midHeart) };
+  const ptHead = { x: cX + textR * Math.cos(midHead), y: cY + textR * Math.sin(midHead) };
+
+  let dominantText = '머리 중심';
+  if (gut >= heart && gut >= head) dominantText = '장 중심';
+  else if (heart >= gut && heart >= head) dominantText = '가슴 중심';
+
+  return `
+    <svg viewBox="0 0 200 200" style="display: block; margin: 0 auto; width: 100%; max-width: 280px; height: auto;">
+      <g transform="rotate(-90 ${cX} ${cY})">
+        <circle cx="${cX}" cy="${cY}" r="${r}" fill="none" stroke="#E5E3D8" stroke-width="46" />
+        <circle cx="${cX}" cy="${cY}" r="${r}" fill="none" stroke="#5B6B54" stroke-width="46"
+                stroke-dasharray="${gutLen.toFixed(2)} ${circumference.toFixed(2)}"
+                stroke-dashoffset="${gutOffset.toFixed(2)}" />
+        <circle cx="${cX}" cy="${cY}" r="${r}" fill="none" stroke="#8F967E" stroke-width="46"
+                stroke-dasharray="${heartLen.toFixed(2)} ${circumference.toFixed(2)}"
+                stroke-dashoffset="${heartOffset.toFixed(2)}" />
+        <circle cx="${cX}" cy="${cY}" r="${r}" fill="none" stroke="#3D4A3E" stroke-width="46"
+                stroke-dasharray="${headLen.toFixed(2)} ${circumference.toFixed(2)}"
+                stroke-dashoffset="${headOffset.toFixed(2)}" />
+      </g>
+
+      <!-- 도넛 색상 슬라이스 정중앙 라벨 (글자: 11.5px 화이트, 수치: 10px 반투명 화이트) -->
+      ${gut > 4 ? `
+      <text x="${ptGut.x.toFixed(1)}" y="${ptGut.y.toFixed(1)}" text-anchor="middle" dominant-baseline="central">
+        <tspan x="${ptGut.x.toFixed(1)}" dy="-6" font-size="11.5px" font-weight="800" fill="#FFFFFF">장</tspan>
+        <tspan x="${ptGut.x.toFixed(1)}" dy="14" font-size="10px" font-weight="700" fill="rgba(255, 255, 255, 0.9)">${gut}%</tspan>
+      </text>` : ''}
+
+      ${heart > 4 ? `
+      <text x="${ptHeart.x.toFixed(1)}" y="${ptHeart.y.toFixed(1)}" text-anchor="middle" dominant-baseline="central">
+        <tspan x="${ptHeart.x.toFixed(1)}" dy="-6" font-size="11.5px" font-weight="800" fill="#FFFFFF">가슴</tspan>
+        <tspan x="${ptHeart.x.toFixed(1)}" dy="14" font-size="10px" font-weight="700" fill="rgba(255, 255, 255, 0.9)">${heart}%</tspan>
+      </text>` : ''}
+
+      ${head > 4 ? `
+      <text x="${ptHead.x.toFixed(1)}" y="${ptHead.y.toFixed(1)}" text-anchor="middle" dominant-baseline="central">
+        <tspan x="${ptHead.x.toFixed(1)}" dy="-6" font-size="11.5px" font-weight="800" fill="#FFFFFF">머리</tspan>
+        <tspan x="${ptHead.x.toFixed(1)}" dy="14" font-size="10px" font-weight="700" fill="rgba(255, 255, 255, 0.9)">${head}%</tspan>
+      </text>` : ''}
+
+      <!-- 구멍 중앙 강조 (장/가슴/머리 11.5px보다 정확히 1px 큰 12.5px 타이포) -->
+      <text x="${cX}" y="${cY - 6}" text-anchor="middle" dominant-baseline="central" font-size="12.5px" font-weight="800" fill="#2A3022">${dominantText}</text>
+      <text x="${cX}" y="${cY + 9}" text-anchor="middle" dominant-baseline="central" font-size="9px" font-weight="600" fill="#626756">에너지 우세</text>
+    </svg>
+  `;
+}
+
 // 8. 경량 마크다운 파서 & 안전화된 보고서 감지 & 게이지 비주얼 렌더러 (MarkdownParser)
 const MarkdownParser = {
   // [핵심 1] 안전화된 보고서 분리 추출기 (보고서 발견 시 대화창에는 일체 텍스트 미노출, 전문 수집)
@@ -947,6 +1129,126 @@ const MarkdownParser = {
     let title = '심리 지표 활성도';
     let desc = '에너지 비중 및 기능별 활성도';
     const typeLabel = data['도출유형'];
+
+    // 에니어그램 데이터 감지 (1번_개혁가, 장본능센터, 자기보존, 또는 도출유형 내 에니어그램 키워드)
+    const isEnneagramProfile = keys.some(k => k.includes('1번_개혁가') || k.includes('장본능센터') || k === '자기보존') ||
+                                (typeLabel && (typeLabel.includes('w') || typeLabel.includes('에니어그램') || typeLabel.includes('탐구자') || typeLabel.includes('조력가') || typeLabel.includes('개혁가') || typeLabel.includes('도전가') || typeLabel.includes('평화주의자')));
+
+    if (isEnneagramProfile && (keys.some(k => k.includes('1번_개혁가')) || data['장본능센터'] !== undefined || data['자기보존'] !== undefined)) {
+      const typeStr = data['도출유형'] || '';
+      const gut = data['장본능센터'] || 0;
+      const heart = data['가슴감정센터'] || 0;
+      const head = data['머리사고센터'] || 0;
+
+      const leftKey = Object.keys(data).find(k => k.startsWith('왼쪽날개')) || '왼쪽날개';
+      const rightKey = Object.keys(data).find(k => k.startsWith('오른쪽날개')) || '오른쪽날개';
+      const leftName = leftKey.replace('왼쪽날개_', '');
+      const rightName = rightKey.replace('오른쪽날개_', '');
+      const leftVal = data[leftKey] || 50;
+      const rightVal = data[rightKey] || 50;
+
+      const sp = data['자기보존'] || 0, sx = data['일대일'] || 0, so = data['사회적'] || 0;
+      const intVal = data['통합_성장에너지'] || 0, disVal = data['분열_스트레스반응'] || 0;
+
+      return `
+        <div class="report-card-container">
+          <div class="report-card-header">
+            <h4 class="report-card-title">무의식적 욕구 및 에니어그램 프로파일</h4>
+            ${typeStr ? `<div class="report-card-type-label">${typeStr}</div>` : ''}
+          </div>
+
+          <!-- 1행: 9개 유형 스펙트럼 차트 -->
+          <div style="background: #F8F7F3; border: 1px solid #E0DED3; border-radius: 14px; padding: 14px 16px; margin-bottom: 16px;">
+            <div style="font-size: 0.88rem; font-weight: 700; color: #2A3022; margin-bottom: 8px; border-bottom: 1px solid #EAE8DF; padding-bottom: 6px; display: flex; justify-content: space-between;">
+              <span>9개 유형별 스펙트럼</span>
+              <span style="font-size: 0.75rem; color: #626756; font-weight: normal;">100% 척도</span>
+            </div>
+            <div style="width: 100%; max-width: 380px; margin: 0 auto; display: flex; align-items: center; justify-content: center; padding: 4px 0;">
+              ${generateRadarSvgHtml(data)}
+            </div>
+          </div>
+
+          <!-- 2행: 2열 레이아웃 (3대 에너제틱 센터 도넛 + 날개/탄력성) -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+            <div style="background: #F8F7F3; border: 1px solid #E0DED3; border-radius: 14px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between;">
+              <div style="font-size: 0.84rem; font-weight: 700; color: #2A3022; border-bottom: 1px solid #EAE8DF; padding-bottom: 4px; margin-bottom: 8px;">
+                3대 에너제틱 센터
+              </div>
+              <div style="padding: 2px 0; flex-grow: 1; display: flex; align-items: center; justify-content: center;">
+                ${generateCentersDonutSvg(gut, heart, head)}
+              </div>
+            </div>
+
+            <div style="background: #F8F7F3; border: 1px solid #E0DED3; border-radius: 14px; padding: 12px; display: flex; flex-direction: column; justify-content: center; gap: 8px;">
+              <div>
+                <div style="font-size: 0.84rem; font-weight: 700; color: #2A3022; margin-bottom: 6px;">날개 주도권</div>
+                <div class="unipolar-item-row" style="margin-bottom: 5px;">
+                  <div class="unipolar-meta-row" style="font-size: 0.78rem;">
+                    <span>${leftName} 날개</span>
+                    <span>${leftVal}%</span>
+                  </div>
+                  <div class="unipolar-track" style="height: 7px;">
+                    <div class="unipolar-fill-bar" style="width: ${leftVal}%; background: ${get10PercentColor(leftVal)};"></div>
+                  </div>
+                </div>
+                <div class="unipolar-item-row" style="margin-bottom: 0;">
+                  <div class="unipolar-meta-row" style="font-size: 0.78rem;">
+                    <span>${rightName} 날개</span>
+                    <span>${rightVal}%</span>
+                  </div>
+                  <div class="unipolar-track" style="height: 7px;">
+                    <div class="unipolar-fill-bar" style="width: ${rightVal}%; background: ${get10PercentColor(rightVal)};"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="border-top: 1px dashed #E0DED3; margin: 2px 0;"></div>
+
+              <div>
+                <div style="font-size: 0.84rem; font-weight: 700; color: #2A3022; margin-bottom: 6px;">정서적 탄력성</div>
+                <div class="unipolar-item-row" style="margin-bottom: 5px;">
+                  <div class="unipolar-meta-row" style="font-size: 0.78rem;">
+                    <span>통합/성장</span>
+                    <span>${intVal}%</span>
+                  </div>
+                  <div class="unipolar-track" style="height: 7px;">
+                    <div class="unipolar-fill-bar" style="width: ${intVal}%; background: ${get10PercentColor(intVal)};"></div>
+                  </div>
+                </div>
+                <div class="unipolar-item-row" style="margin-bottom: 0;">
+                  <div class="unipolar-meta-row" style="font-size: 0.78rem;">
+                    <span>분열/스트레스</span>
+                    <span>${disVal}%</span>
+                  </div>
+                  <div class="unipolar-track" style="height: 7px;">
+                    <div class="unipolar-fill-bar" style="width: ${disVal}%; background: ${get10PercentColor(disVal)};"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3행: 본능 삼원소 -->
+          <div style="background: #F8F7F3; border: 1px solid #E0DED3; border-radius: 14px; padding: 14px;">
+            <div style="font-size: 0.85rem; font-weight: 700; color: #2A3022; margin-bottom: 10px; border-bottom: 1px solid #EAE8DF; padding-bottom: 4px;">
+              본능 삼원소 (Instinctual Subtypes)
+            </div>
+            <div class="unipolar-item-row" style="margin-bottom: 8px;">
+              <div class="unipolar-meta-row"><span>자기보존 (sp)</span><span>${sp}%</span></div>
+              <div class="unipolar-track"><div class="unipolar-fill-bar" style="width: ${sp}%; background: ${get10PercentColor(sp)};"></div></div>
+            </div>
+            <div class="unipolar-item-row" style="margin-bottom: 8px;">
+              <div class="unipolar-meta-row"><span>일대일/친밀 (sx)</span><span>${sx}%</span></div>
+              <div class="unipolar-track"><div class="unipolar-fill-bar" style="width: ${sx}%; background: ${get10PercentColor(sx)};"></div></div>
+            </div>
+            <div class="unipolar-item-row" style="margin-bottom: 0;">
+              <div class="unipolar-meta-row"><span>사회적 (so)</span><span>${so}%</span></div>
+              <div class="unipolar-track"><div class="unipolar-fill-bar" style="width: ${so}%; background: ${get10PercentColor(so)};"></div></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
 
     if (keys.some(k => k.includes('기능:'))) {
       title = `🧠 융의 인지 기능 위계${typeLabel ? ` (${typeLabel})` : ''}`;
@@ -3130,6 +3432,94 @@ const ChatManager = {
         this.isGenerating = false;
       }
     });
+  },
+
+  // [신규] 검사 계속 이어서 하기 지시문 전송 (조기 진단 혹은 진단 오류 상황. 이어서 검사를 진행하라.)
+  async sendUserInstruction(text) {
+    if (this.isGenerating) return;
+    const isPsychology = (Router.currentView === 'psychology' || Router.currentCategory === 'psychology');
+    const category = isPsychology ? 'psychology' : 'saju';
+    const containerId = isPsychology ? 'psychology-chat-messages' : 'saju-chat-messages';
+    const sendBtn = document.getElementById(isPsychology ? 'btn-send-psychology' : 'btn-send-saju');
+
+    // 검사 이어서 진행 중에는 하단 질문 입력창을 다시 숨김 (보고서 재생성 시 재노출)
+    if (isPsychology) {
+      const psychInputBar = document.getElementById('psychology-input-bar');
+      if (psychInputBar) psychInputBar.classList.add('hidden');
+    }
+
+    this.isGenerating = true;
+    if (sendBtn) sendBtn.disabled = true;
+
+    if (!this.currentSessionId) {
+      const newSession = await SessionManager.createNewSession(category);
+      this.currentSessionId = newSession.id;
+    }
+
+    const userMsgId = `msg_${Date.now()}_u_${Math.random().toString(36).substr(2, 6)}`;
+    ChatUI.appendMessage(containerId, 'user', text, userMsgId);
+    this.activeHistory.push({ id: userMsgId, role: 'user', content: text });
+    await DB.set('chat_messages', {
+      id: userMsgId,
+      sessionId: this.currentSessionId,
+      role: 'user',
+      content: text,
+      timestamp: Date.now()
+    });
+
+    const modelMsgId = `msg_${Date.now()}_m_${Math.random().toString(36).substr(2, 6)}`;
+    const modelBubble = ChatUI.appendMessage(containerId, 'model', '생각하는 중...', modelMsgId);
+    if (modelBubble) modelBubble.classList.add('is-thinking');
+    let hasScrolledToTop = false;
+
+    await AIEngine.sendRequest({
+      category: category,
+      userText: text,
+      history: this.activeHistory,
+      attachedProfiles: [],
+      onChunk: (accumulatedText) => {
+        if (!hasScrolledToTop && modelBubble) {
+          ChatUI.scrollToMessageTop(modelBubble);
+          hasScrolledToTop = true;
+        }
+        if (modelBubble && modelBubble.updateRawContent) {
+          modelBubble.updateRawContent(accumulatedText);
+        }
+      },
+      onComplete: async (finalText) => {
+        if (!hasScrolledToTop && modelBubble) {
+          ChatUI.scrollToMessageTop(modelBubble);
+        }
+        if (modelBubble && modelBubble.updateRawContent) {
+          modelBubble.updateRawContent(finalText);
+        }
+        this.activeHistory.push({ id: modelMsgId, role: 'model', content: finalText });
+        await DB.set('chat_messages', {
+          id: modelMsgId,
+          sessionId: this.currentSessionId,
+          role: 'model',
+          content: finalText,
+          timestamp: Date.now()
+        });
+        const sess = await DB.get('chat_sessions', this.currentSessionId);
+        if (sess) {
+          sess.updatedAt = Date.now();
+          await DB.set('chat_sessions', sess);
+        }
+        await SessionManager.renderSessionList(category);
+        this.isGenerating = false;
+        if (sendBtn) sendBtn.disabled = false;
+      },
+      onError: (errMsg) => {
+        if (modelBubble && modelBubble.updateRawContent) {
+          modelBubble.updateRawContent(`⚠️ ${errMsg}`);
+        } else if (modelBubble) {
+          modelBubble.innerHTML = `<span style="color: #9C413D;">⚠️ ${errMsg}</span>`;
+        }
+        this.isGenerating = false;
+        if (sendBtn) sendBtn.disabled = false;
+      }
+    });
   }
 };
 
@@ -3204,23 +3594,18 @@ const ChatUI = {
             psychInputBar.classList.remove('hidden');
           }
         } else {
-          // 심리학 대화방 모델 응답인 경우
-          if (containerId === 'psychology-chat-messages') {
-            // [요구사항 3] 보고서 출력 이후 후속 대화인 경우 선택지 파서 해제 -> 일반 마크다운 파서 적용
-            const hasReportInSession = ChatManager.activeHistory.some(m => m.role === 'model' && MarkdownParser.extractReport(m.content).hasReport) ||
-                                       Boolean(document.querySelector('#psychology-chat-messages .is-report-wrapper'));
-            if (!hasReportInSession) {
-              const dossier = MarkdownParser.parseChoiceDossier(currentRaw, currentMsgId, currentChoiceState);
-              if (dossier.hasChoices) {
-                contentDiv.innerHTML = dossier.html;
-                MarkdownParser.bindChoiceEvents(contentDiv, currentMsgId, currentChoiceState);
-                return;
-              }
-            }
-            contentDiv.innerHTML = MarkdownParser.parse(currentRaw);
-          } else {
-            contentDiv.innerHTML = MarkdownParser.parse(currentRaw);
+        // 심리학 대화방 모델 응답인 경우: 선택지 카드와 일반 대화 카드를 유연하게 지원
+        if (containerId === 'psychology-chat-messages') {
+          const dossier = MarkdownParser.parseChoiceDossier(currentRaw, currentMsgId, currentChoiceState);
+          if (dossier.hasChoices) {
+            contentDiv.innerHTML = dossier.html;
+            MarkdownParser.bindChoiceEvents(contentDiv, currentMsgId, currentChoiceState);
+            return;
           }
+          contentDiv.innerHTML = MarkdownParser.parse(currentRaw);
+        } else {
+          contentDiv.innerHTML = MarkdownParser.parse(currentRaw);
+        }
         }
       } else {
         contentDiv.innerHTML = MarkdownParser.parse(currentRaw);
@@ -4125,6 +4510,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (btnCloseReport) {
     btnCloseReport.addEventListener('click', () => {
       ReportController.close(true);
+    });
+  }
+
+  // 검사 계속 이어서 하기 화살표(→) 버튼 이벤트
+  const btnContinueAssessment = document.getElementById('btn-continue-assessment');
+  if (btnContinueAssessment) {
+    btnContinueAssessment.addEventListener('click', async () => {
+      ReportController.close(false);
+      await ChatManager.sendUserInstruction("(조기 진단 혹은 진단 오류 상황. 이어서 검사를 진행하라.)");
     });
   }
 
