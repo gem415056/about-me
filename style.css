@@ -1946,8 +1946,8 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
 }
 
 .report-card-header {
-  padding-bottom: 6px;
-  margin-bottom: 16px;
+  padding-bottom: 2px;
+  margin-bottom: 14px;
   border-bottom: 1px solid #E0DED3;
 }
 
@@ -1955,22 +1955,23 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   font-size: 1.05rem;
   font-weight: 700;
   color: #2A3022;
+  margin-bottom: 2px;
 }
 
 .report-card-type-label {
   font-size: 0.98rem; /* 기본 텍스트(0.94rem) 대비 딱 1px 상향 */
   font-weight: 700;
   color: #2A3022;
-  margin-top: 6px;
-  margin-bottom: 2px;
+  margin-top: 10px;
+  margin-bottom: 1px;
   letter-spacing: -0.01em;
 }
 
 .report-card-desc {
   font-size: 0.82rem;
   color: #626756;
-  margin-top: 8px;
-  margin-bottom: 4px;
+  margin-top: 10px;
+  margin-bottom: 1px;
 }
 
 .bipolar-item-row {

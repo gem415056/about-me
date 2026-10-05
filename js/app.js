@@ -856,7 +856,6 @@ const MarkdownParser = {
           <div class="report-card-header">
             <h4 class="report-card-title">🧩 MBTI 5대 성향 축 선호 지표</h4>
             ${cleanTypeLabel ? `<div class="report-card-type-label">${cleanTypeLabel}</div>` : ''}
-            <p class="report-card-desc">양극 스펙트럼 기준 선호도 및 활성 비율</p>
           </div>
           ${rowsHtml}
         </div>
