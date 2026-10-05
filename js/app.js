@@ -481,11 +481,11 @@ function generateRadarSvgHtml(data) {
     for (let i = 0; i < str.length; i++) {
       const code = str.charCodeAt(i);
       if (code > 255) {
-        w += 12.2; // 한글 글리프 너비
+        w += 13.2; // 한글 글리프 너비 (13.5px 규격)
       } else if (str[i] === ' ' || str[i] === '(' || str[i] === ')') {
-        w += 4.2;
+        w += 4.5;
       } else {
-        w += 7.2; // 숫자 및 영문
+        w += 7.8; // 숫자 및 영문
       }
     }
     return w;
@@ -617,12 +617,12 @@ function generateRadarSvgHtml(data) {
       yText = 82;
     }
 
-    // 상하패딩(5.5px)과 좌우패딩(5.5px)이 완벽히 일치하는 정밀 배지
+    // 상하패딩(5.5px)과 좌우패딩(5.5px)이 완벽히 일치하는 정밀 배지 (날개 주도권 폰트 규격 적용)
     const textW = getEnneaTextWidth(typeTitle);
     const pad = 5.5;
     const badgeW = Math.round(textW + pad * 2);
-    const badgeH = 22;
-    const badgeRx = 4.5;
+    const badgeH = 23;
+    const badgeRx = 5.0;
 
     let badgeRectX = 0;
     let badgeTextX = 0;
@@ -637,42 +637,42 @@ function generateRadarSvgHtml(data) {
       badgeRectX = xText - badgeW / 2;
       badgeTextX = xText;
     }
-    const badgeRectY = yText - 11;
+    const badgeRectY = yText - 11.5;
 
     if (isPrimary) {
       svgContent += `
         <rect x="${badgeRectX.toFixed(1)}" y="${badgeRectY.toFixed(1)}" width="${badgeW}" height="${badgeH}" rx="${badgeRx}" fill="#384534" />
-        <text x="${badgeTextX.toFixed(1)}" y="${yText}" text-anchor="middle" dominant-baseline="central" font-size="12.5px" font-weight="800" fill="#FAF8F2">
+        <text x="${badgeTextX.toFixed(1)}" y="${yText}" text-anchor="middle" dominant-baseline="central" font-size="13.5px" font-weight="800" fill="#FAF8F2">
           ${typeTitle}
         </text>
       `;
     } else if (isSecondary) {
       svgContent += `
         <rect x="${badgeRectX.toFixed(1)}" y="${badgeRectY.toFixed(1)}" width="${badgeW}" height="${badgeH}" rx="${badgeRx}" fill="#72846A" />
-        <text x="${badgeTextX.toFixed(1)}" y="${yText}" text-anchor="middle" dominant-baseline="central" font-size="12.5px" font-weight="700" fill="#FAF8F2">
+        <text x="${badgeTextX.toFixed(1)}" y="${yText}" text-anchor="middle" dominant-baseline="central" font-size="13.5px" font-weight="700" fill="#FAF8F2">
           ${typeTitle}
         </text>
       `;
     } else {
       svgContent += `
-        <text x="${xText}" y="${yText}" text-anchor="${textAnchor}" dominant-baseline="central" font-size="12.5px" font-weight="600" fill="#525B49">
+        <text x="${xText}" y="${yText}" text-anchor="${textAnchor}" dominant-baseline="central" font-size="13.5px" font-weight="600" fill="#525B49">
           ${typeTitle}
         </text>
       `;
     }
 
-    // 꼭짓점에 안착되는 숫자% (배지와 11px 안전 간격 유지)
+    // 꼭짓점에 안착되는 숫자% (날개 주도권 수치 규격 적용)
     let numColor = '#35523A';
     let numWeight = '700';
-    let numSize = '12px';
+    let numSize = '13px';
     if (isPrimary) {
       numColor = '#243C28';
       numWeight = '800';
-      numSize = '12.5px';
+      numSize = '13.5px';
     } else if (isSecondary) {
       numColor = '#35523A';
       numWeight = '800';
-      numSize = '12px';
+      numSize = '13px';
     }
 
     svgContent += `
@@ -728,10 +728,10 @@ function generateCentersDonutSvg(gut, heart, head) {
 
   sorted.forEach((item, rank) => {
     item.stroke = rankStrokes[rank] || '#D0DCD0';
-    // 톤온톤 미감 배색 (글자 텍스트는 그대로 유지, 수치 텍스트만 조금 더 짙게 조정):
+    // 톤온톤 미감 배색:
     // 머리: 1위 깊은 말차 -> 웜크림 텍스트 / 소프트 말차 수치
-    // 가슴: 텍스트 그대로(#2A3022) / 가슴 수치 조금 더 짙게(#283222)
-    // 장: 텍스트 그대로(#58674E) / 장 수치 조금 더 짙게(#48563E)
+    // 가슴: 텍스트 그대로(#2A3022) / 가슴 수치(#283222)
+    // 장: 가슴보다는 아주 살짝 연하고 기존보다 진한 톤 -> 장 텍스트(#384330), 장 수치(#343F2D)
     if (item.name === '머리') {
       item.textFill = '#FAF8F2';
       item.pctFill = '#D2DEC9';
@@ -739,11 +739,11 @@ function generateCentersDonutSvg(gut, heart, head) {
       item.textFill = '#2A3022';
       item.pctFill = '#283222';
     } else if (item.name === '장') {
-      item.textFill = '#58674E';
-      item.pctFill = '#48563E';
+      item.textFill = '#384330';
+      item.pctFill = '#343F2D';
     } else {
       item.textFill = '#2A3022';
-      item.pctFill = '#48563E';
+      item.pctFill = '#343F2D';
     }
   });
 
@@ -825,11 +825,10 @@ function generateFullEnneagramReportHtml(data) {
         ${typeLabel ? `<div class="report-card-type-label" style="font-size: 0.95rem; font-weight: 700; color: #5B6B54; margin-top: 6px;">${typeLabel}</div>` : ''}
       </div>
 
-      <!-- 1열: 9개 유형 스펙트럼 (확대 9각형, 얇은 선, 그라데이션 제거, 꼭짓점 외곽 배치) -->
+      <!-- 1열: 9개 유형 스펙트럼 (확대 9각형, 얇은 선, 꼭짓점 외곽 배치) -->
       <div style="background: #FAF8F2; border: 1.5px solid #D8D6C9; border-radius: 14px; padding: 14px 16px; margin-bottom: 12px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.86rem; font-weight: 700; color: #2A3022; border-bottom: 1px solid #EAE8DF; padding-bottom: 6px; margin-bottom: 10px;">
-          <span>9개 유형별 스펙트럼</span>
-          <span style="font-size: 0.76rem; color: #626756; font-weight: normal;">100% 척도</span>
+        <div style="font-size: 0.86rem; font-weight: 700; color: #2A3022; border-bottom: 1px solid #EAE8DF; padding-bottom: 6px; margin-bottom: 10px;">
+          9개 유형별 스펙트럼
         </div>
         <div style="width: 100%; max-width: 480px; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
           ${generateRadarSvgHtml(data)}
@@ -915,9 +914,8 @@ function generateFullEnneagramReportHtml(data) {
 
       <!-- 3열: 본능 삼원소 (MBTI 인지기능 게이지바 디자인 100% 동일, 10% 색상 차등) -->
       <div style="background: #FAF8F2; border: 1.5px solid #D8D6C9; border-radius: 14px; padding: 14px 16px; margin-bottom: 0;">
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.86rem; font-weight: 700; color: #2A3022; border-bottom: 1px solid #EAE8DF; padding-bottom: 6px; margin-bottom: 10px;">
-          <span>본능 삼원소 (Instinctual Subtypes)</span>
-          <span style="font-size: 0.76rem; color: #626756; font-weight: normal;">100% 척도</span>
+        <div style="font-size: 0.86rem; font-weight: 700; color: #2A3022; border-bottom: 1px solid #EAE8DF; padding-bottom: 6px; margin-bottom: 10px;">
+          본능 삼원소 (Instinctual Subtypes)
         </div>
 
         <div class="unipolar-item-row" style="margin-bottom: 10px;">
@@ -4963,28 +4961,6 @@ document.addEventListener('DOMContentLoaded', () => {
       } finally {
         btnTestAppCheck.disabled = false;
       }
-    });
-  }
-
-  // 에니어그램 심층 보고서 프리뷰 이벤트 바인딩 (헤더 버튼, 랜딩 화면 버튼, 플로팅 버튼)
-  const headerPreviewBtn = document.getElementById('btn-header-ennea-preview');
-  if (headerPreviewBtn) {
-    headerPreviewBtn.addEventListener('click', () => {
-      ReportController.openEnneagramPreview('5w6');
-    });
-  }
-
-  const landingPreviewBtn = document.getElementById('btn-landing-ennea-preview');
-  if (landingPreviewBtn) {
-    landingPreviewBtn.addEventListener('click', () => {
-      ReportController.openEnneagramPreview('5w6');
-    });
-  }
-
-  const tempPreviewBtn = document.getElementById('btn-temp-ennea-preview');
-  if (tempPreviewBtn) {
-    tempPreviewBtn.addEventListener('click', () => {
-      ReportController.openEnneagramPreview('5w6');
     });
   }
 });
