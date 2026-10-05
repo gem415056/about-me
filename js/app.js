@@ -974,10 +974,10 @@ const MarkdownParser = {
         cleanType = cleanType.slice(1, -1).trim();
       }
 
-      // 9각형 레이더 차트 SVG 생성 함수 (마크다운 파서 및 개행 간섭 100% 원천 방지)
+      // 1. 9각형 레이더 차트 SVG (viewBox: 0 0 360 330, 마크다운 파서 및 개행 간섭 100% 원천 방지)
       const generateRadarSvg = () => {
-        const centerX = 150;
-        const centerY = 150;
+        const centerX = 180;
+        const centerY = 165;
         const maxRadius = 100;
         const numPoints = 9;
         const angleOffset = -Math.PI / 2;
@@ -1056,54 +1056,81 @@ const MarkdownParser = {
         typeScores.forEach((val, idx) => {
           const typeNum = idx + 1;
           const userPt = getCoords(idx, val);
-          const labelPt = getCoords(idx, 122);
+          const labelPt = getCoords(idx, 126);
           const isHighest = (val === maxScore && val > 0);
 
           svgInner += `<circle cx="${userPt.x}" cy="${userPt.y}" r="${isHighest ? '4.5' : '3'}" fill="${isHighest ? '#C29A47' : '#3D4A3E'}" stroke="#FFFFFF" stroke-width="1.5"/>`;
-          svgInner += `<text x="${labelPt.x}" y="${labelPt.y}" text-anchor="middle" dominant-baseline="central" font-size="${isHighest ? '10.5px' : '9px'}" font-weight="${isHighest ? '800' : '600'}" fill="${isHighest ? '#2A3022' : '#626756'}">${typeNum}번 (${val}%)</text>`;
+          svgInner += `<text x="${labelPt.x}" y="${labelPt.y}" text-anchor="middle" dominant-baseline="central" font-size="${isHighest ? '11px' : '9.5px'}" font-weight="${isHighest ? '800' : '600'}" fill="${isHighest ? '#2A3022' : '#626756'}">${typeNum}번 (${val}%)</text>`;
         });
 
-        return `<svg viewBox="0 0 300 300" width="100%" height="100%" style="display:block; margin:0 auto; max-width:270px;">${svgInner}</svg>`;
+        return `<svg viewBox="0 0 360 330" width="100%" height="100%" style="display:block; margin:0 auto; max-width:250px;">${svgInner}</svg>`;
       };
 
-      // 1. 3대 에너제틱 센터
+      // 2. 3대 에너제틱 센터 SVG 도넛 차트
+      const generateCentersDonutSvg = (gutVal, heartVal, headVal) => {
+        const gut = Math.max(0, parseInt(gutVal, 10) || 0);
+        const heart = Math.max(0, parseInt(heartVal, 10) || 0);
+        const head = Math.max(0, parseInt(headVal, 10) || 0);
+        const total = (gut + heart + head) || 100;
+
+        const gutPct = Math.round((gut / total) * 100);
+        const heartPct = Math.round((heart / total) * 100);
+        const headPct = Math.max(0, 100 - gutPct - heartPct);
+
+        const cx = 70;
+        const cy = 70;
+        const r = 46;
+        const strokeWidth = 14;
+        const circumference = 2 * Math.PI * r;
+
+        const gutLen = (gutPct / 100) * circumference;
+        const heartLen = (heartPct / 100) * circumference;
+        const headLen = (headPct / 100) * circumference;
+
+        const gutOffset = 0;
+        const heartOffset = -gutLen;
+        const headOffset = -(gutLen + heartLen);
+
+        let dominantName = '머리(사고)';
+        let dominantScore = head;
+        let dominantColor = '#C29A47';
+        if (gut >= heart && gut >= head) {
+          dominantName = '장(본능)';
+          dominantScore = gut;
+          dominantColor = '#5B6B54';
+        } else if (heart >= gut && heart >= head) {
+          dominantName = '가슴(감정)';
+          dominantScore = heart;
+          dominantColor = '#C85A54';
+        }
+
+        return `
+          <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%;">
+            <svg viewBox="0 0 140 140" width="100%" height="100%" style="display: block; margin: 0 auto; max-width: 110px; transform: rotate(-90deg);">
+              <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#EAE8DF" stroke-width="${strokeWidth}" />
+              <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#5B6B54" stroke-width="${strokeWidth}" stroke-dasharray="${gutLen.toFixed(1)} ${circumference.toFixed(1)}" stroke-dashoffset="${gutOffset.toFixed(1)}" stroke-linecap="butt" />
+              <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#C85A54" stroke-width="${strokeWidth}" stroke-dasharray="${heartLen.toFixed(1)} ${circumference.toFixed(1)}" stroke-dashoffset="${heartOffset.toFixed(1)}" stroke-linecap="butt" />
+              <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#C29A47" stroke-width="${strokeWidth}" stroke-dasharray="${headLen.toFixed(1)} ${circumference.toFixed(1)}" stroke-dashoffset="${headOffset.toFixed(1)}" stroke-linecap="butt" />
+            </svg>
+            <div style="margin-top: -76px; height: 76px; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; text-align: center; z-index: 2;">
+              <span style="font-size: 0.65rem; color: #747B61; font-weight: 700; line-height: 1;">주도 센터</span>
+              <span style="font-size: 0.82rem; color: ${dominantColor}; font-weight: 800; line-height: 1.2; margin-top: 2px;">${dominantName}</span>
+              <span style="font-size: 0.72rem; color: #2A3022; font-weight: 700; line-height: 1;">${dominantScore}%</span>
+            </div>
+            <div style="display: flex; justify-content: center; gap: 8px; font-size: 0.74rem; font-weight: 600; margin-top: 14px; width: 100%;">
+              <span style="display: inline-flex; align-items: center; gap: 3px; color: #2A3022;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #5B6B54; display: inline-block;"></span>장 ${gut}%</span>
+              <span style="display: inline-flex; align-items: center; gap: 3px; color: #2A3022;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #C85A54; display: inline-block;"></span>가슴 ${heart}%</span>
+              <span style="display: inline-flex; align-items: center; gap: 3px; color: #2A3022;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #C29A47; display: inline-block;"></span>머리 ${head}%</span>
+            </div>
+          </div>
+        `;
+      };
+
       const gut = Math.min(100, Math.max(0, parseInt(data['장본능센터'] || data['장본능'] || data['본능센터'] || 0, 10)));
       const heart = Math.min(100, Math.max(0, parseInt(data['가슴감정센터'] || data['가슴감정'] || data['감정센터'] || 0, 10)));
       const head = Math.min(100, Math.max(0, parseInt(data['머리사고센터'] || data['머리사고'] || data['사고센터'] || 0, 10)));
 
-      const centersHtml = `
-        <div class="center-item">
-          <div class="center-label-row">
-            <span style="color: #2A3022;">🛡️ 장(본능) 센터 (8,9,1번)</span>
-            <span style="color: #5B6B54; font-weight:700;">${gut}%</span>
-          </div>
-          <div class="center-track">
-            <div class="center-fill" style="width: ${gut}%; background: #5B6B54;"></div>
-          </div>
-        </div>
-
-        <div class="center-item">
-          <div class="center-label-row">
-            <span style="color: #2A3022;">💖 가슴(감정) 센터 (2,3,4번)</span>
-            <span style="color: #C85A54; font-weight:700;">${heart}%</span>
-          </div>
-          <div class="center-track">
-            <div class="center-fill" style="width: ${heart}%; background: #C85A54;"></div>
-          </div>
-        </div>
-
-        <div class="center-item">
-          <div class="center-label-row">
-            <span style="color: #2A3022;">💡 머리(사고) 센터 (5,6,7번)</span>
-            <span style="color: #C29A47; font-weight:700;">${head}%</span>
-          </div>
-          <div class="center-track">
-            <div class="center-fill" style="width: ${head}%; background: #C29A47;"></div>
-          </div>
-        </div>
-      `;
-
-      // 2. 날개 양극바
+      // 3. 날개 양극바 & 정서적 탄력성
       const leftKey = keys.find(k => k.startsWith('왼쪽날개')) || '왼쪽날개';
       const rightKey = keys.find(k => k.startsWith('오른쪽날개')) || '오른쪽날개';
 
@@ -1129,135 +1156,128 @@ const MarkdownParser = {
         wingBarHtml = `<div class="bipolar-bar-pos" style="width: ${barWidth}%; background: #C29A47;"></div>`;
       }
 
-      const wingHtml = `
-        <div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:6px; align-items:center;">
+      const intVal = Math.min(100, Math.max(0, parseInt(data['통합_성장에너지'] || data['통합'] || data['성장에너지'] || 0, 10)));
+      const disVal = Math.min(100, Math.max(0, parseInt(data['분열_스트레스반응'] || data['분열'] || data['스트레스반응'] || 0, 10)));
+
+      const wingSectionHtml = `
+        <div style="display:flex; justify-content:space-between; font-size:0.80rem; margin-bottom:5px; align-items:center;">
           <div>${leftWingColHtml}</div>
-          <div style="font-size:0.78rem; font-weight:700; color:#626756;">🪽 날개 주도권</div>
+          <div style="font-size:0.75rem; font-weight:700; color:#626756;">🪽 날개 주도권</div>
           <div>${rightWingColHtml}</div>
         </div>
-        <div class="bipolar-track">
-          <div class="bipolar-center-pin"></div>
+        <div class="bipolar-track" style="height: 7px; margin-bottom: 8px;">
+          <div class="bipolar-center-pin-subtle"></div>
           ${wingBarHtml}
         </div>
+        ${(intVal > 0 || disVal > 0) ? `
+          <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
+            ${intVal > 0 ? `
+              <div class="unipolar-item-row" style="margin-bottom: 0;">
+                <div class="unipolar-meta-row" style="font-size: 0.78rem; margin-bottom: 3px;">
+                  <span>🌱 통합 (성장 에너지)</span>
+                  <span style="font-weight: 700; color: #3D4A3E;">${intVal}%</span>
+                </div>
+                <div class="unipolar-track" style="height: 6px;">
+                  <div class="unipolar-fill-bar" style="width: ${intVal}%; background: #3D4A3E;"></div>
+                </div>
+              </div>
+            ` : ''}
+            ${disVal > 0 ? `
+              <div class="unipolar-item-row" style="margin-bottom: 0;">
+                <div class="unipolar-meta-row" style="font-size: 0.78rem; margin-bottom: 3px;">
+                  <span>🌩️ 분열 (스트레스 반응)</span>
+                  <span style="font-weight: 700; color: #C85A54;">${disVal}%</span>
+                </div>
+                <div class="unipolar-track" style="height: 6px;">
+                  <div class="unipolar-fill-bar" style="width: ${disVal}%; background: #C85A54;"></div>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        ` : ''}
       `;
 
-      // 3. 본능 삼원소 & 통합/분열
+      // 4. 본능 삼원소 (슬림 6px 바)
       const sp = Math.min(100, Math.max(0, parseInt(data['자기보존'] || 0, 10)));
       const sx = Math.min(100, Math.max(0, parseInt(data['일대일'] || 0, 10)));
       const so = Math.min(100, Math.max(0, parseInt(data['사회적'] || 0, 10)));
 
-      const intVal = Math.min(100, Math.max(0, parseInt(data['통합_성장에너지'] || data['통합'] || data['성장에너지'] || 0, 10)));
-      const disVal = Math.min(100, Math.max(0, parseInt(data['분열_스트레스반응'] || data['분열'] || data['스트레스반응'] || 0, 10)));
-
-      const bottomGaugesHtml = `
-        <!-- 좌측: 본능 삼원소 -->
-        <div class="unipolar-list" style="display:flex; flex-direction:column; gap:12px;">
-          <div style="font-size:0.82rem; font-weight:700; color:#626756; margin-bottom:2px;">본능 삼원소 (Instinctual Subtypes)</div>
-          
-          <div class="unipolar-item-row" style="margin-bottom:0;">
-            <div class="unipolar-meta-row">
-              <span>🏠 자기보존 (sp)</span>
-              <span style="font-weight:700; color:#2A3022;">${sp}%</span>
-            </div>
-            <div class="unipolar-track">
-              <div class="unipolar-fill-bar" style="width: ${sp}%; background: #5B6B54;"></div>
-            </div>
+      const instinctsSectionHtml = `
+        <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid #EAE8DF;">
+          <div style="font-size: 0.86rem; font-weight: 700; color: #2A3022; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <span>🌿 에니어그램 본능 삼원소 (sp / sx / so)</span>
+            <span style="font-size: 0.74rem; color: #747B61; font-weight: 600;">본능적 에너지 집중 비중</span>
           </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+            <div class="unipolar-item-row" style="margin-bottom: 0;">
+              <div class="unipolar-meta-row" style="font-size: 0.80rem; margin-bottom: 4px;">
+                <span>🏠 자기보존 (sp)</span>
+                <span style="font-weight: 700; color: #2A3022;">${sp}%</span>
+              </div>
+              <div class="unipolar-track" style="height: 6px;">
+                <div class="unipolar-fill-bar" style="width: ${sp}%; background: #5B6B54;"></div>
+              </div>
+            </div>
 
-          <div class="unipolar-item-row" style="margin-bottom:0;">
-            <div class="unipolar-meta-row">
-              <span>⚡ 일대일/친밀 (sx)</span>
-              <span style="font-weight:700; color:#2A3022;">${sx}%</span>
+            <div class="unipolar-item-row" style="margin-bottom: 0;">
+              <div class="unipolar-meta-row" style="font-size: 0.80rem; margin-bottom: 4px;">
+                <span>⚡ 일대일 / 친밀 (sx)</span>
+                <span style="font-weight: 700; color: #2A3022;">${sx}%</span>
+              </div>
+              <div class="unipolar-track" style="height: 6px;">
+                <div class="unipolar-fill-bar" style="width: ${sx}%; background: #D98236;"></div>
+              </div>
             </div>
-            <div class="unipolar-track">
-              <div class="unipolar-fill-bar" style="width: ${sx}%; background: #D98236;"></div>
-            </div>
-          </div>
 
-          <div class="unipolar-item-row" style="margin-bottom:0;">
-            <div class="unipolar-meta-row">
-              <span>🌐 사회적 (so)</span>
-              <span style="font-weight:700; color:#2A3022;">${so}%</span>
-            </div>
-            <div class="unipolar-track">
-              <div class="unipolar-fill-bar" style="width: ${so}%; background: #4A5D4E;"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 우측: 통합 및 분열 에너제틱 -->
-        <div class="unipolar-list" style="display:flex; flex-direction:column; gap:12px;">
-          <div style="font-size:0.82rem; font-weight:700; color:#626756; margin-bottom:2px;">정서적 탄력성 & 스트레스 역동</div>
-
-          <div class="unipolar-item-row" style="margin-bottom:0;">
-            <div class="unipolar-meta-row">
-              <span>🌱 통합/성장 에너지 (통합 방향)</span>
-              <span style="color:#3D4A3E; font-weight:700;">${intVal}%</span>
-            </div>
-            <div class="unipolar-track">
-              <div class="unipolar-fill-bar" style="width: ${intVal}%; background: #3D4A3E;"></div>
-            </div>
-          </div>
-
-          <div class="unipolar-item-row" style="margin-bottom:0; margin-top:4px;">
-            <div class="unipolar-meta-row">
-              <span>🌩️ 분열/스트레스 반응 (퇴행 방향)</span>
-              <span style="color:#C85A54; font-weight:700;">${disVal}%</span>
-            </div>
-            <div class="unipolar-track">
-              <div class="unipolar-fill-bar" style="width: ${disVal}%; background: #C85A54;"></div>
+            <div class="unipolar-item-row" style="margin-bottom: 0;">
+              <div class="unipolar-meta-row" style="font-size: 0.80rem; margin-bottom: 4px;">
+                <span>🌐 사회적 (so)</span>
+                <span style="font-weight: 700; color: #2A3022;">${so}%</span>
+              </div>
+              <div class="unipolar-track" style="height: 6px;">
+                <div class="unipolar-fill-bar" style="width: ${so}%; background: #4A5D4E;"></div>
+              </div>
             </div>
           </div>
         </div>
       `;
 
       return `
-        <div class="report-card-container">
-          <div class="report-card-header">
+        <div class="report-card-container" style="padding: 20px 18px; margin: 16px 0;">
+          <div class="report-card-header" style="padding-bottom: 3px; margin-bottom: 16px; border-bottom: 1px solid #E0DED3;">
             <h4 class="report-card-title">⚓ 무의식적 욕구 및 에니어그램 프로파일</h4>
             ${cleanType ? `<div class="report-card-type-label">${cleanType}</div>` : ''}
           </div>
 
-          <div class="ennea-grid-row">
-            <!-- 좌측: 9각형 레이더 차트 -->
-            <div class="sub-card">
-              <div class="sub-card-title">
+          <!-- 상단 2열: 9개 유형 스펙트럼 레이더 차트 + 3대 에너제틱 센터 도넛 & 날개 (중첩 박스 없는 일체형) -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px; align-items: start;">
+            <!-- 좌측: 9개 유형 스펙트럼 (레이더 차트) -->
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+              <div style="width: 100%; display: flex; justify-content: space-between; font-size: 0.86rem; font-weight: 700; color: #2A3022; margin-bottom: 8px;">
                 <span>🕸️ 9개 유형 스펙트럼</span>
-                <span style="font-size:0.75rem; color:#626756; font-weight:400;">100% 척도</span>
+                <span style="font-size: 0.74rem; color: #747B61; font-weight: 600;">100% 척도</span>
               </div>
-              <div class="radar-chart-box">
-                ${generateRadarSvg()}
-              </div>
+              ${generateRadarSvg()}
             </div>
 
-            <!-- 우측: 3대 에너제틱 센터 & 날개 활성도 -->
-            <div class="sub-card" style="justify-content: space-between;">
-              <div style="width: 100%;">
-                <div class="sub-card-title">
+            <!-- 우측: 3대 에너제틱 센터 도넛 & 날개 주도권 -->
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+              <div>
+                <div style="font-size: 0.86rem; font-weight: 700; color: #2A3022; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
                   <span>🧠 3대 에너제틱 센터</span>
-                  <span style="font-size:0.75rem; color:#626756; font-weight:400;">주도권 비중</span>
+                  <span style="font-size: 0.74rem; color: #747B61; font-weight: 600;">에너지 비중</span>
                 </div>
-                <div class="centers-box">
-                  ${centersHtml}
-                </div>
+                ${generateCentersDonutSvg(gut, heart, head)}
               </div>
 
-              <!-- 날개 양극성 바 -->
-              <div class="bipolar-wing-box">
-                ${wingHtml}
+              <div style="border-top: 1px dashed #E0DED3; padding-top: 12px;">
+                ${wingSectionHtml}
               </div>
             </div>
           </div>
 
-          <!-- 2행: 본능 삼원소 & 통합/분열 지표 -->
-          <div style="background: #FFFFFF; border: 1px solid #E5E3D8; border-radius: 14px; padding: 16px 14px;">
-            <div class="section-divider-title">
-              <span>🌿 본능 삼원소 & 정서적 역동 지표</span>
-            </div>
-            <div class="bottom-gauges-grid">
-              ${bottomGaugesHtml}
-            </div>
-          </div>
+          <!-- 하단: 본능 삼원소 (일체형 슬림 바) -->
+          ${instinctsSectionHtml}
         </div>
       `;
     }
