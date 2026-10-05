@@ -1127,7 +1127,7 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 4px;
+  margin-top: 8px; /* 말풍선과의 간격 딱 8px */
   padding: 0 4px;
   opacity: 0.7;
   transition: opacity 0.15s ease;
@@ -1142,7 +1142,7 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 3px;
+  padding: 4px; /* 버튼 1px 확대 */
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1946,7 +1946,7 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
 }
 
 .report-card-header {
-  padding-bottom: 12px;
+  padding-bottom: 6px;
   margin-bottom: 16px;
   border-bottom: 1px solid #E0DED3;
 }
@@ -1957,10 +1957,20 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   color: #2A3022;
 }
 
+.report-card-type-label {
+  font-size: 0.98rem; /* 기본 텍스트(0.94rem) 대비 딱 1px 상향 */
+  font-weight: 700;
+  color: #2A3022;
+  margin-top: 6px;
+  margin-bottom: 2px;
+  letter-spacing: -0.01em;
+}
+
 .report-card-desc {
   font-size: 0.82rem;
   color: #626756;
-  margin-top: 4px;
+  margin-top: 8px;
+  margin-bottom: 4px;
 }
 
 .bipolar-item-row {
@@ -2133,7 +2143,13 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   border-radius: 5px !important;
 }
 
-/* 대화 수정 텍스트에리어 */
+/* 대화 수정 텍스트에리어 및 수정 중 말풍선 */
+.chat-bubble.is-editing {
+  width: 88% !important;
+  max-width: 88% !important;
+  box-sizing: border-box !important;
+}
+
 .bubble-edit-textarea {
   width: 100% !important;
   box-sizing: border-box !important;
@@ -2692,9 +2708,21 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   font-weight: 700 !important;
   line-height: inherit !important;
   flex-shrink: 0 !important;
-  display: inline-block !important;
-  width: 10px !important;
-  text-align: left !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 12px !important;
+  height: 1.66em !important;
+}
+
+.md-sub-bullet-dot svg.bullet-svg {
+  display: block;
+  flex-shrink: 0;
+  fill: currentColor;
+}
+
+blockquote .md-sub-bullet-dot {
+  color: #8C947C !important;
 }
 
 .md-sub-bullet-text {

@@ -578,6 +578,13 @@ const MarkdownParser = {
       }
     };
 
+    // SVG 불릿 아이콘 (말차 테마 일치, 아이폰/안드로이드 기기별 폰트 왜곡 방지 및 네모/세모 동일 6x6 크기)
+    const SVG_BULLETS = {
+      dash: '<svg class="bullet-svg bullet-svg-dash" viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><rect x="1" y="4" width="8" height="2" rx="1" fill="currentColor"/></svg>',
+      square: '<svg class="bullet-svg bullet-svg-square" viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><rect x="2" y="2" width="6" height="6" rx="1" fill="currentColor"/></svg>',
+      arrow: '<svg class="bullet-svg bullet-svg-arrow" viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><polygon points="2,2 8,5 2,8" fill="currentColor"/></svg>'
+    };
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const numMatch = line.match(/^[ \t]*(\d{1,2}[\.\)])[ \t]+(.*)/);
@@ -591,16 +598,16 @@ const MarkdownParser = {
       } else if (inNumberedItem && subBulletMatch) {
         const indentSpaces = subBulletMatch[1].replace(/\t/g, '    ').length;
         let level = 1;
-        let dotSymbol = '-';
+        let dotSymbol = SVG_BULLETS.dash;
         if (indentSpaces >= 9) {
           level = 3;
-          dotSymbol = '·';
+          dotSymbol = SVG_BULLETS.arrow;
         } else if (indentSpaces >= 5) {
           level = 2;
-          dotSymbol = '▪';
+          dotSymbol = SVG_BULLETS.square;
         } else {
           level = 1;
-          dotSymbol = '-';
+          dotSymbol = SVG_BULLETS.dash;
         }
 
         const subContent = subBulletMatch[3];
@@ -640,22 +647,22 @@ const MarkdownParser = {
     flushNumberedItem();
     text = newLines.join('\n');
 
-    // 2. 최상위 및 순수 불릿 목록 (- or * or •) 다계층 파싱 (1단계: -, 2단계: ▪, 3단계: ·)
+    // 2. 최상위 및 순수 불릿 목록 (- or * or •) 다계층 파싱 (1단계: -, 2단계: ▪, 3단계: ‣)
     text = text.replace(/(?:^[ \t]*[-*•][ \t]+.+?(?:\n[ \t]{2,}.+?)*(\n|$))+/gm, (match) => {
       const rawItems = match.trim().split(/\n(?=[ \t]*[-*•][ \t]+)/);
       const items = rawItems.map(item => {
         const indentSpaces = (item.match(/^[ \t]*/)[0] || '').replace(/\t/g, '    ').length;
         let level = 1;
-        let dotSymbol = '-';
+        let dotSymbol = SVG_BULLETS.dash;
         if (indentSpaces >= 6) {
           level = 3;
-          dotSymbol = '·';
+          dotSymbol = SVG_BULLETS.arrow;
         } else if (indentSpaces >= 2) {
           level = 2;
-          dotSymbol = '▪';
+          dotSymbol = SVG_BULLETS.square;
         } else {
           level = 1;
-          dotSymbol = '-';
+          dotSymbol = SVG_BULLETS.dash;
         }
 
         const cleaned = item.replace(/^[ \t]*[-*•][ \t]+/, '').replace(/\n[ \t]{2,}/g, '<br>');
@@ -838,11 +845,17 @@ const MarkdownParser = {
         `;
       });
 
-      const typeLabel = data['도출유형'];
+      let rawTypeLabel = data['도출유형'] || data['도출 유형'] || data['유형'] || data['mbti'] || data['MBTI'] || data['MBTI유형'] || data['mbti유형'] || '';
+      let cleanTypeLabel = String(rawTypeLabel).trim();
+      while (cleanTypeLabel.startsWith('(') && cleanTypeLabel.endsWith(')')) {
+        cleanTypeLabel = cleanTypeLabel.slice(1, -1).trim();
+      }
+
       return `
         <div class="report-card-container">
           <div class="report-card-header">
-            <h4 class="report-card-title">🧩 MBTI 5대 성향 축 선호 지표${typeLabel ? ` (${typeLabel})` : ''}</h4>
+            <h4 class="report-card-title">🧩 MBTI 5대 성향 축 선호 지표</h4>
+            ${cleanTypeLabel ? `<div class="report-card-type-label">${cleanTypeLabel}</div>` : ''}
             <p class="report-card-desc">양극 스펙트럼 기준 선호도 및 활성 비율</p>
           </div>
           ${rowsHtml}
@@ -3241,13 +3254,13 @@ const ChatUI = {
       actionBar.className = 'bubble-action-bar-outside';
       actionBar.innerHTML = `
         <button type="button" class="bubble-action-btn btn-refresh-msg" title="다시 전송 (새로고침)">
-          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-refresh-cw"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-refresh-cw"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
         </button>
         <button type="button" class="bubble-action-btn btn-edit-msg" title="메시지 수정">
-          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pen-line"><path d="M13 21h8"/><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pen-line"><path d="M13 21h8"/><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>
         </button>
         <button type="button" class="bubble-action-btn btn-delete-msg" title="메시지 삭제">
-          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eraser"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/><path d="m5.082 11.09 8.828 8.828"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eraser"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/><path d="m5.082 11.09 8.828 8.828"/></svg>
         </button>
       `;
 
@@ -3347,9 +3360,11 @@ const ChatUI = {
         contentDiv.style.display = 'none';
         actionBar.classList.add('hidden');
 
-        // 카드 그대로 두고, 최소 폭을 확보해 편안하게 입력
+        // 카드 그대로 두고, 원래 텍스트 박스 가로 너비 및 넉넉한 편집 폭 유지
         bubble.classList.add('is-editing');
-        bubble.style.minWidth = 'min(100%, 280px)';
+        const origWidth = bubble.offsetWidth;
+        const parentWidth = bubble.parentElement ? bubble.parentElement.offsetWidth : 360;
+        bubble.style.width = `${Math.max(origWidth, parentWidth * 0.88)}px`;
 
         // 중복 방지
         const existingEdit = bubble.querySelector('.bubble-edit-textarea');
@@ -3393,6 +3408,7 @@ const ChatUI = {
           editArea.remove();
           outsideEditBar.remove();
           bubble.classList.remove('is-editing');
+          bubble.style.width = '';
           bubble.style.minWidth = '';
           contentDiv.classList.remove('hidden');
           contentDiv.style.display = '';
@@ -3427,6 +3443,7 @@ const ChatUI = {
           editArea.remove();
           outsideEditBar.remove();
           bubble.classList.remove('is-editing');
+          bubble.style.width = '';
           bubble.style.minWidth = '';
           contentDiv.classList.remove('hidden');
           contentDiv.style.display = '';
