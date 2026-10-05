@@ -1946,32 +1946,32 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
 }
 
 .report-card-header {
-  padding-bottom: 2px;
-  margin-bottom: 14px;
-  border-bottom: 1px solid #E0DED3;
+  padding-bottom: 3px !important;
+  margin-bottom: 14px !important;
+  border-bottom: 1px solid #E0DED3 !important;
 }
 
 .report-card-title {
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #2A3022;
-  margin-bottom: 2px;
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+  color: #2A3022 !important;
+  margin-bottom: 0 !important;
 }
 
 .report-card-type-label {
-  font-size: 0.98rem; /* 기본 텍스트(0.94rem) 대비 딱 1px 상향 */
-  font-weight: 700;
-  color: #2A3022;
-  margin-top: 10px;
-  margin-bottom: 1px;
-  letter-spacing: -0.01em;
+  font-size: 0.98rem !important; /* 기본 텍스트(0.94rem) 대비 딱 1px 상향 */
+  font-weight: 700 !important;
+  color: #2A3022 !important;
+  margin-top: 16px !important; /* 제목에서 멀어져 하단 실선에 바짝 밀착 */
+  margin-bottom: 2px !important;
+  letter-spacing: -0.01em !important;
 }
 
 .report-card-desc {
-  font-size: 0.82rem;
-  color: #626756;
-  margin-top: 10px;
-  margin-bottom: 1px;
+  font-size: 0.82rem !important;
+  color: #626756 !important;
+  margin-top: 16px !important; /* 제목에서 아래로 내려와 하단 실선에 바짝 밀착 */
+  margin-bottom: 2px !important;
 }
 
 .bipolar-item-row {
@@ -3005,24 +3005,6 @@ html.is-ios .choice-chk {
   padding: 22px 18px;
   margin: 16px 0;
   box-shadow: 0 4px 16px rgba(45, 47, 39, 0.05);
-}
-
-.report-card-header {
-  padding-bottom: 10px;
-  margin-bottom: 14px;
-  border-bottom: 1px solid #E0DED3;
-}
-
-.report-card-title {
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #2A3022;
-}
-
-.report-card-desc {
-  font-size: 0.82rem;
-  color: #626756;
-  margin-top: 4px;
 }
 
 .bipolar-item-row {
