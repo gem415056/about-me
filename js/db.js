@@ -134,3 +134,8 @@ const DB = {
     });
   }
 };
+
+if (typeof window !== 'undefined') {
+  window.DB = DB;
+  window.DB_CONFIG = DB_CONFIG;
+}

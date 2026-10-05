@@ -1630,7 +1630,7 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   align-items: center;
   gap: 6px;
   background: rgba(255, 255, 255, 0.2) !important;
-  color: #FFFFFF !important;
+  color: #FAF8F2 !important;
   border: 1px solid rgba(255, 255, 255, 0.35) !important;
   padding: 4px 10px;
   border-radius: 8px;
@@ -1812,7 +1812,7 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   padding: 3px 7px;
   border-radius: 5px;
   background: #747B61;
-  color: #FFF;
+  color: #FAF8F2;
   margin-left: 6px;
   display: inline-flex;
   align-items: center;
@@ -1897,7 +1897,7 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   justify-content: center;
   gap: 6px;
   background: #747B61;
-  color: #FFF;
+  color: #FAF8F2;
   border: 1px solid #5A614A;
   border-radius: 999px;
   padding: 0 16px;
@@ -2275,7 +2275,7 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
 
 .circle-arrow-btn-soft:hover {
   background: #747B61;
-  color: #FFF;
+  color: #FAF8F2;
   border-color: #5A614A;
   transform: scale(1.06);
 }
@@ -2901,7 +2901,7 @@ html.is-ios .choice-chk {
   padding: 2px 7px;
   border-radius: 4px;
   background: #747B61;
-  color: #FFF;
+  color: #FAF8F2;
   margin-left: 6px;
   display: inline-block;
   vertical-align: middle;
@@ -2963,7 +2963,7 @@ html.is-ios .choice-chk {
   justify-content: center;
   gap: 5px;
   background: #747B61;
-  color: #FFF;
+  color: #FAF8F2;
   border: 1px solid #5A614A;
   border-radius: 999px;
   padding: 0 14px;
@@ -3079,154 +3079,78 @@ html.is-ios .choice-chk {
   transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* ==========================================================================
-   에니어그램 입체 리포트 전용 스타일 (enneagram_preview.html 디자인 100% 일치)
-   ========================================================================== */
-.ennea-grid-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-bottom: 16px;
-}
-
-@media (max-width: 680px) {
-  .ennea-grid-row {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-}
-
-.sub-card {
-  background: #FFFFFF;
-  border: 1px solid #E5E3D8;
-  border-radius: 14px;
-  padding: 16px 14px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  box-sizing: border-box;
-}
-
-.sub-card-title {
-  font-size: 0.88rem;
+/* 에니어그램 프리뷰 진입 버튼 스타일 */
+.header-preview-pill-btn {
+  background: #4E5D46;
+  color: #FAF8F2;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.76rem;
   font-weight: 700;
-  color: #2A3022;
-  margin-bottom: 12px;
-  width: 100%;
-  text-align: left;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.header-preview-pill-btn:hover {
+  background: #384534;
+  transform: translateY(-1px);
+}
+.landing-preview-pill-btn {
+  background: #FAF8F2;
+  color: #384534;
+  border: 1.5px solid #D8D6C9;
+  padding: 10px 18px;
+  border-radius: 24px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(56,69,52,0.08);
+  transition: all 0.2s ease;
+}
+.landing-preview-pill-btn:hover {
+  background: #384534;
+  color: #FAF8F2;
+  border-color: #384534;
+  transform: translateY(-1px);
 }
 
-.radar-chart-box {
-  width: 100%;
-  max-width: 270px;
-  aspect-ratio: 1;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto;
+/* 에니어그램 프리뷰 배너 및 탭 스위처 */
+.ennea-preview-banner {
+  background: #ECEBE5;
+  border: 1.5px solid #D1CFC2;
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
 }
 
-.centers-box {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.center-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.center-label-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.82rem;
+.ennea-tab-btn {
+  background: #FAF8F2;
+  color: #3E4236;
+  border: 1px solid #D1CFC2;
+  padding: 8px 6px;
+  border-radius: 10px;
+  font-size: 0.8rem;
   font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.18s ease;
+  user-select: none;
 }
 
-.center-track {
-  height: 9px;
-  background: #EAE8DF;
-  border-radius: 5px;
-  overflow: hidden;
-  position: relative;
+.ennea-tab-btn:hover {
+  background: #E4E2D7;
+  border-color: #8E967E;
 }
 
-.center-fill {
-  height: 100%;
-  border-radius: 5px;
-  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.bipolar-wing-box {
-  width: 100%;
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px dashed #E0DED3;
-}
-
-.bipolar-wing-box .bipolar-track {
-  position: relative;
-  width: 100%;
-  height: 8px;
-  background: #EAE8DF;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.bipolar-wing-box .bipolar-center-pin {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  width: 2px;
-  height: 100%;
-  background: #B5B2A3;
-  z-index: 2;
-}
-
-.bipolar-wing-box .bipolar-bar-pos {
-  position: absolute;
-  left: 50%;
-  height: 100%;
-  border-radius: 0 4px 4px 0;
-  transition: width 0.6s ease;
-}
-
-.bipolar-wing-box .bipolar-bar-neg {
-  position: absolute;
-  right: 50%;
-  height: 100%;
-  border-radius: 4px 0 0 4px;
-  transition: width 0.6s ease;
-}
-
-.bottom-gauges-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-@media (max-width: 600px) {
-  .bottom-gauges-grid {
-    grid-template-columns: 1fr;
-    gap: 14px;
-  }
-}
-
-.section-divider-title {
-  font-size: 0.88rem;
+.ennea-tab-btn.active {
+  background: #4E5D46;
+  color: #FAF8F2;
+  border-color: #384534;
   font-weight: 700;
-  color: #2A3022;
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  box-shadow: 0 2px 8px rgba(56, 69, 52, 0.22);
 }
+
 
 
