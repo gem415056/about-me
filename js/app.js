@@ -3769,12 +3769,16 @@ const ChatManager = {
         }
         await SessionManager.renderSessionList(category);
 
-        // 보고서 생성 시 하단 입력창 노출
+        // 보고서 생성 시 하단 입력창 노출, 미생성 시(검사 지속 중) 하단 입력창 숨김 유지
         if (isPsychology) {
           const reportCheck = MarkdownParser.extractReport(finalText);
           const psychInputBar = document.getElementById('psychology-input-bar');
-          if (reportCheck.hasReport && psychInputBar) {
-            psychInputBar.classList.remove('hidden');
+          if (psychInputBar) {
+            if (reportCheck.hasReport) {
+              psychInputBar.classList.remove('hidden');
+            } else {
+              psychInputBar.classList.add('hidden');
+            }
           }
         }
 
@@ -3865,16 +3869,11 @@ const ChatUI = {
         } else {
           // 심리학 대화방 모델 응답인 경우
           if (containerId === 'psychology-chat-messages') {
-            // [요구사항 3] 보고서 출력 이후 후속 대화인 경우 선택지 파서 해제 -> 일반 마크다운 파서 적용
-            const hasReportInSession = ChatManager.activeHistory.some(m => m.role === 'model' && MarkdownParser.extractReport(m.content).hasReport) ||
-                                       Boolean(document.querySelector('#psychology-chat-messages .is-report-wrapper'));
-            if (!hasReportInSession) {
-              const dossier = MarkdownParser.parseChoiceDossier(currentRaw, currentMsgId, currentChoiceState);
-              if (dossier.hasChoices) {
-                contentDiv.innerHTML = dossier.html;
-                MarkdownParser.bindChoiceEvents(contentDiv, currentMsgId, currentChoiceState);
-                return;
-              }
+            const dossier = MarkdownParser.parseChoiceDossier(currentRaw, currentMsgId, currentChoiceState);
+            if (dossier.hasChoices) {
+              contentDiv.innerHTML = dossier.html;
+              MarkdownParser.bindChoiceEvents(contentDiv, currentMsgId, currentChoiceState);
+              return;
             }
             contentDiv.innerHTML = MarkdownParser.parse(currentRaw);
           } else {
@@ -4780,6 +4779,25 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnCloseReport) {
     btnCloseReport.addEventListener('click', () => {
       ReportController.close(true);
+    });
+  }
+
+  // 전체화면 보고서 우상단 검사 계속 이어서 하기 (→) 버튼 이벤트
+  const btnContinueTest = document.getElementById('btn-continue-test');
+  if (btnContinueTest) {
+    btnContinueTest.addEventListener('click', async () => {
+      // 1. 보고서 오버레이 닫기
+      ReportController.close(true);
+
+      // 2. 심리학 검사 입력창 숨김 유지 (체크박스 검사 모드로 복귀)
+      const psychInputBar = document.getElementById('psychology-input-bar');
+      if (psychInputBar) {
+        psychInputBar.classList.add('hidden');
+      }
+
+      // 3. AI에게 기존 대화 페이로드 전부와 함께 검사 지속 요청 전송
+      const resumePrompt = `[검사 지속 요청] 조기 진단 혹은 진단 오류 상황입니다. 성급한 최종 보고서 종결 대신 기존 심리 및 에니어그램 검사 문항(선택지 카드 포함)을 이어서 계속 진행해 주세요.`;
+      await ChatManager.sendChoicePayload('psychology', resumePrompt);
     });
   }
 
