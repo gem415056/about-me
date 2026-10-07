@@ -1243,27 +1243,92 @@ const MarkdownParser = {
     return text;
   },
 
+  // [핵심 3.4] AI 불완전/비표준 JSON 자동 치유 파서 (후행 쉼표, 주석, % 기호, 닫는 백틱 누락 복구)
+  repairAndParseJson(jsonStr) {
+    if (!jsonStr || typeof jsonStr !== 'string') return null;
+    let clean = jsonStr.trim();
+
+    // 1. 표준 JSON 파싱 1차 시도
+    try {
+      return JSON.parse(clean);
+    } catch (e) {}
+
+    // 2. 비표준 JSON 자동 치료 시도
+    try {
+      // JS/C 스타일 주석(// 및 /* */) 제거
+      clean = clean.replace(/\/\*[\s\S]*?\*\//g, '');
+      clean = clean.replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+
+      // 값 뒤의 % 기호 제거 (예: 80% -> 80)
+      clean = clean.replace(/:\s*(\d+)\s*%/g, ': $1');
+      clean = clean.replace(/:\s*"(\d+)%"/g, ': $1');
+
+      // 작은따옴표를 큰따옴표로 변환
+      clean = clean.replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, '"$1"');
+
+      // 따옴표 없는 한글/영문 키에 큰따옴표 부여
+      clean = clean.replace(/([{,]\s*)([a-zA-Z0-9_\uAC00-\uD7A3]+)\s*:/g, '$1"$2":');
+
+      // 앞자리 0(Leading Zero: 예: 07, 04, 08, 00) 정수를 올바른 10진수 정수로 변환 (JSON.parse 문법 오류 완벽 방지)
+      clean = clean.replace(/:\s*0+([0-9]+)\b/g, (match, digits) => ': ' + parseInt(digits, 10));
+
+      // 후행 쉼표(Trailing commas) 제거
+      clean = clean.replace(/,\s*([}\]])/g, '$1');
+
+      // 가장 바깥쪽 { } 구간만 슬라이스 (외부 텍스트 섞임 방지)
+      const firstBrace = clean.indexOf('{');
+      const lastBrace = clean.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        clean = clean.substring(firstBrace, lastBrace + 1);
+        clean = clean.replace(/,\s*([}\]])/g, '$1');
+      }
+
+      return JSON.parse(clean);
+    } catch (e2) {}
+
+    // 3. 최후의 수단: Key-Value 정규식 복원
+    try {
+      const result = {};
+      const kvRegex = /["']?([^"':\r\n{}]+?)["']?\s*:\s*(?:["']([^"'\r\n]*)["']|(-?\d+(?:\.\d+)?%?)|([^\r\n,}]+))/g;
+      let m;
+      while ((m = kvRegex.exec(jsonStr)) !== null) {
+        const k = m[1].trim();
+        if (!k || k.startsWith('//') || k.startsWith('#')) continue;
+        let v = m[2] !== undefined ? m[2] : (m[3] !== undefined ? m[3] : m[4]);
+        if (v !== undefined) {
+          v = String(v).trim();
+          if (v.endsWith('%')) v = v.slice(0, -1).trim();
+          if (/^-?\d+(\.\d+)?$/.test(v)) v = Number(v);
+          result[k] = v;
+        }
+      }
+      if (Object.keys(result).length > 0) return result;
+    } catch (e3) {}
+
+    return null;
+  },
+
   // [핵심 3.5] 심리학 보고서 JSON 게이지바 시각화 렌더러 (빅파이브 투톤 대칭 바 & 10% 농도 실린더)
   renderJsonGauge(data) {
     if (!data || typeof data !== 'object') return '';
 
     const keys = Object.keys(data);
     const isDisc = keys.some(k => 
-      k.includes('주도') || k.includes('사교') || k.includes('안정형') || k.includes('신중') ||
+      k.includes('주도') || k.includes('사교') || k.includes('안정') || k.includes('신중') ||
       /^[DISC][\s:：()_]/i.test(k) || k.includes('DISC')
     ) || (keys.some(k => k === 'D' || k === 'D형') && keys.some(k => k === 'I' || k === 'I형'));
 
-    const isBigFive = keys.some(k => k === '개방성' || k === '외향성' || k === '우호성' || k === '성실성' || k === '신경증');
-    const isCognitive = keys.some(k => k.includes('기능:') || /^(Ti|Te|Fi|Fe|Ni|Ne|Si|Se)\b/.test(k));
-    const isEnneagram = keys.some(k => k === '자기보존' || k === '일대일' || k === '사회적' || k.includes('에니어그램'));
-    const isMcClelland = keys.some(k => k.includes('성취욕구') || k.includes('권력욕구') || k.includes('친교욕구'));
+    const isBigFive = keys.some(k => k.includes('개방성') || k.includes('외향성') || k.includes('우호성') || k.includes('성실성') || k.includes('신경증'));
+    const isCognitive = keys.some(k => k.includes('기능') || k.includes('주기능') || k.includes('부기능') || k.includes('3차기능') || k.includes('열등기능') || /^(Ti|Te|Fi|Fe|Ni|Ne|Si|Se)\b/i.test(k));
+    const isEnneagram = keys.some(k => k.includes('자기보존') || k.includes('일대일') || k.includes('사회적') || k.includes('에니어그램') || k.includes('본능') || k.includes('개혁가') || k.includes('탐구자') || k.includes('날개'));
+    const isMcClelland = keys.some(k => k.includes('성취') || k.includes('권력') || k.includes('친교'));
 
     const isMbtiAxis = !isDisc && !isBigFive && !isCognitive && !isEnneagram && !isMcClelland && (
       keys.some(k => 
         k.includes('에너지') || k.includes('정보') || k.includes('생활') || k.includes('정서') ||
-        (k.includes('판단') && !k.includes('기능:')) ||
-        k.includes('외향형') || k.includes('내향형') || k.includes('직관형') || k.includes('감각형') ||
-        k.includes('사고형') || k.includes('감정형') || k.includes('판단형') || k.includes('인식형') ||
+        (k.includes('판단') && !k.includes('기능')) ||
+        k.includes('외향') || k.includes('내향') || k.includes('직관') || k.includes('감각') ||
+        k.includes('사고') || k.includes('감정') || k.includes('인식') ||
         /^(E\/I|N\/S|T\/F|J\/P|A\/T)\b/i.test(k)
       )
     );
@@ -1349,7 +1414,7 @@ const MarkdownParser = {
       keys.forEach(key => {
         if (key === '도출유형') return;
 
-        let poleInfo = MBTI_AXIS_POLES.find(p => key.includes(p.keyName) || key.includes(p.leftCode) || key.includes(p.rightCode));
+        let poleInfo = MBTI_AXIS_POLES.find(p => key.includes(p.keyName) || new RegExp(`\\b${p.leftCode}\\b`).test(key) || new RegExp(`\\b${p.rightCode}\\b`).test(key));
         if (!poleInfo) {
           poleInfo = { axisTitle: '성향 축', left: '좌측 성향', right: '우측 성향', leftCode: 'L', rightCode: 'R', leftDefault: '좌측 성향', rightDefault: '우측 성향' };
         }
@@ -1358,27 +1423,40 @@ const MarkdownParser = {
         const numMatch = valStr.match(/\d+/);
         let scorePct = numMatch ? Math.min(100, Math.max(0, parseInt(numMatch[0], 10))) : 50;
 
-        const combinedText = `${key} ${valStr}`;
-        let isRight = false;
+        let rawSub = '';
+        if (key.includes(':')) {
+          rawSub = key.split(':')[1].trim();
+        } else if (key.includes('：')) {
+          rawSub = key.split('：')[1].trim();
+        }
 
-        if (combinedText.includes(poleInfo.rightCode) || combinedText.includes('내향') || combinedText.includes('감각') || combinedText.includes('사고') || combinedText.includes('인식') || combinedText.includes('민감')) {
+        let isRight = false;
+        if (rawSub === poleInfo.rightCode || poleInfo.right.includes(rawSub) || /내향|감각|사고|인식|민감/.test(rawSub)) {
           isRight = true;
-        } else if (combinedText.includes(poleInfo.leftCode) || combinedText.includes('외향') || combinedText.includes('직관') || combinedText.includes('감정') || combinedText.includes('판단') || combinedText.includes('확신') || combinedText.includes('안정')) {
+        } else if (rawSub === poleInfo.leftCode || poleInfo.left.includes(rawSub) || /외향|직관|감정|판단|확신|안정/.test(rawSub)) {
           isRight = false;
         } else {
-          isRight = scorePct >= 50;
+          const combinedText = `${key} ${valStr}`;
+          if (new RegExp(`\\b${poleInfo.rightCode}\\b`).test(combinedText) || combinedText.includes('내향') || combinedText.includes('감각') || combinedText.includes('사고') || combinedText.includes('인식') || combinedText.includes('민감')) {
+            isRight = true;
+          } else if (new RegExp(`\\b${poleInfo.leftCode}\\b`).test(combinedText) || combinedText.includes('외향') || combinedText.includes('직관') || combinedText.includes('감정') || combinedText.includes('판단') || combinedText.includes('확신') || combinedText.includes('안정')) {
+            isRight = false;
+          } else {
+            isRight = scorePct >= 50;
+          }
         }
 
         const barWidth = (scorePct / 100) * 50;
         let barHtml = '';
 
         let traitName = '';
-        if (key.includes(':')) {
-          traitName = key.split(':')[1].trim();
-        } else if (key.includes('：')) {
-          traitName = key.split('：')[1].trim();
-        }
-        if (!traitName) {
+        if (rawSub === poleInfo.leftCode) {
+          traitName = poleInfo.leftDefault;
+        } else if (rawSub === poleInfo.rightCode) {
+          traitName = poleInfo.rightDefault;
+        } else if (rawSub) {
+          traitName = rawSub;
+        } else {
           traitName = isRight ? poleInfo.rightDefault : poleInfo.leftDefault;
         }
 
@@ -1596,20 +1674,46 @@ const MarkdownParser = {
     let processed = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
     // 1.5. JSON 게이지 블록 변환 (오직 보고서 화면에서만 게이지바로 변환하여 원본 보존, 일반 대화는 코드블록)
-    processed = processed.replace(/```json\s*([\s\S]*?)\s*```/g, (match, jsonStr) => {
-      if (isReport) {
-        try {
-          const data = JSON.parse(jsonStr.trim());
+    if (isReport) {
+      // (A) 백틱으로 감싸진 ```json ... ``` 및 ```JSON ... ``` 블록 처리
+      processed = processed.replace(/```(?:json|JSON)?\s*([\s\S]*?)\s*```/g, (match, rawCode) => {
+        const trimmedCode = rawCode.trim();
+
+        // 닫는 백틱(```) 누락으로 여러 개의 { ... } 객체나 마크다운 헤더가 한 덩어리로 뭉친 경우
+        if (trimmedCode.includes('```json') || trimmedCode.includes('```JSON') || (trimmedCode.includes('###') && trimmedCode.includes('{'))) {
+          // 내부의 개별 { ... } JSON 블록들을 찾아서 각각 게이지 카드로 변환
+          return rawCode.replace(/\{[\s\S]*?\}/g, (subJsonStr) => {
+            const subData = this.repairAndParseJson(subJsonStr);
+            if (subData) {
+              const subRendered = this.renderJsonGauge(subData);
+              if (subRendered) return saveBlock(subRendered);
+            }
+            return subJsonStr;
+          });
+        }
+
+        const data = this.repairAndParseJson(trimmedCode);
+        if (data) {
           const rendered = this.renderJsonGauge(data);
           if (rendered) return saveBlock(rendered);
-          return saveBlock(this.renderCodeBlock(jsonStr.trim(), 'JSON'));
-        } catch (e) {
-          return saveBlock(this.renderCodeBlock(jsonStr.trim(), 'JSON'));
         }
-      } else {
+        return saveBlock(this.renderCodeBlock(trimmedCode, 'JSON'));
+      });
+
+      // (B) 닫는 백틱(```)이 아예 누락된 채 마크다운 본문에 그대로 노출된 { ... } JSON 객체 자동 감지 및 변환
+      processed = processed.replace(/(?:^|\n)\s*(\{[\s\r\n]*"(?:도출유형|개방성|외향성|주기능|1번|장본능|주도형|성취욕구|에너지)[^}]*?\})\s*(?=\n|$)/g, (match, nakedJson) => {
+        const data = this.repairAndParseJson(nakedJson);
+        if (data) {
+          const rendered = this.renderJsonGauge(data);
+          if (rendered) return '\n\n' + saveBlock(rendered) + '\n\n';
+        }
+        return match;
+      });
+    } else {
+      processed = processed.replace(/```json\s*([\s\S]*?)\s*```/gi, (match, jsonStr) => {
         return saveBlock(this.renderCodeBlock(jsonStr.trim(), 'JSON'));
-      }
-    });
+      });
+    }
 
     // 1.6. 일반 마크다운 코드 블록 (```lang ... ```) 변환 및 안전 보호
     processed = processed.replace(/```([a-zA-Z0-9_\-#+]*)\s*([\s\S]*?)\s*```/g, (match, lang, code) => {
@@ -3030,10 +3134,9 @@ const ReportController = {
 
   open(reportRawText) {
     if (!this.view || !this.body) return;
-    if (this.isOpen) return;
     this.isOpen = true;
 
-    // 보고서 마크다운 파싱 렌더링 (게이지바 시각화 활성화)
+    // 이전 보고서 내용 초기화 후 새로 마크다운 파싱 렌더링 (게이지바 시각화 활성화)
     this.body.innerHTML = MarkdownParser.parse(reportRawText, true);
     this.view.classList.remove('hidden');
 
