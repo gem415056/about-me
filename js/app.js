@@ -2737,13 +2737,29 @@ const AIEngine = {
       const parsedVertexConfig = VertexManager.parseConfig(vertexConfigStr, explicitRecaptchaKey, explicitRecaptchaType);
       const outputMode = generalSetting?.outputMode || 'stream';
 
-      // [시스템 프롬프트 적용] js/prompts.js의 하드코딩 프롬프트 우선 적용
+      // [시스템 프롬프트 적용]
+      // 1순위: 전용 텍스트 파일 (/prompt_psychology.txt, /prompt_saju.txt - 백틱/특수문자 변환 불필요)
+      // 2순위: js/prompts.js (window.HARDCODED_PROMPTS)
       let systemInstruction = '';
-      if (typeof window !== 'undefined' && window.HARDCODED_PROMPTS && window.HARDCODED_PROMPTS[category]) {
-        systemInstruction = window.HARDCODED_PROMPTS[category];
+
+      try {
+        const txtFile = category === 'psychology' ? '/prompt_psychology.txt' : '/prompt_saju.txt';
+        const txtRes = await fetch(txtFile, { cache: 'no-cache' });
+        if (txtRes.ok) {
+          const rawTxt = await txtRes.text();
+          if (rawTxt && !rawTxt.includes('여기에 심리학 프롬프트 원문') && !rawTxt.includes('여기에 명리학 프롬프트 원문') && rawTxt.trim().length > 10) {
+            systemInstruction = rawTxt.trim();
+          }
+        }
+      } catch (e) {
+        console.warn('텍스트 파일 프롬프트 로드 건너뜀:', e);
       }
 
-      // 만약 아직 하드코딩 파일에 입력되지 않은 경우 DB 또는 기본 프롬프트 폴백
+      if (!systemInstruction && typeof window !== 'undefined' && window.HARDCODED_PROMPTS && window.HARDCODED_PROMPTS[category]) {
+        systemInstruction = window.HARDCODED_PROMPTS[category].trim();
+      }
+
+      // 만약 아직 파일들에 입력되지 않은 경우 DB 또는 기본 프롬프트 폴백
       if (!systemInstruction) {
         const promptData = await DB.get('prompts', category);
         systemInstruction = promptData?.content?.trim() || '';
