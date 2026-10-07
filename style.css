@@ -2641,6 +2641,12 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   line-height: 1.66 !important;
 }
 
+/* 번호 목록 계층 들여쓰기 (1단계: 0px, 2단계: 14px, 3단계: 28px, 4단계: 42px) */
+.md-numbered-item.num-level-1 { margin-left: 0 !important; }
+.md-numbered-item.num-level-2 { margin-left: 14px !important; }
+.md-numbered-item.num-level-3 { margin-left: 28px !important; }
+.md-numbered-item.num-level-4 { margin-left: 42px !important; }
+
 .md-num-label {
   font-weight: 400 !important;
   color: inherit !important;
@@ -2701,18 +2707,20 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  width: 12px !important;
+  width: 1.1em !important;
   height: 1.66em !important;
 }
 
 .md-sub-bullet-dot svg.bullet-svg {
   display: block;
   flex-shrink: 0;
+  width: 0.7em !important;
+  height: 0.7em !important;
   fill: currentColor;
 }
 
 blockquote .md-sub-bullet-dot {
-  color: #8C947C !important;
+  color: rgba(239, 236, 230, 0.85) !important;
 }
 
 .md-sub-bullet-text {

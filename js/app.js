@@ -1042,7 +1042,7 @@ const MarkdownParser = {
             colClass = 'col-percent';
           }
         }
-        tableHtml += `<th class="${colClass}">${h}</th>`;
+        tableHtml += `<th class="${colClass}">${this.parseInline(h)}</th>`;
       });
       tableHtml += `</tr></thead><tbody>`;
 
@@ -1084,14 +1084,14 @@ const MarkdownParser = {
               </td>`;
             }
           } else if (/^\d+%$/.test(cell.replace(/\s/g, ''))) {
-            tableHtml += `<td class="col-percent">${cell}</td>`;
+            tableHtml += `<td class="col-percent">${this.parseInline(cell)}</td>`;
           } else {
             let colClass = '';
             if (hasGauge) {
               if (idx === 0) colClass = 'col-label';
               else if (headers.length === 4 && idx === 1) colClass = 'col-sub-label';
             }
-            tableHtml += `<td class="${colClass}">${cell}</td>`;
+            tableHtml += `<td class="${colClass}">${this.parseInline(cell)}</td>`;
           }
         });
         tableHtml += `</tr>`;
@@ -1109,6 +1109,7 @@ const MarkdownParser = {
     const newLines = [];
     let inNumberedItem = false;
     let currentNum = '';
+    let currentIndent = 0;
     let currentContentLines = [];
 
     const flushNumberedItem = () => {
@@ -1127,52 +1128,64 @@ const MarkdownParser = {
             innerHtml += part;
           }
         }
-        newLines.push(`<div class="md-numbered-item"><span class="md-num-label">${currentNum}</span><div class="md-num-content">${innerHtml.trim()}</div></div>`);
+        let level = 1;
+        if (currentIndent >= 6) level = 3;
+        else if (currentIndent >= 2) level = 2;
+        newLines.push(`<div class="md-numbered-item num-level-${level}"><span class="md-num-label">${currentNum}</span><div class="md-num-content">${innerHtml.trim()}</div></div>`);
         inNumberedItem = false;
         currentNum = '';
+        currentIndent = 0;
         currentContentLines = [];
       }
     };
 
-    // SVG 불릿 아이콘 (말차 테마 일치, 아이폰/안드로이드 기기별 폰트 왜곡 방지 및 네모/세모 동일 6x6 크기)
+    // SVG 불릿 아이콘 (말차 테마 일치, 아이폰/안드로이드 기기별 폰트 왜곡 방지 및 네모/세모 동일 비율)
     const SVG_BULLETS = {
-      dash: '<svg class="bullet-svg bullet-svg-dash" viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><rect x="1" y="4" width="8" height="2" rx="1" fill="currentColor"/></svg>',
-      square: '<svg class="bullet-svg bullet-svg-square" viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><rect x="2" y="2" width="6" height="6" rx="1" fill="currentColor"/></svg>',
-      arrow: '<svg class="bullet-svg bullet-svg-arrow" viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><polygon points="2,2 8,5 2,8" fill="currentColor"/></svg>'
+      dash: '<svg class="bullet-svg bullet-svg-dash" viewBox="0 0 10 10" aria-hidden="true"><rect x="1" y="4" width="8" height="2" rx="1" fill="currentColor"/></svg>',
+      square: '<svg class="bullet-svg bullet-svg-square" viewBox="0 0 10 10" aria-hidden="true"><rect x="2" y="2" width="6" height="6" rx="1" fill="currentColor"/></svg>',
+      arrow: '<svg class="bullet-svg bullet-svg-arrow" viewBox="0 0 10 10" aria-hidden="true"><polygon points="2,2 8,5 2,8" fill="currentColor"/></svg>'
     };
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      const numMatch = line.match(/^[ \t]*(\d{1,2}[\.\)])[ \t]+(.*)/);
-      const subBulletMatch = line.match(/^([ \t]{2,})([*•\-]|\d+[\.\)])[ \t]+(.*)/);
+      const numMatch = line.match(/^([ \t]*)(\d{1,2}[\.\)])[ \t]+(.*)/);
+      const subBulletMatch = line.match(/^([ \t]+)([*•\-])[ \t]+(.*)/);
 
-      if (numMatch && (!inNumberedItem || !/^[ \t]{2,}/.test(line))) {
+      if (numMatch) {
+        const indentSpaces = numMatch[1].replace(/\t/g, '    ').length;
         flushNumberedItem();
         inNumberedItem = true;
-        currentNum = numMatch[1];
-        currentContentLines = [numMatch[2]];
+        currentNum = numMatch[2];
+        currentIndent = indentSpaces;
+        currentContentLines = [numMatch[3]];
       } else if (inNumberedItem && subBulletMatch) {
         const indentSpaces = subBulletMatch[1].replace(/\t/g, '    ').length;
-        let level = 1;
-        let dotSymbol = SVG_BULLETS.dash;
-        if (indentSpaces >= 9) {
-          level = 3;
-          dotSymbol = SVG_BULLETS.arrow;
-        } else if (indentSpaces >= 5) {
-          level = 2;
-          dotSymbol = SVG_BULLETS.square;
-        } else {
-          level = 1;
-          dotSymbol = SVG_BULLETS.dash;
-        }
+        if (indentSpaces > currentIndent) {
+          const relativeIndent = indentSpaces - currentIndent;
+          let level = 1;
+          let dotSymbol = SVG_BULLETS.dash;
+          if (relativeIndent >= 6) {
+            level = 3;
+            dotSymbol = SVG_BULLETS.arrow;
+          } else if (relativeIndent >= 3) {
+            level = 2;
+            dotSymbol = SVG_BULLETS.square;
+          } else {
+            level = 1;
+            dotSymbol = SVG_BULLETS.dash;
+          }
 
-        const subContent = subBulletMatch[3];
-        currentContentLines.push(`<div class="md-sub-bullet sub-level-${level}"><span class="md-sub-bullet-dot">${dotSymbol}</span><span class="md-sub-bullet-text">${subContent}</span></div>`);
+          const subContent = subBulletMatch[3];
+          currentContentLines.push(`<div class="md-sub-bullet sub-level-${level}"><span class="md-sub-bullet-dot">${dotSymbol}</span><span class="md-sub-bullet-text">${subContent}</span></div>`);
+        } else {
+          flushNumberedItem();
+          newLines.push(line);
+        }
       } else if (inNumberedItem) {
         const trimmed = line.trim();
         if (!trimmed) {
           const nextLine = lines[i + 1];
-          if (nextLine && /^[ \t]{2,}[*•\-]/.test(nextLine)) {
+          if (nextLine && /^[ \t]+[*•\-]/.test(nextLine)) {
             // 바로 다음 줄이 서브 불릿인 경우만 번호 항목 유지
           } else {
             // 빈 줄 후 일반 텍스트나 다음 번호, 블록이 올 때 즉시 번호 항목 종료
@@ -1188,8 +1201,8 @@ const MarkdownParser = {
           const lastIdx = currentContentLines.length - 1;
           if (lastIdx >= 0 && currentContentLines[lastIdx].startsWith('<div class="md-sub-bullet') && /^[ \t]{4,}/.test(line)) {
             currentContentLines[lastIdx] = currentContentLines[lastIdx].replace('</span></div>', `<br>${line.trim()}</span></div>`);
-          } else if (/^[ \t]{1,4}/.test(line)) {
-            currentContentLines.push(line.replace(/^[ \t]{1,4}/, ''));
+          } else if (/^[ \t]+/.test(line)) {
+            currentContentLines.push(line.replace(/^[ \t]+/, ''));
           } else {
             // 들여쓰기 없는 일반 텍스트 줄이 오면 번호 항목 종료하고 일반 텍스트로 처리
             flushNumberedItem();
@@ -1622,7 +1635,15 @@ const MarkdownParser = {
       const innerLines = block.trim().split('\n')
         .map(l => l.replace(/^>\s?/, ''))
         .filter(l => l.length > 0);
-      return `<blockquote>${innerLines.join('<br>')}</blockquote>\n`;
+      const innerContent = this.parseLists(innerLines.join('\n'));
+      const formatted = innerContent.split('\n')
+        .filter(l => l.trim().length > 0)
+        .reduce((acc, curr) => {
+          if (!acc) return curr;
+          if (acc.endsWith('</div>') || curr.startsWith('<div')) return acc + curr;
+          return acc + '<br>' + curr;
+        }, '');
+      return `<blockquote>${formatted}</blockquote>\n`;
     });
 
     // 5. 볼드체, 인라인 코드, 밑줄 파싱
