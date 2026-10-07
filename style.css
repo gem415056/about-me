@@ -2087,7 +2087,7 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
 /* [핵심] 일반 질문용 인용구(Blockquote) - 말차 감성 저대비 다크 세이지 & 라이트 텍스트 */
 .chat-bubble blockquote, .report-body-scroll blockquote {
   background-color: var(--quote-bg);
-  color: var(--quote-text);
+  color: var(--quote-bold) !important;
   border: none;
   border-left: 3px solid var(--quote-border);
   border-radius: 12px;
@@ -2098,6 +2098,22 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   font-weight: 500;
   letter-spacing: -0.01em;
   box-shadow: 0 3px 12px rgba(35, 38, 30, 0.1);
+}
+
+/* 인용구 내부 모든 텍스트(일반 텍스트, 불릿 텍스트, 번호 텍스트 등) 웜 아이보리(#FFFDF5)로 완벽 가독성 보장 */
+.chat-bubble blockquote p,
+.report-body-scroll blockquote p,
+.chat-bubble blockquote div,
+.report-body-scroll blockquote div,
+.chat-bubble blockquote span:not(.md-bold-highlight):not(.md-inline-code),
+.report-body-scroll blockquote span:not(.md-bold-highlight):not(.md-inline-code),
+.chat-bubble blockquote .md-num-content,
+.report-body-scroll blockquote .md-num-content,
+.chat-bubble blockquote .md-num-label,
+.report-body-scroll blockquote .md-num-label,
+.chat-bubble blockquote .md-sub-bullet-text,
+.report-body-scroll blockquote .md-sub-bullet-text {
+  color: var(--quote-bold) !important; /* #FFFDF5 웜 아이보리 (생화이트 아님) */
 }
 
 strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .report-body-scroll b {

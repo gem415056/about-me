@@ -1141,9 +1141,9 @@ const MarkdownParser = {
 
     // SVG 불릿 아이콘 (말차 테마 일치, 아이폰/안드로이드 기기별 폰트 왜곡 방지 및 네모/세모 동일 비율)
     const SVG_BULLETS = {
-      dash: '<svg class="bullet-svg bullet-svg-dash" viewBox="0 0 10 10" aria-hidden="true"><rect x="1" y="4" width="8" height="2" rx="1" fill="currentColor"/></svg>',
-      square: '<svg class="bullet-svg bullet-svg-square" viewBox="0 0 10 10" aria-hidden="true"><rect x="2" y="2" width="6" height="6" rx="1" fill="currentColor"/></svg>',
-      arrow: '<svg class="bullet-svg bullet-svg-arrow" viewBox="0 0 10 10" aria-hidden="true"><polygon points="2,2 8,5 2,8" fill="currentColor"/></svg>'
+      dash: '<svg class="bullet-svg bullet-svg-dash" viewBox="0 0 10 10" style="width: 0.7em; height: 0.7em; display: block;" aria-hidden="true"><rect x="1" y="4" width="8" height="2" rx="1" fill="currentColor"/></svg>',
+      square: '<svg class="bullet-svg bullet-svg-square" viewBox="0 0 10 10" style="width: 0.7em; height: 0.7em; display: block;" aria-hidden="true"><rect x="2" y="2" width="6" height="6" rx="1" fill="currentColor"/></svg>',
+      arrow: '<svg class="bullet-svg bullet-svg-arrow" viewBox="0 0 10 10" style="width: 0.7em; height: 0.7em; display: block;" aria-hidden="true"><polygon points="2,2 8,5 2,8" fill="currentColor"/></svg>'
     };
 
     for (let i = 0; i < lines.length; i++) {
@@ -1635,7 +1635,8 @@ const MarkdownParser = {
       const innerLines = block.trim().split('\n')
         .map(l => l.replace(/^>\s?/, ''))
         .filter(l => l.length > 0);
-      const innerContent = this.parseLists(innerLines.join('\n'));
+      const inlineLines = innerLines.map(l => this.parseInline(l));
+      const innerContent = this.parseLists(inlineLines.join('\n'));
       const formatted = innerContent.split('\n')
         .filter(l => l.trim().length > 0)
         .reduce((acc, curr) => {
@@ -1643,7 +1644,7 @@ const MarkdownParser = {
           if (acc.endsWith('</div>') || curr.startsWith('<div')) return acc + curr;
           return acc + '<br>' + curr;
         }, '');
-      return `<blockquote>${formatted}</blockquote>\n`;
+      return saveBlock(`<blockquote>${formatted}</blockquote>\n`);
     });
 
     // 5. 볼드체, 인라인 코드, 밑줄 파싱
@@ -1732,6 +1733,8 @@ const MarkdownParser = {
   parseInline(str) {
     if (!str) return '';
     let s = this.escapeHtml(str);
+    // 테이블 및 본문 내 안전한 개행(<br>, <br/>) 복원
+    s = s.replace(/&lt;br\s*\/?&gt;/gi, '<br>');
     s = s.replace(/\*\*\*([\s\S]+?)\*\*\*/g, '<strong><em>$1</em></strong>');
     s = s.replace(/\*\*([\s\S]+?)\*\*/g, '<span class="md-bold-highlight">$1</span>');
     s = s.replace(/__([\s\S]+?)__/g, '<span class="md-bold-highlight">$1</span>');
