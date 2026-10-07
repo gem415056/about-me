@@ -158,9 +158,6 @@
 
         <!-- 3. 하단 툴바: 우측 정렬, 선 없는 퓨어 심리스 배경 -->
         <div class="drawer-bottom-toolbar">
-          <button type="button" id="btn-open-prompts-modal" class="toolbar-btn" title="프롬프트">
-            <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-monitor-cog"><path d="M12 17v4"/><path d="m14.305 7.53.923-.382"/><path d="m15.228 4.852-.923-.383"/><path d="m16.852 3.228-.383-.924"/><path d="m16.852 8.772-.383.923"/><path d="m19.148 3.228.383-.924"/><path d="m19.53 9.696-.382-.924"/><path d="m20.772 4.852.924-.383"/><path d="m20.772 7.148.924.383"/><path d="M22 13v2a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7"/><path d="M8 21h8"/><circle cx="18" cy="6" r="3"/></svg>
-          </button>
           <button type="button" id="btn-open-api-modal" class="toolbar-btn" title="설정">
             <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-key-round"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/></svg>
           </button>
@@ -196,26 +193,6 @@
 
     <!-- 공통 팝업/모달 레이어 컨테이너 -->
     <div id="modal-container" class="modal-layer hidden">
-      <!-- 1. 프롬프트 설정 모달 -->
-      <div id="modal-prompts" class="app-modal hidden" role="dialog" aria-modal="true">
-        <div class="modal-header">
-          <h2 class="modal-title">프롬프트 설정</h2>
-          <button type="button" class="btn-close-modal icon-btn" data-target="modal-prompts">✕</button>
-        </div>
-        <div class="modal-tabs">
-          <button type="button" class="tab-btn active" data-tab="tab-prompt-psychology">심리학</button>
-          <button type="button" class="tab-btn" data-tab="tab-prompt-saju">명리학</button>
-        </div>
-        <div class="modal-body">
-          <div id="tab-prompt-psychology" class="tab-content active">
-            <textarea id="prompt-psychology-input" class="modal-textarea" placeholder="심리학 검사 진행을 위한 시스템 프롬프트를 입력하세요..."></textarea>
-          </div>
-          <div id="tab-prompt-saju" class="tab-content hidden">
-            <textarea id="prompt-saju-input" class="modal-textarea" placeholder="명리학 사주 분석 진행을 위한 시스템 프롬프트를 입력하세요..."></textarea>
-          </div>
-        </div>
-      </div>
-
       <!-- 2. 환경 설정 모달 (4개 탭) -->
       <div id="modal-settings" class="app-modal hidden" role="dialog" aria-modal="true">
         <div class="modal-header">
@@ -493,6 +470,7 @@
   </div>
 
   <script src="js/db.js?v=20261005_v144_force"></script>
+  <script src="js/prompts.js?v=20261007_v1"></script>
   <script src="js/app.js?v=20261005_v144_force"></script>
 </body>
 </html>

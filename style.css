@@ -2719,12 +2719,14 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   color: #747B61 !important;
   font-weight: 700 !important;
   line-height: inherit !important;
+  font-size: inherit !important;
   flex-shrink: 0 !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   width: 1.1em !important;
   height: 1.66em !important;
+  min-height: 1.66em !important;
 }
 
 .md-sub-bullet-dot svg.bullet-svg {

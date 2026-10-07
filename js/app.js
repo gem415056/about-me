@@ -1176,7 +1176,7 @@ const MarkdownParser = {
           }
 
           const subContent = subBulletMatch[3];
-          currentContentLines.push(`<div class="md-sub-bullet sub-level-${level}"><span class="md-sub-bullet-dot">${dotSymbol}</span><span class="md-sub-bullet-text">${subContent}</span></div>`);
+          currentContentLines.push(`<div class="md-sub-bullet sub-level-${level}"><span class="md-sub-bullet-dot">${dotSymbol}&#8203;</span><span class="md-sub-bullet-text">${subContent}</span></div>`);
         } else {
           flushNumberedItem();
           newLines.push(line);
@@ -1235,7 +1235,7 @@ const MarkdownParser = {
         }
 
         const cleaned = item.replace(/^[ \t]*[-*•][ \t]+/, '').replace(/\n[ \t]{2,}/g, '<br>');
-        return `<div class="md-bullet-item bullet-level-${level}"><span class="md-sub-bullet-dot">${dotSymbol}</span><span class="md-sub-bullet-text">${cleaned.trim()}</span></div>`;
+        return `<div class="md-bullet-item bullet-level-${level}"><span class="md-sub-bullet-dot">${dotSymbol}&#8203;</span><span class="md-sub-bullet-text">${cleaned.trim()}</span></div>`;
       }).join('');
       return `<div class="md-bullet-group">${items}</div>`;
     });
@@ -2728,7 +2728,6 @@ const AIEngine = {
       const recaptchaSetting = await DB.get('settings', 'recaptcha_site_key');
       const recaptchaTypeSetting = await DB.get('settings', 'recaptcha_type');
       const generalSetting = await DB.get('settings', 'general_settings');
-      const promptData = await DB.get('prompts', category);
 
       const apiKey = geminiSetting?.value?.trim() || '';
       const vertexConfigStr = vertexSetting?.value?.trim() || '';
@@ -2737,7 +2736,18 @@ const AIEngine = {
 
       const parsedVertexConfig = VertexManager.parseConfig(vertexConfigStr, explicitRecaptchaKey, explicitRecaptchaType);
       const outputMode = generalSetting?.outputMode || 'stream';
-      let systemInstruction = promptData?.content?.trim() || '';
+
+      // [시스템 프롬프트 적용] js/prompts.js의 하드코딩 프롬프트 우선 적용
+      let systemInstruction = '';
+      if (typeof window !== 'undefined' && window.HARDCODED_PROMPTS && window.HARDCODED_PROMPTS[category]) {
+        systemInstruction = window.HARDCODED_PROMPTS[category];
+      }
+
+      // 만약 아직 하드코딩 파일에 입력되지 않은 경우 DB 또는 기본 프롬프트 폴백
+      if (!systemInstruction) {
+        const promptData = await DB.get('prompts', category);
+        systemInstruction = promptData?.content?.trim() || '';
+      }
 
       if (!systemInstruction) {
         if (category === 'psychology') {
@@ -4252,12 +4262,7 @@ const ModalController = {
   // 폼 데이터 IndexedDB로부터 로드
   async loadFormData(modalId) {
     try {
-      if (modalId === 'modal-prompts') {
-        const psychPrompt = await DB.get('prompts', 'psychology');
-        const sajuPrompt = await DB.get('prompts', 'saju');
-        document.getElementById('prompt-psychology-input').value = psychPrompt?.content || '';
-        document.getElementById('prompt-saju-input').value = sajuPrompt?.content || '';
-      } else if (modalId === 'modal-settings') {
+      if (modalId === 'modal-settings') {
         const geminiKey = await DB.get('settings', 'gemini_api_key');
         const vertexConfig = await DB.get('settings', 'vertex_config');
         const recaptchaKey = await DB.get('settings', 'recaptcha_site_key');
@@ -4330,12 +4335,7 @@ const ModalController = {
   // 폼 데이터 IndexedDB로 최종 일괄 저장 (실시간 타자 중 저장 방지)
   async saveFormData(modalId) {
     try {
-      if (modalId === 'modal-prompts') {
-        const psychVal = document.getElementById('prompt-psychology-input').value;
-        const sajuVal = document.getElementById('prompt-saju-input').value;
-        await DB.set('prompts', { id: 'psychology', content: psychVal, updatedAt: Date.now() });
-        await DB.set('prompts', { id: 'saju', content: sajuVal, updatedAt: Date.now() });
-      } else if (modalId === 'modal-settings') {
+      if (modalId === 'modal-settings') {
         const geminiVal = document.getElementById('setting-gemini-key').value;
         const vertexVal = document.getElementById('setting-vertex-config').value;
         const recaptchaSiteKey = document.getElementById('setting-recaptcha-sitekey')?.value?.trim() || '';
@@ -4757,14 +4757,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 좌측 서랍 하단 툴바 버튼 이벤트 바인딩
-  const btnOpenPrompts = document.getElementById('btn-open-prompts-modal');
-  if (btnOpenPrompts) {
-    btnOpenPrompts.addEventListener('click', () => {
-      DrawerController.closeLeft(false); // 서랍 닫고
-      ModalController.open('modal-prompts'); // 프롬프트 팝업 열기
-    });
-  }
-
   const btnOpenApi = document.getElementById('btn-open-api-modal');
   if (btnOpenApi) {
     btnOpenApi.addEventListener('click', () => {
