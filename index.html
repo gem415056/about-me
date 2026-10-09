@@ -222,30 +222,7 @@
   projectId: &quot;...&quot;,
   appId: &quot;...&quot;
 };"></textarea>
-
-            <div style="margin-top: 14px;">
-              <label class="input-label" for="setting-recaptcha-sitekey">App Check reCAPTCHA Enterprise Site Key (사이트 키)</label>
-              <input type="text" id="setting-recaptcha-sitekey" class="modal-input" placeholder="6LeUBOctAAAAACanACg6c-5wl8lM5s1H9sHFNTyO" value="6LeUBOctAAAAACanACg6c-5wl8lM5s1H9sHFNTyO">
-            </div>
-
-            <div style="margin-top: 10px; display: flex; align-items: center; gap: 14px; font-size: 0.82rem; color: var(--text-secondary);">
-              <span>reCAPTCHA 방식:</span>
-              <label class="recaptcha-type-label">
-                <input type="radio" name="recaptcha-type" value="enterprise" id="recaptcha-type-enterprise" class="matcha-solid-box" checked>
-                <span>Enterprise SDK (7일 토큰 유지)</span>
-              </label>
-            </div>
-
-            <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 6px;">
-              <button type="button" id="btn-test-appcheck" class="btn-appcheck-test">
-                <svg class="search-icon-svg" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="11" cy="11" r="8"/>
-                  <path d="m21 21-4.3-4.3"/>
-                </svg>
-                <span>App Check 토큰 발급 테스트</span>
-              </button>
-              <div id="appcheck-test-result" class="appcheck-test-result-box"></div>
-            </div>
+            <p class="input-guide">reCAPTCHA Enterprise SDK(7일 토큰 보존)가 백그라운드에서 자동 연동됩니다.</p>
           </div>
 
           <!-- 탭 3: Firestore 백업 설정 -->

@@ -2437,8 +2437,8 @@ const VertexManager = {
   currentConfigKey: null,
 
   // 사용자가 입력한 다양한 포맷(JSON, JS 리터럴, <script> 스니펫 등)에서 설정값 지능형 추출
-  parseConfig(configStr, explicitSiteKey = '', explicitType = '') {
-    if ((!configStr || typeof configStr !== 'string') && !explicitSiteKey) return null;
+  parseConfig(configStr) {
+    if (!configStr || typeof configStr !== 'string') return null;
     const str = (configStr || '').trim();
 
     let parsed = {};
@@ -2462,27 +2462,8 @@ const VertexManager = {
     const messagingSenderId = extract('messagingSenderId');
     const location = extract('location') || 'us-central1';
 
-    // reCAPTCHA Enterprise 키 감지 (구글 정책 변경으로 v3 폐지, 100% Enterprise SDK 전용 적용)
-    const DEFAULT_RECAPTCHA_KEY = '6LeUBOctAAAAACanACg6c-5wl8lM5s1H9sHFNTyO';
-    let recaptchaSiteKey = (explicitSiteKey || '').trim() || extract('recaptchaSiteKey') || extract('siteKey') || extract('recaptchaKey');
-    const isEnterprise = true; // 무조건 Enterprise SDK 모드
-
-    const entMatch = str.match(/ReCaptchaEnterpriseProvider\s*\(\s*["']([^"']+)["']/i);
-    const v3Match = str.match(/ReCaptchaV3Provider\s*\(\s*["']([^"']+)["']/i);
-    const rawKeyMatch = str.match(/["'](6L[a-zA-Z0-9_-]{38})["']/);
-
-    if (entMatch) {
-      if (!recaptchaSiteKey) recaptchaSiteKey = entMatch[1].trim();
-    } else if (v3Match) {
-      // 기존 v3 코드가 스니펫에 있더라도 Enterprise SDK 방식으로 자동 전환
-      if (!recaptchaSiteKey) recaptchaSiteKey = v3Match[1].trim();
-    } else if (rawKeyMatch && !recaptchaSiteKey) {
-      recaptchaSiteKey = rawKeyMatch[1].trim();
-    }
-
-    if (!recaptchaSiteKey) {
-      recaptchaSiteKey = DEFAULT_RECAPTCHA_KEY;
-    }
+    // reCAPTCHA Enterprise 고정 사이트 키 (하드코딩)
+    const RECAPTCHA_ENTERPRISE_KEY = '6LeGSOctAAAAADaJswGotMksEEfheFfTJe_FhV9X';
 
     if (!projectId && !apiKey) return null;
 
@@ -2494,7 +2475,7 @@ const VertexManager = {
       storageBucket,
       messagingSenderId,
       location,
-      recaptchaSiteKey,
+      recaptchaSiteKey: RECAPTCHA_ENTERPRISE_KEY,
       isEnterprise: true
     };
   },
@@ -2505,7 +2486,8 @@ const VertexManager = {
       throw new Error('Firebase Project ID를 찾을 수 없습니다. Vertex AI 스크립트 또는 설정을 확인해 주세요.');
     }
 
-    const configKey = `${config.projectId}_${config.apiKey}_${config.recaptchaSiteKey || ''}_enterprise`;
+    const siteKey = '6LeGSOctAAAAADaJswGotMksEEfheFfTJe_FhV9X';
+    const configKey = `${config.projectId}_${config.apiKey}_${siteKey}_enterprise`;
     if (this.appInstance && this.currentConfigKey !== configKey) {
       const { deleteApp } = await import("https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js");
       await deleteApp(this.appInstance).catch(() => {});
@@ -2540,7 +2522,6 @@ const VertexManager = {
 
     // App Check 연동 (구글 정책에 따라 reCAPTCHA Enterprise Provider 단독 사용)
     let appCheck = null;
-    const siteKey = config.recaptchaSiteKey || '6LeUBOctAAAAACanACg6c-5wl8lM5s1H9sHFNTyO';
     if (siteKey && !this.appCheckInstance) {
       try {
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
@@ -2833,16 +2814,12 @@ const AIEngine = {
       // 1. 설정 및 프롬프트 로드
       const geminiSetting = await DB.get('settings', 'gemini_api_key');
       const vertexSetting = await DB.get('settings', 'vertex_config');
-      const recaptchaSetting = await DB.get('settings', 'recaptcha_site_key');
-      const recaptchaTypeSetting = await DB.get('settings', 'recaptcha_type');
       const generalSetting = await DB.get('settings', 'general_settings');
 
       const apiKey = geminiSetting?.value?.trim() || '';
       const vertexConfigStr = vertexSetting?.value?.trim() || '';
-      const explicitRecaptchaKey = recaptchaSetting?.value?.trim() || '6LeUBOctAAAAACanACg6c-5wl8lM5s1H9sHFNTyO';
-      const explicitRecaptchaType = 'enterprise';
 
-      const parsedVertexConfig = VertexManager.parseConfig(vertexConfigStr, explicitRecaptchaKey, explicitRecaptchaType);
+      const parsedVertexConfig = VertexManager.parseConfig(vertexConfigStr);
       const outputMode = generalSetting?.outputMode || 'stream';
 
       // [시스템 프롬프트 적용]
@@ -4402,13 +4379,8 @@ const ModalController = {
         const firestoreConfig = await DB.get('settings', 'firestore_config');
         const general = await DB.get('settings', 'general_settings');
 
-        const defaultEnterpriseKey = '6LeUBOctAAAAACanACg6c-5wl8lM5s1H9sHFNTyO';
         document.getElementById('setting-gemini-key').value = geminiKey?.value || '';
         document.getElementById('setting-vertex-config').value = vertexConfig?.value || '';
-        const recaptchaInput = document.getElementById('setting-recaptcha-sitekey');
-        if (recaptchaInput) recaptchaInput.value = recaptchaKey?.value || defaultEnterpriseKey;
-        const entRadio = document.getElementById('recaptcha-type-enterprise');
-        if (entRadio) entRadio.checked = true;
         document.getElementById('setting-firestore-config').value = firestoreConfig?.value || '';
 
         // 모든 커스텀 드롭다운 값 복원 헬퍼
@@ -4466,17 +4438,12 @@ const ModalController = {
       if (modalId === 'modal-settings') {
         const geminiVal = document.getElementById('setting-gemini-key').value;
         const vertexVal = document.getElementById('setting-vertex-config').value;
-        const defaultEnterpriseKey = '6LeUBOctAAAAACanACg6c-5wl8lM5s1H9sHFNTyO';
-        const recaptchaSiteKey = document.getElementById('setting-recaptcha-sitekey')?.value?.trim() || defaultEnterpriseKey;
-        const recaptchaType = 'enterprise';
         const firestoreVal = document.getElementById('setting-firestore-config').value;
         const selectedItem = document.querySelector('#dropdown-output-menu .dropdown-item.selected');
         const outputMode = selectedItem ? selectedItem.dataset.value : 'stream';
 
         await DB.set('settings', { id: 'gemini_api_key', value: geminiVal, updatedAt: Date.now() });
         await DB.set('settings', { id: 'vertex_config', value: vertexVal, updatedAt: Date.now() });
-        await DB.set('settings', { id: 'recaptcha_site_key', value: recaptchaSiteKey, updatedAt: Date.now() });
-        await DB.set('settings', { id: 'recaptcha_type', value: recaptchaType, updatedAt: Date.now() });
         await DB.set('settings', { id: 'firestore_config', value: firestoreVal, updatedAt: Date.now() });
         const selectedModel = document.getElementById('select-gemini-model').value;
         const safetySettings = {
@@ -5051,77 +5018,4 @@ document.addEventListener('DOMContentLoaded', () => {
   setupCustomDropdown('dropdown-safety-hate');
   setupCustomDropdown('dropdown-safety-sex');
   setupCustomDropdown('dropdown-safety-danger');
-
-  // App Check 토큰 발급 실시간 진단 테스트 버튼
-  const btnTestAppCheck = document.getElementById('btn-test-appcheck');
-  const appCheckResultEl = document.getElementById('appcheck-test-result');
-  if (btnTestAppCheck && appCheckResultEl) {
-    btnTestAppCheck.addEventListener('click', async () => {
-      appCheckResultEl.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 6px; color: var(--text-secondary);">
-          <svg style="animation: spinAnim 0.9s linear infinite; flex-shrink: 0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-          </svg>
-          <span>App Check 토큰 발급 테스트 중...</span>
-        </div>
-      `;
-      btnTestAppCheck.disabled = true;
-
-      try {
-        const vertexConfigVal = document.getElementById('setting-vertex-config')?.value || '';
-        const defaultEnterpriseKey = '6LeUBOctAAAAACanACg6c-5wl8lM5s1H9sHFNTyO';
-        const siteKeyVal = document.getElementById('setting-recaptcha-sitekey')?.value?.trim() || defaultEnterpriseKey;
-        const typeVal = 'enterprise';
-
-        const config = VertexManager.parseConfig(vertexConfigVal, siteKeyVal, typeVal);
-        if (!config || !config.projectId) {
-          throw new Error('상단의 Firebase Config(projectId 및 apiKey)를 먼저 입력해 주세요.');
-        }
-
-        await VertexManager.init(config);
-        const token = await VertexManager.getAppCheckToken(true);
-        if (token) {
-          appCheckResultEl.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 6px; color: #5D664D; font-weight: 600;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5D664D" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <path d="m9 11 3 3L22 4"/>
-              </svg>
-              <span>reCAPTCHA Enterprise 7일 유효 토큰 발급 및 저장 완료!</span>
-            </div>
-            <div style="margin-left: 20px; font-size: 0.74rem; color: var(--text-secondary); line-height: 1.45; word-break: break-all;">
-              <div style="font-family: monospace; color: #5A614A;">토큰: ${token.substring(0, 16)}...</div>
-              <div>Google reCAPTCHA Enterprise SDK 기반으로 7일간 토큰이 안전하게 유지됩니다.</div>
-            </div>
-          `;
-        } else {
-          appCheckResultEl.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 6px; color: #E57373;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E57373" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" x2="12" y1="8" y2="12"/>
-                <line x1="12" x2="12.01" y1="16" y2="16"/>
-              </svg>
-              <span>토큰이 반환되지 않았습니다. Enterprise 사이트 키와 도메인(${window.location.hostname}) 설정을 확인하세요.</span>
-            </div>
-          `;
-        }
-      } catch (err) {
-        console.error('[App Check 테스트 실패]:', err);
-        appCheckResultEl.innerHTML = `
-          <div style="display: flex; align-items: center; gap: 6px; color: #E57373; font-weight: 600;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E57373" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="15" x2="9" y1="9" y2="15"/>
-              <line x1="9" x2="15" y1="9" y2="15"/>
-            </svg>
-            <span>발급 실패:</span>
-            <span style="color: var(--text-primary); font-size: 0.78rem; font-weight: normal;">${err.message}</span>
-          </div>
-        `;
-      } finally {
-        btnTestAppCheck.disabled = false;
-      }
-    });
-  }
 });
