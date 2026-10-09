@@ -2605,30 +2605,20 @@ const VertexManager = {
   async getAppCheckToken(forceRefresh = false) {
     const now = Date.now();
     const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-    const CURRENT_ENTERPRISE_KEY = '6LeGSOctAAAAADaJswGotMksEEfheFfTJe_FhV9X';
 
-    // 1. 메모리 캐시 확인 (새 엔터프라이즈 키 매칭 및 만료 1분 전까지 재사용)
-    if (!forceRefresh && this.cachedTokenData && this.cachedTokenData.siteKey === CURRENT_ENTERPRISE_KEY && this.cachedTokenData.expiresAt > now + 60000) {
-      console.log('[Firebase App Check] reCAPTCHA Enterprise 메모리 캐시 토큰 사용 (7일 유지)');
+    // 1. 메모리 캐시 확인 (만료 1분 전까지 재사용, 7일 유지)
+    if (!forceRefresh && this.cachedTokenData && this.cachedTokenData.expiresAt > now + 60000) {
       return this.cachedTokenData.token;
     }
 
-    // 2. IndexedDB 영구 저장소 캐시 확인 (구버전 v3 또는 다른 키로 발급된 토큰 감지 시 즉시 자동 소거)
+    // 2. IndexedDB 영구 저장소 캐시 확인 (7일 유지)
     try {
       if (!forceRefresh) {
         const saved = await DB.get('settings', 'app_check_cached_token');
-        if (saved?.value?.token && saved.value.siteKey === CURRENT_ENTERPRISE_KEY && saved.value.expiresAt > now + 60000) {
+        if (saved?.value?.token && saved.value.expiresAt > now + 60000) {
           this.cachedTokenData = saved.value;
-          console.log('[Firebase App Check] reCAPTCHA Enterprise IndexedDB 7일 캐시 토큰 로드 완료');
           return saved.value.token;
-        } else if (saved?.value && saved.value.siteKey !== CURRENT_ENTERPRISE_KEY) {
-          console.log('[Firebase App Check] 구버전 v3/이전 사이트키 캐시 토큰 발견 ➔ 자동 소거 처리');
-          await DB.delete('settings', 'app_check_cached_token').catch(() => {});
-          this.cachedTokenData = null;
         }
-      } else {
-        await DB.delete('settings', 'app_check_cached_token').catch(() => {});
-        this.cachedTokenData = null;
       }
     } catch (e) {}
 
@@ -2643,12 +2633,11 @@ const VertexManager = {
         const tokenData = {
           token: tokenResult.token,
           expiresAt: expiresAt,
-          savedAt: now,
-          siteKey: CURRENT_ENTERPRISE_KEY
+          savedAt: now
         };
         this.cachedTokenData = tokenData;
         await DB.set('settings', { id: 'app_check_cached_token', value: tokenData, updatedAt: now }).catch(() => {});
-        console.log('[Firebase App Check] reCAPTCHA Enterprise 신규 토큰 발급 및 7일 영구 캐싱 완료');
+        console.log('[Firebase App Check] reCAPTCHA Enterprise 토큰 발급 완료 (7일 캐싱)');
         return tokenResult.token;
       }
       return null;
@@ -5105,13 +5094,4 @@ document.addEventListener('DOMContentLoaded', () => {
   setupCustomDropdown('dropdown-safety-hate');
   setupCustomDropdown('dropdown-safety-sex');
   setupCustomDropdown('dropdown-safety-danger');
-
-  // 기존 v3 및 이전 사이트키로 발급된 App Check 캐시 토큰 1회성 강제 소거
-  DB.init().then(() => DB.get('settings', 'app_check_cached_token')).then(async (saved) => {
-    const CURRENT_ENTERPRISE_KEY = '6LeGSOctAAAAADaJswGotMksEEfheFfTJe_FhV9X';
-    if (saved?.value && saved.value.siteKey !== CURRENT_ENTERPRISE_KEY) {
-      await DB.delete('settings', 'app_check_cached_token').catch(() => {});
-      console.log('[Firebase App Check] 초기 구버전 v3 캐시 토큰 제거 완료');
-    }
-  }).catch(() => {});
 });
