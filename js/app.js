@@ -2552,22 +2552,30 @@ const VertexManager = {
   async getAppCheckToken(forceRefresh = false) {
     const now = Date.now();
     const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+    const CURRENT_ENTERPRISE_KEY = '6LeGSOctAAAAADaJswGotMksEEfheFfTJe_FhV9X';
 
-    // 1. 메모리 캐시 확인 (7일 만료 1분 전까지 재사용)
-    if (!forceRefresh && this.cachedTokenData && this.cachedTokenData.expiresAt > now + 60000) {
+    // 1. 메모리 캐시 확인 (새 엔터프라이즈 키 매칭 및 만료 1분 전까지 재사용)
+    if (!forceRefresh && this.cachedTokenData && this.cachedTokenData.siteKey === CURRENT_ENTERPRISE_KEY && this.cachedTokenData.expiresAt > now + 60000) {
       console.log('[Firebase App Check] reCAPTCHA Enterprise 메모리 캐시 토큰 사용 (7일 유지)');
       return this.cachedTokenData.token;
     }
 
-    // 2. IndexedDB 영구 저장소 캐시 확인 (7일 유지)
+    // 2. IndexedDB 영구 저장소 캐시 확인 (구버전 v3 또는 다른 키로 발급된 토큰 감지 시 즉시 자동 소거)
     try {
       if (!forceRefresh) {
         const saved = await DB.get('settings', 'app_check_cached_token');
-        if (saved?.value?.token && saved.value.expiresAt > now + 60000) {
+        if (saved?.value?.token && saved.value.siteKey === CURRENT_ENTERPRISE_KEY && saved.value.expiresAt > now + 60000) {
           this.cachedTokenData = saved.value;
           console.log('[Firebase App Check] reCAPTCHA Enterprise IndexedDB 7일 캐시 토큰 로드 완료');
           return saved.value.token;
+        } else if (saved?.value && saved.value.siteKey !== CURRENT_ENTERPRISE_KEY) {
+          console.log('[Firebase App Check] 구버전 v3/이전 사이트키 캐시 토큰 발견 ➔ 자동 소거 처리');
+          await DB.delete('settings', 'app_check_cached_token').catch(() => {});
+          this.cachedTokenData = null;
         }
+      } else {
+        await DB.delete('settings', 'app_check_cached_token').catch(() => {});
+        this.cachedTokenData = null;
       }
     } catch (e) {}
 
@@ -2582,7 +2590,8 @@ const VertexManager = {
         const tokenData = {
           token: tokenResult.token,
           expiresAt: expiresAt,
-          savedAt: now
+          savedAt: now,
+          siteKey: CURRENT_ENTERPRISE_KEY
         };
         this.cachedTokenData = tokenData;
         await DB.set('settings', { id: 'app_check_cached_token', value: tokenData, updatedAt: now }).catch(() => {});
@@ -2619,11 +2628,36 @@ const VertexManager = {
 
     console.log(`[Vertex AI REST] URL: ${url.replace(config.apiKey, '***')} | AppCheck: ${!!appCheckToken}`);
 
-    const response = await fetch(url, {
+    let response = await fetch(url, {
       method: 'POST',
       headers: headers,
       body: JSON.stringify(payload)
     });
+
+    // 만약 App Check 토큰 무효화(Firebase App Check token is invalid 등) 오류 발생 시:
+    // 기존 캐시를 완전히 소거하고 신규 Enterprise 토큰을 강제 발급하여 1회 자동 재시도
+    if (!response.ok) {
+      try {
+        const errClone = await response.clone().json().catch(() => ({}));
+        const errMsg = errClone.error?.message || `HTTP ${response.status}`;
+        if (errMsg.toLowerCase().includes('app check') || response.status === 401 || response.status === 403) {
+          console.warn('[Firebase App Check] 기존 토큰 무효 확인 ➔ v3/구버전 캐시 즉시 소거 후 Enterprise 신규 토큰으로 자동 재시도');
+          this.cachedTokenData = null;
+          await DB.delete('settings', 'app_check_cached_token').catch(() => {});
+          const freshToken = await this.getAppCheckToken(true).catch(() => null);
+          if (freshToken) {
+            headers['X-Firebase-AppCheck'] = freshToken;
+            response = await fetch(url, {
+              method: 'POST',
+              headers: headers,
+              body: JSON.stringify(payload)
+            });
+          }
+        }
+      } catch (retryErr) {
+        console.warn('[Firebase App Check 재시도 실패]:', retryErr);
+      }
+    }
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
@@ -5018,4 +5052,13 @@ document.addEventListener('DOMContentLoaded', () => {
   setupCustomDropdown('dropdown-safety-hate');
   setupCustomDropdown('dropdown-safety-sex');
   setupCustomDropdown('dropdown-safety-danger');
+
+  // 기존 v3 및 이전 사이트키로 발급된 App Check 캐시 토큰 1회성 강제 소거
+  DB.init().then(() => DB.get('settings', 'app_check_cached_token')).then(async (saved) => {
+    const CURRENT_ENTERPRISE_KEY = '6LeGSOctAAAAADaJswGotMksEEfheFfTJe_FhV9X';
+    if (saved?.value && saved.value.siteKey !== CURRENT_ENTERPRISE_KEY) {
+      await DB.delete('settings', 'app_check_cached_token').catch(() => {});
+      console.log('[Firebase App Check] 초기 구버전 v3 캐시 토큰 제거 완료');
+    }
+  }).catch(() => {});
 });
