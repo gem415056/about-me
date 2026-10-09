@@ -2440,40 +2440,93 @@ const VertexManager = {
   parseConfig(configStr) {
     if (!configStr || typeof configStr !== 'string') return null;
     const str = (configStr || '').trim();
+    if (!str) return null;
 
     let parsed = {};
+
+    // 1. 순수 JSON 파싱 시도
     try {
       if (str.startsWith('{') && str.endsWith('}')) {
         parsed = JSON.parse(str);
       }
     } catch (e) {}
 
+    // 2. JS 객체 리터럴 블록 {...} 추출 및 JSON 변환 파싱 시도
+    if (Object.keys(parsed).length === 0) {
+      try {
+        const braceMatch = str.match(/\{[\s\S]*\}/);
+        if (braceMatch) {
+          const candidate = braceMatch[0]
+            .replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '') // 주석 제거
+            .replace(/([{,]\s*)([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":') // 따옴표 없는 키를 "키": 로 변환
+            .replace(/:\s*['`]([^'`\r\n]*)['`]/g, ':"$1"') // 작은따옴표/백틱을 큰따옴표로 변환
+            .replace(/,\s*([}\]])/g, '$1'); // trailing comma 제거
+          parsed = JSON.parse(candidate);
+        }
+      } catch (e) {}
+    }
+
+    // 3. 키 기반 유연 정규식 추출기
     const extract = (key) => {
       if (parsed[key]) return String(parsed[key]).trim();
-      const m = str.match(new RegExp(`["']?${key}["']?\\s*:\\s*["']([^"']+)["']`, 'i'));
-      return m ? m[1].trim() : '';
+      // 따옴표 유무, 콜론(:) 또는 등호(=), 큰따옴표/작은따옴표/백틱 등 모든 구분자 안전 파싱
+      const m = str.match(new RegExp('["\']?' + key + '["\']?\\s*[:=]\\s*["\'`]?([^"\'`\\r\\n,;]+)["\'`]?', 'i'));
+      if (m) return m[1].trim();
+      return '';
     };
 
-    const apiKey = extract('apiKey') || extract('api_key');
-    const projectId = extract('projectId') || extract('project_id');
-    const appId = extract('appId') || extract('app_id');
-    const authDomain = extract('authDomain');
-    const storageBucket = extract('storageBucket');
-    const messagingSenderId = extract('messagingSenderId');
-    const location = extract('location') || 'us-central1';
+    let apiKey = extract('apiKey') || extract('api_key');
+    let projectId = extract('projectId') || extract('project_id');
+    let appId = extract('appId') || extract('app_id') || extract('applicationId');
+    let authDomain = extract('authDomain') || extract('auth_domain');
+    let storageBucket = extract('storageBucket') || extract('storage_bucket');
+    let messagingSenderId = extract('messagingSenderId') || extract('messaging_sender_id') || extract('senderId');
+    let location = extract('location') || 'us-central1';
+
+    // 4. 패턴 기반 초지능형 자동 보정 (스니펫 형태가 깨져 있어도 주요 토큰 직접 포착)
+    if (!apiKey) {
+      const apiMatch = str.match(/AIzaSy[a-zA-Z0-9_\-+]{33}/);
+      if (apiMatch) apiKey = apiMatch[0];
+    }
+
+    if (!appId) {
+      const appMatch = str.match(/1:[0-9]{8,16}:web:[a-zA-Z0-9]{8,40}/);
+      if (appMatch) appId = appMatch[0];
+    }
+
+    if (!messagingSenderId && appId) {
+      const parts = appId.split(':');
+      if (parts.length >= 2 && /^[0-9]+$/.test(parts[1])) {
+        messagingSenderId = parts[1];
+      }
+    }
+
+    if (!projectId) {
+      // authDomain이나 storageBucket에서 projectId 유추 (예: myproject.firebaseapp.com)
+      const hostMatch = str.match(/([a-z0-9][a-z0-9-]{3,60})\.(?:firebaseapp\.com|appspot\.com|firebasestorage\.app)/i);
+      if (hostMatch) projectId = hostMatch[1];
+    }
+
+    if (!authDomain && projectId) {
+      authDomain = `${projectId}.firebaseapp.com`;
+    }
+
+    if (!storageBucket && projectId) {
+      storageBucket = `${projectId}.firebasestorage.app`;
+    }
 
     // reCAPTCHA Enterprise 고정 사이트 키 (하드코딩)
     const RECAPTCHA_ENTERPRISE_KEY = '6LeGSOctAAAAADaJswGotMksEEfheFfTJe_FhV9X';
 
-    if (!projectId && !apiKey) return null;
+    if (!projectId || !apiKey) return null;
 
     return {
       apiKey,
       projectId,
-      appId,
+      appId: appId || `1:${messagingSenderId || '123'}:web:aboutme`,
       authDomain,
       storageBucket,
-      messagingSenderId,
+      messagingSenderId: messagingSenderId || '',
       location,
       recaptchaSiteKey: RECAPTCHA_ENTERPRISE_KEY,
       isEnterprise: true
