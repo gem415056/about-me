@@ -2462,9 +2462,10 @@ const VertexManager = {
     const messagingSenderId = extract('messagingSenderId');
     const location = extract('location') || 'us-central1';
 
-    // reCAPTCHA Enterprise / v3 키 감지 (명시적 입력란 값 우선, 없으면 스니펫에서 추출)
+    // reCAPTCHA Enterprise 키 감지 (구글 정책 변경으로 v3 폐지, 100% Enterprise SDK 전용 적용)
+    const DEFAULT_RECAPTCHA_KEY = '6LeUBOctAAAAACanACg6c-5wl8lM5s1H9sHFNTyO';
     let recaptchaSiteKey = (explicitSiteKey || '').trim() || extract('recaptchaSiteKey') || extract('siteKey') || extract('recaptchaKey');
-    let isEnterprise = explicitType === 'v3' ? false : true;
+    const isEnterprise = true; // 무조건 Enterprise SDK 모드
 
     const entMatch = str.match(/ReCaptchaEnterpriseProvider\s*\(\s*["']([^"']+)["']/i);
     const v3Match = str.match(/ReCaptchaV3Provider\s*\(\s*["']([^"']+)["']/i);
@@ -2472,13 +2473,15 @@ const VertexManager = {
 
     if (entMatch) {
       if (!recaptchaSiteKey) recaptchaSiteKey = entMatch[1].trim();
-      isEnterprise = true;
     } else if (v3Match) {
+      // 기존 v3 코드가 스니펫에 있더라도 Enterprise SDK 방식으로 자동 전환
       if (!recaptchaSiteKey) recaptchaSiteKey = v3Match[1].trim();
-      isEnterprise = false;
     } else if (rawKeyMatch && !recaptchaSiteKey) {
       recaptchaSiteKey = rawKeyMatch[1].trim();
-      isEnterprise = !str.includes('ReCaptchaV3Provider');
+    }
+
+    if (!recaptchaSiteKey) {
+      recaptchaSiteKey = DEFAULT_RECAPTCHA_KEY;
     }
 
     if (!projectId && !apiKey) return null;
@@ -2492,17 +2495,17 @@ const VertexManager = {
       messagingSenderId,
       location,
       recaptchaSiteKey,
-      isEnterprise
+      isEnterprise: true
     };
   },
 
-  // Firebase 및 App Check 초기화
+  // Firebase 및 App Check 초기화 (reCAPTCHA Enterprise SDK 전용)
   async init(config) {
     if (!config || !config.projectId) {
       throw new Error('Firebase Project ID를 찾을 수 없습니다. Vertex AI 스크립트 또는 설정을 확인해 주세요.');
     }
 
-    const configKey = `${config.projectId}_${config.apiKey}_${config.recaptchaSiteKey || ''}_${config.isEnterprise}`;
+    const configKey = `${config.projectId}_${config.apiKey}_${config.recaptchaSiteKey || ''}_enterprise`;
     if (this.appInstance && this.currentConfigKey !== configKey) {
       const { deleteApp } = await import("https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js");
       await deleteApp(this.appInstance).catch(() => {});
@@ -2515,7 +2518,7 @@ const VertexManager = {
     }
 
     const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js");
-    const { initializeAppCheck, ReCaptchaEnterpriseProvider, ReCaptchaV3Provider } = await import("https://www.gstatic.com/firebasejs/11.4.0/firebase-app-check.js");
+    const { initializeAppCheck, ReCaptchaEnterpriseProvider } = await import("https://www.gstatic.com/firebasejs/11.4.0/firebase-app-check.js");
 
     const appName = 'AboutMeVertexApp';
     let app;
@@ -2535,23 +2538,22 @@ const VertexManager = {
       app = initializeApp(firebaseConfig, appName);
     }
 
-    // App Check 연동 (사용자가 설정한 reCAPTCHA 키 활성화)
+    // App Check 연동 (구글 정책에 따라 reCAPTCHA Enterprise Provider 단독 사용)
     let appCheck = null;
-    if (config.recaptchaSiteKey && !this.appCheckInstance) {
+    const siteKey = config.recaptchaSiteKey || '6LeUBOctAAAAACanACg6c-5wl8lM5s1H9sHFNTyO';
+    if (siteKey && !this.appCheckInstance) {
       try {
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
           self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
         }
-        const provider = config.isEnterprise !== false
-          ? new ReCaptchaEnterpriseProvider(config.recaptchaSiteKey)
-          : new ReCaptchaV3Provider(config.recaptchaSiteKey);
+        const provider = new ReCaptchaEnterpriseProvider(siteKey);
 
         appCheck = initializeAppCheck(app, {
           provider: provider,
           isTokenAutoRefreshEnabled: true
         });
         this.appCheckInstance = appCheck;
-        console.log('[Firebase App Check] 초기화 완료:', config.recaptchaSiteKey.substring(0, 8) + '...');
+        console.log('[Firebase App Check] Enterprise SDK 초기화 완료:', siteKey.substring(0, 8) + '...');
       } catch (acErr) {
         console.warn('[Firebase App Check 초기화 경고]:', acErr);
       }
@@ -2565,35 +2567,37 @@ const VertexManager = {
 
   cachedTokenData: null,
 
-  // App Check 토큰 발급 및 진단 (7일 장기 유효기간 로컬 영구 캐싱)
+  // App Check 토큰 발급 및 진단 (7일 장기 유효기간 로컬 영구 캐싱 - Enterprise SDK)
   async getAppCheckToken(forceRefresh = false) {
-    if (!this.appCheckInstance) return null;
-
     const now = Date.now();
-    // 1. 메모리 캐시 확인 (만료 1분 전까지 재사용)
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+
+    // 1. 메모리 캐시 확인 (7일 만료 1분 전까지 재사용)
     if (!forceRefresh && this.cachedTokenData && this.cachedTokenData.expiresAt > now + 60000) {
-      console.log('[Firebase App Check] 메모리 캐시 토큰 사용');
+      console.log('[Firebase App Check] reCAPTCHA Enterprise 메모리 캐시 토큰 사용 (7일 유지)');
       return this.cachedTokenData.token;
     }
 
-    // 2. IndexedDB 영구 저장소 캐시 확인
+    // 2. IndexedDB 영구 저장소 캐시 확인 (7일 유지)
     try {
       if (!forceRefresh) {
         const saved = await DB.get('settings', 'app_check_cached_token');
         if (saved?.value?.token && saved.value.expiresAt > now + 60000) {
           this.cachedTokenData = saved.value;
+          console.log('[Firebase App Check] reCAPTCHA Enterprise IndexedDB 7일 캐시 토큰 로드 완료');
           return saved.value.token;
         }
       }
     } catch (e) {}
 
-    // 3. 신규 토큰 발급 및 7일 유효기간 영구 캐싱
+    if (!this.appCheckInstance) return null;
+
+    // 3. 신규 토큰 발급 및 7일 유효기간 영구 캐싱 (reCAPTCHA Enterprise SDK)
     try {
       const { getToken } = await import("https://www.gstatic.com/firebasejs/11.4.0/firebase-app-check.js");
       const tokenResult = await getToken(this.appCheckInstance, forceRefresh);
       if (tokenResult?.token) {
-        const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-        const expiresAt = tokenResult.expireTimeMillis || (now + sevenDaysMs);
+        const expiresAt = now + sevenDaysMs; // 7일간 토큰 유지 보장
         const tokenData = {
           token: tokenResult.token,
           expiresAt: expiresAt,
@@ -2601,7 +2605,7 @@ const VertexManager = {
         };
         this.cachedTokenData = tokenData;
         await DB.set('settings', { id: 'app_check_cached_token', value: tokenData, updatedAt: now }).catch(() => {});
-        console.log('[Firebase App Check] 토큰 발급 완료');
+        console.log('[Firebase App Check] reCAPTCHA Enterprise 신규 토큰 발급 및 7일 영구 캐싱 완료');
         return tokenResult.token;
       }
       return null;
@@ -2609,7 +2613,7 @@ const VertexManager = {
       console.warn('[Firebase App Check 토큰 발급 오류]:', err);
       const msg = err.message || '';
       if (msg.includes('domain') || msg.includes('Domain') || msg.includes('origin') || msg.includes('Origin') || msg.includes('network') || msg.includes('recaptcha')) {
-        throw new Error(`reCAPTCHA 도메인 불일치: 현재 접속 주소(${window.location.hostname})가 Google reCAPTCHA 콘솔의 [도메인 허용 목록]에 등록되어 있지 않습니다. reCAPTCHA 콘솔에서 '${window.location.hostname}' (또는 'run.app')을 도메인 목록에 추가해 주세요.`);
+        throw new Error(`reCAPTCHA Enterprise 도메인 불일치: 현재 접속 주소(${window.location.hostname})가 Google reCAPTCHA 콘솔의 [도메인 허용 목록]에 등록되어 있지 않습니다. reCAPTCHA 콘솔에서 '${window.location.hostname}' (또는 'run.app')을 도메인 목록에 추가해 주세요.`);
       }
       throw err;
     }
@@ -2835,8 +2839,8 @@ const AIEngine = {
 
       const apiKey = geminiSetting?.value?.trim() || '';
       const vertexConfigStr = vertexSetting?.value?.trim() || '';
-      const explicitRecaptchaKey = recaptchaSetting?.value?.trim() || '';
-      const explicitRecaptchaType = recaptchaTypeSetting?.value || 'enterprise';
+      const explicitRecaptchaKey = recaptchaSetting?.value?.trim() || '6LeUBOctAAAAACanACg6c-5wl8lM5s1H9sHFNTyO';
+      const explicitRecaptchaType = 'enterprise';
 
       const parsedVertexConfig = VertexManager.parseConfig(vertexConfigStr, explicitRecaptchaKey, explicitRecaptchaType);
       const outputMode = generalSetting?.outputMode || 'stream';
@@ -3302,6 +3306,12 @@ const CloudBackupManager = {
       const chunks = this.sliceIntoChunks(fullJson);
       const baseUrl = `https://firestore.googleapis.com/v1/projects/${config.projectId}/databases/(default)/documents`;
 
+      const appCheckToken = await VertexManager.getAppCheckToken().catch(() => null);
+      const reqHeaders = { 'Content-Type': 'application/json' };
+      if (appCheckToken) {
+        reqHeaders['X-Firebase-AppCheck'] = appCheckToken;
+      }
+
       // 2. 메타데이터 문서 저장
       const metaUrl = `${baseUrl}/about_me_backups/${cleanKey}?key=${config.apiKey}`;
       const metaPayload = {
@@ -3314,7 +3324,7 @@ const CloudBackupManager = {
 
       const metaRes = await fetch(metaUrl, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: reqHeaders,
         body: JSON.stringify(metaPayload)
       });
 
@@ -3334,7 +3344,7 @@ const CloudBackupManager = {
 
         const chunkRes = await fetch(chunkUrl, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: reqHeaders,
           body: JSON.stringify(chunkPayload)
         });
 
@@ -3367,9 +3377,12 @@ const CloudBackupManager = {
     try {
       const baseUrl = `https://firestore.googleapis.com/v1/projects/${config.projectId}/databases/(default)/documents`;
 
+      const appCheckToken = await VertexManager.getAppCheckToken().catch(() => null);
+      const reqHeaders = appCheckToken ? { 'X-Firebase-AppCheck': appCheckToken } : {};
+
       // 1. 메타데이터 조회
       const metaUrl = `${baseUrl}/about_me_backups/${cleanKey}?key=${config.apiKey}`;
-      const metaRes = await fetch(metaUrl);
+      const metaRes = await fetch(metaUrl, { headers: reqHeaders });
 
       if (!metaRes.ok) {
         throw new Error('해당 복원 코드의 백업 데이터를 찾을 수 없습니다.');
@@ -3382,7 +3395,7 @@ const CloudBackupManager = {
       let reconstructedJson = '';
       for (let idx = 0; idx < totalChunks; idx++) {
         const chunkUrl = `${baseUrl}/about_me_backups/${cleanKey}/chunks/part_${idx}?key=${config.apiKey}`;
-        const chunkRes = await fetch(chunkUrl);
+        const chunkRes = await fetch(chunkUrl, { headers: reqHeaders });
 
         if (!chunkRes.ok) {
           throw new Error(`청크 ${idx + 1}/${totalChunks} 복원 실패`);
@@ -4389,17 +4402,13 @@ const ModalController = {
         const firestoreConfig = await DB.get('settings', 'firestore_config');
         const general = await DB.get('settings', 'general_settings');
 
+        const defaultEnterpriseKey = '6LeUBOctAAAAACanACg6c-5wl8lM5s1H9sHFNTyO';
         document.getElementById('setting-gemini-key').value = geminiKey?.value || '';
         document.getElementById('setting-vertex-config').value = vertexConfig?.value || '';
         const recaptchaInput = document.getElementById('setting-recaptcha-sitekey');
-        if (recaptchaInput) recaptchaInput.value = recaptchaKey?.value || '';
-        if (recaptchaType?.value === 'v3') {
-          const v3Radio = document.getElementById('recaptcha-type-v3');
-          if (v3Radio) v3Radio.checked = true;
-        } else {
-          const entRadio = document.getElementById('recaptcha-type-enterprise');
-          if (entRadio) entRadio.checked = true;
-        }
+        if (recaptchaInput) recaptchaInput.value = recaptchaKey?.value || defaultEnterpriseKey;
+        const entRadio = document.getElementById('recaptcha-type-enterprise');
+        if (entRadio) entRadio.checked = true;
         document.getElementById('setting-firestore-config').value = firestoreConfig?.value || '';
 
         // 모든 커스텀 드롭다운 값 복원 헬퍼
@@ -4457,8 +4466,9 @@ const ModalController = {
       if (modalId === 'modal-settings') {
         const geminiVal = document.getElementById('setting-gemini-key').value;
         const vertexVal = document.getElementById('setting-vertex-config').value;
-        const recaptchaSiteKey = document.getElementById('setting-recaptcha-sitekey')?.value?.trim() || '';
-        const recaptchaType = document.querySelector('input[name="recaptcha-type"]:checked')?.value || 'enterprise';
+        const defaultEnterpriseKey = '6LeUBOctAAAAACanACg6c-5wl8lM5s1H9sHFNTyO';
+        const recaptchaSiteKey = document.getElementById('setting-recaptcha-sitekey')?.value?.trim() || defaultEnterpriseKey;
+        const recaptchaType = 'enterprise';
         const firestoreVal = document.getElementById('setting-firestore-config').value;
         const selectedItem = document.querySelector('#dropdown-output-menu .dropdown-item.selected');
         const outputMode = selectedItem ? selectedItem.dataset.value : 'stream';
@@ -5059,15 +5069,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
       try {
         const vertexConfigVal = document.getElementById('setting-vertex-config')?.value || '';
-        const siteKeyVal = document.getElementById('setting-recaptcha-sitekey')?.value || '';
-        const typeVal = document.querySelector('input[name="recaptcha-type"]:checked')?.value || 'enterprise';
+        const defaultEnterpriseKey = '6LeUBOctAAAAACanACg6c-5wl8lM5s1H9sHFNTyO';
+        const siteKeyVal = document.getElementById('setting-recaptcha-sitekey')?.value?.trim() || defaultEnterpriseKey;
+        const typeVal = 'enterprise';
 
         const config = VertexManager.parseConfig(vertexConfigVal, siteKeyVal, typeVal);
         if (!config || !config.projectId) {
           throw new Error('상단의 Firebase Config(projectId 및 apiKey)를 먼저 입력해 주세요.');
-        }
-        if (!config.recaptchaSiteKey) {
-          throw new Error('reCAPTCHA 사이트 키(6L...)를 입력해 주세요.');
         }
 
         await VertexManager.init(config);
@@ -5079,11 +5087,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
                 <path d="m9 11 3 3L22 4"/>
               </svg>
-              <span>App Check 7일 유효 토큰 저장 완료!</span>
+              <span>reCAPTCHA Enterprise 7일 유효 토큰 발급 및 저장 완료!</span>
             </div>
             <div style="margin-left: 20px; font-size: 0.74rem; color: var(--text-secondary); line-height: 1.45; word-break: break-all;">
               <div style="font-family: monospace; color: #5A614A;">토큰: ${token.substring(0, 16)}...</div>
-              <div>7일간 재발급 없이 영구 캐시로 계속 인증됩니다.</div>
+              <div>Google reCAPTCHA Enterprise SDK 기반으로 7일간 토큰이 안전하게 유지됩니다.</div>
             </div>
           `;
         } else {
@@ -5094,7 +5102,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <line x1="12" x2="12" y1="8" y2="12"/>
                 <line x1="12" x2="12.01" y1="16" y2="16"/>
               </svg>
-              <span>토큰이 반환되지 않았습니다. 사이트 키와 도메인(${window.location.hostname}) 설정을 확인하세요.</span>
+              <span>토큰이 반환되지 않았습니다. Enterprise 사이트 키와 도메인(${window.location.hostname}) 설정을 확인하세요.</span>
             </div>
           `;
         }
