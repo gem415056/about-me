@@ -94,7 +94,13 @@
       <section id="view-psychology" class="view-section chat-view hidden">
         <div id="psychology-chat-messages" class="chat-messages-container"></div>
         <div id="psychology-input-bar" class="chat-input-bar hidden">
+          <!-- 첨부된 사진 칩 컨테이너 -->
+          <div id="psychology-attached-tags" class="attached-tags-container hidden"></div>
           <div class="chat-input-inner">
+            <input type="file" id="file-input-psychology" accept="image/*" class="hidden" />
+            <button type="button" id="btn-attach-psychology" class="btn-attach" aria-label="사진 첨부" title="사진 첨부">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            </button>
             <textarea id="psychology-input" class="chat-textarea" rows="1" placeholder="분석 보고서에 대해 궁금한 점을 편하게 질문해주세요..."></textarea>
             <button type="button" id="btn-send-psychology" class="btn-send" aria-label="전송">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
@@ -110,6 +116,10 @@
           <!-- 명식 선택 시 누적 첨부될 태그 칩 컨테이너 -->
           <div id="saju-attached-tags" class="attached-tags-container hidden"></div>
           <div class="chat-input-inner">
+            <input type="file" id="file-input-saju" accept="image/*" class="hidden" />
+            <button type="button" id="btn-attach-saju" class="btn-attach" aria-label="사진 첨부" title="사진 첨부">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            </button>
             <textarea id="saju-input" class="chat-textarea" rows="1"></textarea>
             <button type="button" id="btn-send-saju" class="btn-send" aria-label="전송">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>

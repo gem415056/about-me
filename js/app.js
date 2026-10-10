@@ -218,6 +218,131 @@ const KeyboardViewportManager = {
   }
 };
 
+// 6.5. 사진 첨부 매니저 (심리학/명리학 무손실 원본 첨부 및 지속 페이로드 유지)
+const AttachmentManager = {
+  attachedPhotos: {
+    psychology: [],
+    saju: []
+  },
+
+  init() {
+    ['psychology', 'saju'].forEach(cat => {
+      const fileInput = document.getElementById(`file-input-${cat}`);
+      const attachBtn = document.getElementById(`btn-attach-${cat}`);
+      if (attachBtn && fileInput) {
+        attachBtn.addEventListener('click', () => {
+          fileInput.value = '';
+          fileInput.click();
+        });
+        fileInput.addEventListener('change', async (e) => {
+          const files = e.target.files;
+          if (!files || files.length === 0) return;
+          for (let i = 0; i < files.length; i++) {
+            await this.addPhoto(cat, files[i]);
+          }
+        });
+      }
+    });
+  },
+
+  // 무손실 원본 로드 (인위적인 리사이징/압축 손실 없이 FileReader로 100% 원본 그대로 반환)
+  async addPhoto(category, file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = (e) => reject(e);
+        reader.readAsDataURL(file);
+      });
+
+      const photoItem = {
+        id: `photo_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        fileName: file.name || 'image.jpg',
+        imageData: dataUrl
+      };
+
+      this.attachedPhotos[category].push(photoItem);
+      this.render(category);
+      await this.syncToSession(category);
+    } catch (err) {
+      console.error('사진 첨부 로드 실패:', err);
+    }
+  },
+
+  // 첨부 사진 제거
+  async removePhoto(category, id) {
+    this.attachedPhotos[category] = this.attachedPhotos[category].filter(p => p.id !== id);
+    this.render(category);
+    await this.syncToSession(category);
+  },
+
+  // 입력창 상단 썸네일 칩 렌더링
+  render(category) {
+    if (category === 'saju') {
+      if (typeof SajuManager !== 'undefined') {
+        SajuManager.renderAttachedTags();
+      }
+      return;
+    }
+
+    const container = document.getElementById('psychology-attached-tags');
+    if (!container) return;
+
+    const photos = this.attachedPhotos.psychology || [];
+    if (photos.length === 0) {
+      container.classList.add('hidden');
+      container.innerHTML = '';
+      return;
+    }
+
+    container.classList.remove('hidden');
+    container.innerHTML = '';
+
+    photos.forEach(photo => {
+      const chip = document.createElement('div');
+      chip.className = 'attached-image-chip';
+      chip.innerHTML = `
+        <img src="${photo.imageData}" alt="" class="attached-image-thumb" />
+        <span class="attached-image-name" title="${photo.fileName}">${photo.fileName}</span>
+        <button type="button" class="attached-image-remove" data-id="${photo.id}">✕</button>
+      `;
+      container.appendChild(chip);
+    });
+
+    container.querySelectorAll('.attached-image-remove').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.currentTarget.dataset.id;
+        this.removePhoto('psychology', id);
+      });
+    });
+  },
+
+  // 현재 활성 대화 세션에 첨부된 사진 목록 동기화 저장
+  async syncToSession(category) {
+    if (!ChatManager || !ChatManager.currentSessionId) return;
+    try {
+      const session = await DB.get('chat_sessions', ChatManager.currentSessionId);
+      if (session) {
+        session.attachedPhotos = this.attachedPhotos[category];
+        await DB.set('chat_sessions', session);
+      }
+    } catch (e) {
+      console.warn('세션 사진 동기화 실패:', e);
+    }
+  },
+
+  // 대화 세션 전환/로드 시 첨부 사진 복원
+  async loadForSession(category, session) {
+    if (session && session.attachedPhotos && Array.isArray(session.attachedPhotos)) {
+      this.attachedPhotos[category] = [...session.attachedPhotos];
+    } else {
+      this.attachedPhotos[category] = [];
+    }
+    this.render(category);
+  }
+};
+
 // 7. 명리학 명식 관리, 다중 누적 첨부 및 일괄 삭제 (SajuManager)
 const SajuManager = {
   attachedProfiles: [],
@@ -305,7 +430,10 @@ const SajuManager = {
     const container = document.getElementById('saju-attached-tags');
     if (!container) return;
 
-    if (this.attachedProfiles.length === 0) {
+    const profiles = this.attachedProfiles || [];
+    const photos = (typeof AttachmentManager !== 'undefined' ? AttachmentManager.attachedPhotos.saju : []) || [];
+
+    if (profiles.length === 0 && photos.length === 0) {
       container.classList.add('hidden');
       container.innerHTML = '';
       return;
@@ -314,7 +442,8 @@ const SajuManager = {
     container.classList.remove('hidden');
     container.innerHTML = '';
 
-    this.attachedProfiles.forEach((p, idx) => {
+    // 1. 만세력 프로필 태그 칩
+    profiles.forEach((p, idx) => {
       const chip = document.createElement('div');
       chip.className = 'saju-tag-chip';
       chip.innerHTML = `
@@ -324,11 +453,32 @@ const SajuManager = {
       container.appendChild(chip);
     });
 
+    // 2. 모바일/PC 직접 첨부 사진 썸네일 칩
+    photos.forEach(photo => {
+      const chip = document.createElement('div');
+      chip.className = 'attached-image-chip';
+      chip.innerHTML = `
+        <img src="${photo.imageData}" alt="" class="attached-image-thumb" />
+        <span class="attached-image-name" title="${photo.fileName}">${photo.fileName}</span>
+        <button type="button" class="attached-image-remove" data-id="${photo.id}">✕</button>
+      `;
+      container.appendChild(chip);
+    });
+
     // 태그 제거 클릭 이벤트 바인딩
     container.querySelectorAll('.saju-tag-remove').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const idx = parseInt(e.currentTarget.dataset.index, 10);
         this.removeProfile(idx);
+      });
+    });
+
+    container.querySelectorAll('.attached-image-remove').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.currentTarget.dataset.id;
+        if (typeof AttachmentManager !== 'undefined') {
+          AttachmentManager.removePhoto('saju', id);
+        }
       });
     });
   },
@@ -2799,7 +2949,15 @@ const AIEngine = {
   async buildContents(history, userText, attachedProfiles = []) {
     const contents = [];
 
-    // 1. 유효한 텍스트 및 과거 턴 첨부 이미지 필터링 (과거 대화 내 프로필 이름 유출 원천 차단)
+    // 1. 유효한 텍스트 및 과거 턴 첨부 이미지 필터링
+    // 현재 최신 턴에 직접 실리는 활성 첨부 사진은 최신 턴에 온전히 실리므로 과거 턴 중복 삽입을 방지하여 페이로드 크기 및 API 비용 최적화
+    const activePhotoDatas = new Set(
+      (attachedProfiles || [])
+        .filter(p => p && p.imageData)
+        .map(p => this.extractBase64(p.imageData).data)
+        .filter(Boolean)
+    );
+
     const validHistory = (history || [])
       .filter(msg => msg && msg.content && typeof msg.content === 'string' && msg.content.trim() && !msg.content.startsWith('⚠️'))
       .map(msg => {
@@ -2809,7 +2967,7 @@ const AIEngine = {
           for (const att of msg.attachments) {
             if (att && att.imageData) {
               const { mimeType, data } = this.extractBase64(att.imageData);
-              if (data) {
+              if (data && !activePhotoDatas.has(data)) {
                 parts.push({
                   inlineData: {
                     mimeType: mimeType || 'image/jpeg',
@@ -3555,6 +3713,12 @@ const SessionManager = {
         localStorage.setItem('about_me_active_view', category);
       }
     } catch (e) {}
+
+    if (typeof AttachmentManager !== 'undefined') {
+      AttachmentManager.attachedPhotos[category] = [];
+      AttachmentManager.render(category);
+    }
+
     await this.renderSessionList(category);
     return newSession;
   },
@@ -3572,6 +3736,10 @@ const SessionManager = {
         localStorage.setItem('about_me_active_view', session.category);
       }
     } catch (e) {}
+
+    if (typeof AttachmentManager !== 'undefined') {
+      await AttachmentManager.loadForSession(session.category, session);
+    }
 
     const isPsychology = session.category === 'psychology';
     const containerId = isPsychology ? 'psychology-chat-messages' : 'saju-chat-messages';
@@ -3761,9 +3929,13 @@ const ChatManager = {
     const containerId = isPsychology ? 'psychology-chat-messages' : 'saju-chat-messages';
 
     const text = inputEl.value.trim();
-    const attachedProfiles = isPsychology ? [] : [...SajuManager.attachedProfiles];
+    const photos = (typeof AttachmentManager !== 'undefined' ? AttachmentManager.attachedPhotos[category] : []) || [];
+    const attachedProfiles = [
+      ...(isPsychology ? [] : SajuManager.attachedProfiles),
+      ...photos
+    ];
 
-    // 입력값 유효성 검사 (명리학의 경우 이미지만 첨부하고 질문하는 것도 허용)
+    // 입력값 유효성 검사 (텍스트가 없어도 사진이나 명식이 첨부되어 있으면 전송 허용)
     if (!text && attachedProfiles.length === 0) return;
 
     // 1. 전송 UI 상태 잠금
@@ -3782,8 +3954,11 @@ const ChatManager = {
     }
 
     // 2. 사용자 말풍선 표시 및 DB 영구 저장 (프라이버시 절대 엄수: AI 및 메시지 데이터에 프로필 이름 주입 완전 배제)
-    const promptText = text || '만세력을 바탕으로 사주를 분석해 주세요.';
-    const attachmentsToSave = (!isPsychology && attachedProfiles.length > 0)
+    const defaultPrompt = isPsychology
+      ? '첨부한 사진을 바탕으로 심리 분석 및 통찰을 제공해 주세요.'
+      : '만세력을 바탕으로 사주를 분석해 주세요.';
+    const promptText = text || defaultPrompt;
+    const attachmentsToSave = attachedProfiles.length > 0
       ? attachedProfiles.map(p => ({ imageData: p.imageData }))
       : [];
 
@@ -3815,7 +3990,7 @@ const ChatManager = {
       }
     }
 
-    // 3. 첨부 태그 컨테이너 초기화 (전송 완료 후 비우기)
+    // 3. 일회성 명식 선택 태그만 초기화 (첨부된 사진은 사용자가 ✕ 누르기 전까지 세션에 지속 유지)
     if (!isPsychology) {
       SajuManager.attachedProfiles = [];
       SajuManager.renderAttachedTags();
@@ -4657,6 +4832,7 @@ const DrawerController = {
 document.addEventListener('DOMContentLoaded', () => {
   NavStack.init();
   KeyboardViewportManager.init(); // 가상 키보드 자석 고정 초기화
+  AttachmentManager.init(); // 사진 첨부 및 파일 인풋 이벤트 바인딩
 
   // [요구사항 2] 모바일 새로고침 유지: 기존 화면 및 세션 백그라운드 안전 복구
   (async () => {

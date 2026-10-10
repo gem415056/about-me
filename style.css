@@ -1237,6 +1237,54 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   color: var(--text-primary);
 }
 
+/* 첨부 사진 미니 썸네일 칩 (명식 칩과 동일한 크기/형태) */
+.attached-image-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: 20px;
+  padding: 3px 10px 3px 6px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  max-width: 180px;
+}
+
+.attached-image-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--border-subtle);
+}
+
+.attached-image-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attached-image-remove {
+  background: none;
+  border: none;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 2px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.attached-image-remove:active {
+  color: var(--text-primary);
+}
+
 .saju-tag-remove {
   background: none;
   border: none;
@@ -1260,7 +1308,7 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   background-color: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: 26px;
-  padding: 8px 10px 8px 18px;
+  padding: 8px 10px;
   box-shadow: 0 8px 24px rgba(45, 47, 39, 0.12);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -1268,6 +1316,32 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
 .chat-input-inner:focus-within {
   border-color: var(--accent);
   box-shadow: 0 8px 28px var(--accent-glow);
+}
+
+/* 사진 첨부 (+) 버튼: 전송 버튼과 동일한 38px 원형 사이즈 */
+.btn-attach {
+  width: 38px;
+  height: 38px;
+  border-radius: 50% !important;
+  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-attach:hover {
+  background-color: var(--bg-hover, rgba(0, 0, 0, 0.04));
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.btn-attach:active {
+  transform: scale(0.92);
 }
 
 .chat-textarea {
