@@ -413,16 +413,32 @@ const SajuManager = {
     });
   },
 
-  // 입력창에 명식 태그 누적 첨부
-  attachProfile(profile) {
+  // 입력창에 명식 태그 누적 첨부 (세션에 영구 동기화)
+  async attachProfile(profile) {
     this.attachedProfiles.push(profile);
     this.renderAttachedTags();
+    await this.syncToSession();
   },
 
   // 첨부된 태그 제거
-  removeProfile(index) {
+  async removeProfile(index) {
     this.attachedProfiles.splice(index, 1);
     this.renderAttachedTags();
+    await this.syncToSession();
+  },
+
+  // 현재 활성 대화 세션에 첨부된 명식 목록 동기화 저장
+  async syncToSession() {
+    if (!ChatManager || !ChatManager.currentSessionId) return;
+    try {
+      const session = await DB.get('chat_sessions', ChatManager.currentSessionId);
+      if (session) {
+        session.attachedProfiles = this.attachedProfiles;
+        await DB.set('chat_sessions', session);
+      }
+    } catch (e) {
+      console.warn('세션 명식 동기화 실패:', e);
+    }
   },
 
   // 입력창 상단 태그 칩 렌더링
@@ -3742,6 +3758,10 @@ const SessionManager = {
       AttachmentManager.attachedPhotos[category] = [];
       AttachmentManager.render(category);
     }
+    if (typeof SajuManager !== 'undefined') {
+      SajuManager.attachedProfiles = [];
+      SajuManager.renderAttachedTags();
+    }
 
     await this.renderSessionList(category);
     return newSession;
@@ -3763,6 +3783,18 @@ const SessionManager = {
 
     if (typeof AttachmentManager !== 'undefined') {
       await AttachmentManager.loadForSession(session.category, session);
+    }
+
+    if (session.category === 'saju') {
+      if (typeof SajuManager !== 'undefined') {
+        SajuManager.attachedProfiles = (session && Array.isArray(session.attachedProfiles)) ? [...session.attachedProfiles] : [];
+        SajuManager.renderAttachedTags();
+      }
+    } else {
+      if (typeof SajuManager !== 'undefined') {
+        SajuManager.attachedProfiles = [];
+        SajuManager.renderAttachedTags();
+      }
     }
 
     const isPsychology = session.category === 'psychology';
@@ -4014,10 +4046,9 @@ const ChatManager = {
       }
     }
 
-    // 3. 일회성 명식 선택 태그만 초기화 (첨부된 사진은 사용자가 ✕ 누르기 전까지 세션에 지속 유지)
+    // 3. 첨부된 명식과 사진을 현재 세션에 영구 동기화 (사용자가 ✕ 누르기 전까지 모든 턴에 지속 유지)
     if (!isPsychology) {
-      SajuManager.attachedProfiles = [];
-      SajuManager.renderAttachedTags();
+      await SajuManager.syncToSession();
     }
 
     // 4. AI 답변 말풍선 미리 생성 (고유 ID 즉시 발급)
