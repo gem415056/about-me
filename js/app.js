@@ -2946,8 +2946,11 @@ const AIEngine = {
   },
 
   // 멀티모달 페이로드 빌더 (프라이버시 엄수: 이름 절대 전송 금지, 순수 이미지만 패키징 & Multiturn 교차 순서 강제)
-  async buildContents(history, userText, attachedProfiles = []) {
+  async buildContents(history, userText, attachedProfiles = [], category = 'saju') {
     const contents = [];
+    const defaultPrompt = category === 'psychology'
+      ? '첨부한 사진을 바탕으로 심리 분석 및 통찰을 제공해 주세요.'
+      : '만세력을 바탕으로 사주를 분석해 주세요.';
 
     // 1. 유효한 텍스트 및 과거 턴 첨부 이미지 필터링
     // 현재 최신 턴에 직접 실리는 활성 첨부 사진은 최신 턴에 온전히 실리므로 과거 턴 중복 삽입을 방지하여 페이로드 크기 및 API 비용 최적화
@@ -2980,7 +2983,7 @@ const AIEngine = {
         }
         // [프라이버시 엄수] 과거 메시지에 남아있을 수 있는 '[...의 만세력]' 같은 이름 태그를 완벽히 제거
         const cleanContent = msg.content.replace(/\[[^\]]+의 만세력\]\s*/g, '').trim();
-        parts.push({ text: cleanContent || '만세력을 바탕으로 사주를 분석해 주세요.' });
+        parts.push({ text: cleanContent || defaultPrompt });
         return {
           role: msg.role === 'user' ? 'user' : 'model',
           parts: parts
@@ -3035,7 +3038,7 @@ const AIEngine = {
     }
 
     // [프라이버시 엄수] 사용자 텍스트 질문에서 혹시 모를 이름 태그 완전 제거하여 순수 질문만 AI에 전송
-    const cleanUserText = (userText || '').replace(/\[[^\]]+의 만세력\]\s*/g, '').trim() || '만세력을 바탕으로 사주를 분석해 주세요.';
+    const cleanUserText = (userText || '').replace(/\[[^\]]+의 만세력\]\s*/g, '').trim() || defaultPrompt;
     currentParts.push({ text: cleanUserText });
     contents.push({ role: 'user', parts: currentParts });
 
@@ -3057,43 +3060,54 @@ const AIEngine = {
       const outputMode = generalSetting?.outputMode || 'stream';
 
       // [시스템 프롬프트 적용]
-      // 1순위: 전용 텍스트 파일 (/prompt_psychology.txt, /prompt_saju.txt - 백틱/특수문자 변환 불필요)
-      // 2순위: js/prompts.js (window.HARDCODED_PROMPTS)
+      // 사용자가 prompt_saju.txt, prompt_psychology.txt에 직접 수정한 원문을 100% 실시간으로 읽어 적용 (하드코딩 대체/임시방편 일체 배제)
       let systemInstruction = '';
 
+      // 1순위: 서버 전용 무캐시 API (/api/prompt/:category) - 디스크 파일 직접 읽기
       try {
-        const txtFile = category === 'psychology' ? '/prompt_psychology.txt' : '/prompt_saju.txt';
-        const txtRes = await fetch(txtFile, { cache: 'no-cache' });
-        if (txtRes.ok) {
-          const rawTxt = await txtRes.text();
-          if (rawTxt && !rawTxt.includes('여기에 심리학 프롬프트 원문') && !rawTxt.includes('여기에 명리학 프롬프트 원문') && rawTxt.trim().length > 10) {
-            systemInstruction = rawTxt.trim();
+        const apiRes = await fetch(`/api/prompt/${category}?t=${Date.now()}`, { cache: 'no-store' });
+        if (apiRes.ok) {
+          const apiData = await apiRes.json();
+          if (apiData?.prompt && apiData.prompt.trim().length > 0) {
+            systemInstruction = apiData.prompt.trim();
           }
         }
       } catch (e) {
-        console.warn('텍스트 파일 프롬프트 로드 건너뜀:', e);
+        console.warn('API 프롬프트 로드 실패, 정적 파일 직접 로드 시도:', e);
       }
 
-      if (!systemInstruction && typeof window !== 'undefined' && window.HARDCODED_PROMPTS && window.HARDCODED_PROMPTS[category]) {
-        systemInstruction = window.HARDCODED_PROMPTS[category].trim();
-      }
-
-      // 만약 아직 파일들에 입력되지 않은 경우 DB 또는 기본 프롬프트 폴백
+      // 2순위: 정적 파일 직접 무캐시 로드 (웹서버 또는 직접 접근)
       if (!systemInstruction) {
-        const promptData = await DB.get('prompts', category);
-        systemInstruction = promptData?.content?.trim() || '';
-      }
-
-      if (!systemInstruction) {
-        if (category === 'psychology') {
-          systemInstruction = `당신은 사용자의 심리를 깊이 이해하고 통찰을 제공하는 전문 심리 분석가 'ABOUT ME'입니다. 따뜻하고 편안한 어조로 대화하며, 사용자가 편안하게 자신의 내면, 감정, 무의식, 생각 패턴을 털어놓을 수 있도록 이끌어주세요. 필요 시 [REPORT_START] ... [REPORT_END] 태그를 사용하여 정밀 심리 분석 보고서를 함께 제공할 수 있습니다.`;
-        } else if (category === 'saju') {
-          systemInstruction = `당신은 명리학(만세력 및 사주 원국) 심층 분석 전문가 'ABOUT ME'입니다. 만세력 이미지와 질문을 바탕으로 음양오행의 균형, 십신, 격국, 용신, 대운의 흐름을 전문적이면서도 알기 쉽게 풀이합니다. 필요 시 [REPORT_START] ... [REPORT_END] 태그를 사용하여 구조화된 명식 분석 보고서를 작성하세요.`;
+        try {
+          const txtFile = category === 'psychology' ? '/prompt_psychology.txt' : '/prompt_saju.txt';
+          const txtRes = await fetch(`${txtFile}?t=${Date.now()}`, { cache: 'no-store' });
+          if (txtRes.ok) {
+            const rawTxt = await txtRes.text();
+            if (rawTxt && rawTxt.trim().length > 0) {
+              systemInstruction = rawTxt.trim();
+            }
+          }
+        } catch (e) {
+          console.warn('정적 프롬프트 파일 로드 실패:', e);
         }
       }
 
+      // 3순위: IndexedDB에 저장된 사용자 커스텀 프롬프트 (설정 등에서 지정된 경우)
+      if (!systemInstruction) {
+        const promptData = await DB.get('prompts', category);
+        if (promptData?.content?.trim()) {
+          systemInstruction = promptData.content.trim();
+        }
+      }
+
+      // 만약 여전히 프롬프트가 비어있다면, 임의의 가짜/하드코딩 프롬프트로 속이지 않고 명확한 에러 발생
+      if (!systemInstruction) {
+        const fileName = category === 'psychology' ? 'prompt_psychology.txt' : 'prompt_saju.txt';
+        throw new Error(`[${category === 'psychology' ? '심리학' : '명리학'}] 프롬프트 파일(${fileName})을 불러오지 못했습니다. 파일 내용이 비어있지 않은지 확인해 주세요.`);
+      }
+
       // 2. 페이로드 생성 (비동기 이미지 안전 압축 포함)
-      const contents = await this.buildContents(history, userText, attachedProfiles);
+      const contents = await this.buildContents(history, userText, attachedProfiles, category);
       const payload = {
         contents: contents,
         generationConfig: {
@@ -3173,7 +3187,8 @@ const AIEngine = {
             body: JSON.stringify({
               modelName: cleanModel,
               payload: payload,
-              stream: isStream
+              stream: isStream,
+              category: category
             })
           });
 
@@ -3206,7 +3221,8 @@ const AIEngine = {
             body: JSON.stringify({
               modelName: cleanModel,
               payload: payload,
-              stream: isStream
+              stream: isStream,
+              category: category
             })
           });
         } catch (proxyErr) {
@@ -4005,7 +4021,7 @@ const ChatManager = {
     // 5. AI 통신 호출
     await AIEngine.sendRequest({
       category: category,
-      userText: text || '만세력을 바탕으로 사주를 분석해 주세요.',
+      userText: text || (isPsychology ? '첨부한 사진을 바탕으로 심리 분석 및 통찰을 제공해 주세요.' : '만세력을 바탕으로 사주를 분석해 주세요.'),
       history: this.activeHistory,
       attachedProfiles: attachedProfiles,
 

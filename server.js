@@ -1,6 +1,7 @@
 // ABOUT ME Server v1.3.0 (Build 20261004_v131)
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -12,16 +13,44 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Serve static assets from project root with strict no-cache headers for dev
+// Serve static assets from project root with strict no-cache headers for dev and txt files
 app.use(express.static(__dirname, {
   setHeaders: (res, filePath) => {
-    if (filePath.endsWith('.js') || filePath.endsWith('.css') || filePath.endsWith('.html')) {
+    if (filePath.endsWith('.js') || filePath.endsWith('.css') || filePath.endsWith('.html') || filePath.endsWith('.txt')) {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
     }
   }
 }));
+
+// Helper to read prompt directly from disk file
+function getPromptContent(category) {
+  const fileName = category === 'psychology' ? 'prompt_psychology.txt' : 'prompt_saju.txt';
+  const filePath = path.join(__dirname, fileName);
+  try {
+    if (fs.existsSync(filePath)) {
+      return fs.readFileSync(filePath, 'utf8').trim();
+    }
+  } catch (err) {
+    console.error(`[Prompt Read Error] Failed to read ${filePath}:`, err);
+  }
+  return '';
+}
+
+// Dedicated no-cache API endpoint to get prompt directly from disk
+app.get('/api/prompt/:category', (req, res) => {
+  const { category } = req.params;
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+
+  const content = getPromptContent(category);
+  if (!content) {
+    return res.status(404).json({ error: `프롬프트 파일(${category === 'psychology' ? 'prompt_psychology.txt' : 'prompt_saju.txt'})을 찾을 수 없거나 비어 있습니다.` });
+  }
+  res.json({ category, prompt: content });
+});
 
 async function callGemini(modelName, action, apiKey, payload) {
   const cleanModel = modelName.replace(/^models\//, '');
@@ -44,10 +73,23 @@ app.post('/api/gemini', async (req, res) => {
       });
     }
 
-    const { modelName = 'gemini-3.8-flash', payload, stream = true } = req.body;
+    const { modelName = 'gemini-3.8-flash', payload, stream = true, category } = req.body;
     const action = stream ? 'streamGenerateContent?alt=sse' : 'generateContent';
 
-    console.log(`[Gemini Proxy Call] Model: "${modelName}" | ThinkingConfig: ${JSON.stringify(payload?.generationConfig?.thinkingConfig)} | Temp: ${payload?.generationConfig?.temperature} | Stream: ${stream}`);
+    // category가 전달된 경우, 디스크의 최신 txt 파일 원문 프롬프트를 100% 무결하게 페이로드에 강제 주입
+    if (category && (category === 'saju' || category === 'psychology')) {
+      const freshPrompt = getPromptContent(category);
+      if (freshPrompt) {
+        payload.systemInstruction = {
+          parts: [{ text: freshPrompt }]
+        };
+        console.log(`[Gemini Proxy Call] Category: "${category}" -> Loaded prompt from disk (${freshPrompt.length} chars)`);
+      } else {
+        console.warn(`[Gemini Proxy Call] Category: "${category}" prompt file empty or not found on disk.`);
+      }
+    }
+
+    console.log(`[Gemini Proxy Call] Model: "${modelName}" | Category: "${category}" | SystemInstruction: ${payload?.systemInstruction ? 'Present' : 'None'} | Temp: ${payload?.generationConfig?.temperature} | Stream: ${stream}`);
 
     let response = await callGemini(modelName, action, apiKey, payload);
 
