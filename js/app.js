@@ -2948,9 +2948,6 @@ const AIEngine = {
   // 멀티모달 페이로드 빌더 (프라이버시 엄수: 이름 절대 전송 금지, 순수 이미지만 패키징 & Multiturn 교차 순서 강제)
   async buildContents(history, userText, attachedProfiles = [], category = 'saju') {
     const contents = [];
-    const defaultPrompt = category === 'psychology'
-      ? '첨부한 사진을 바탕으로 심리 분석 및 통찰을 제공해 주세요.'
-      : '만세력을 바탕으로 사주를 분석해 주세요.';
 
     // 1. 유효한 텍스트 및 과거 턴 첨부 이미지 필터링
     // 현재 최신 턴에 직접 실리는 활성 첨부 사진은 최신 턴에 온전히 실리므로 과거 턴 중복 삽입을 방지하여 페이로드 크기 및 API 비용 최적화
@@ -2983,12 +2980,15 @@ const AIEngine = {
         }
         // [프라이버시 엄수] 과거 메시지에 남아있을 수 있는 '[...의 만세력]' 같은 이름 태그를 완벽히 제거
         const cleanContent = msg.content.replace(/\[[^\]]+의 만세력\]\s*/g, '').trim();
-        parts.push({ text: cleanContent || defaultPrompt });
+        if (cleanContent) {
+          parts.push({ text: cleanContent });
+        }
         return {
           role: msg.role === 'user' ? 'user' : 'model',
           parts: parts
         };
-      });
+      })
+      .filter(msg => msg.parts.length > 0);
 
     // 2. Gemini Multiturn 규칙 강제: 첫 번째 항목은 무조건 'user'여야 함 (model 시작 금지)
     while (validHistory.length > 0 && validHistory[0].role !== 'user') {
@@ -3037,9 +3037,11 @@ const AIEngine = {
       }
     }
 
-    // [프라이버시 엄수] 사용자 텍스트 질문에서 혹시 모를 이름 태그 완전 제거하여 순수 질문만 AI에 전송
-    const cleanUserText = (userText || '').replace(/\[[^\]]+의 만세력\]\s*/g, '').trim() || defaultPrompt;
-    currentParts.push({ text: cleanUserText });
+    // [프라이버시 엄수] 사용자 텍스트 질문에서 혹시 모를 이름 태그 완전 제거하여 순수 질문만 AI에 전송 (인위적 템플릿 문구 전면 배제)
+    const cleanUserText = (userText || '').replace(/\[[^\]]+의 만세력\]\s*/g, '').trim();
+    if (cleanUserText) {
+      currentParts.push({ text: cleanUserText });
+    }
     contents.push({ role: 'user', parts: currentParts });
 
     return contents;
@@ -3063,45 +3065,51 @@ const AIEngine = {
       // 사용자가 prompt_saju.txt, prompt_psychology.txt에 직접 수정한 원문을 100% 실시간으로 읽어 적용 (하드코딩 대체/임시방편 일체 배제)
       let systemInstruction = '';
 
-      // 1순위: 서버 전용 무캐시 API (/api/prompt/:category) - 디스크 파일 직접 읽기
-      try {
-        const apiRes = await fetch(`/api/prompt/${category}?t=${Date.now()}`, { cache: 'no-store' });
-        if (apiRes.ok) {
-          const apiData = await apiRes.json();
-          if (apiData?.prompt && apiData.prompt.trim().length > 0) {
-            systemInstruction = apiData.prompt.trim();
-          }
-        }
-      } catch (e) {
-        console.warn('API 프롬프트 로드 실패, 정적 파일 직접 로드 시도:', e);
-      }
+      // 다중 경로 안전 로더 (상대경로/절대경로 및 API/정적파일 순차 시도, 샌드박스 호환을 위해 URL 타임스탬프로 캐시 우회)
+      const promptCandidates = [
+        `api/prompt/${category}?t=${Date.now()}`,
+        `/api/prompt/${category}?t=${Date.now()}`,
+        `prompt_${category}.txt?t=${Date.now()}`,
+        `/prompt_${category}.txt?t=${Date.now()}`
+      ];
 
-      // 2순위: 정적 파일 직접 무캐시 로드 (웹서버 또는 직접 접근)
-      if (!systemInstruction) {
+      for (const pUrl of promptCandidates) {
+        if (systemInstruction) break;
         try {
-          const txtFile = category === 'psychology' ? '/prompt_psychology.txt' : '/prompt_saju.txt';
-          const txtRes = await fetch(`${txtFile}?t=${Date.now()}`, { cache: 'no-store' });
-          if (txtRes.ok) {
-            const rawTxt = await txtRes.text();
-            if (rawTxt && rawTxt.trim().length > 0) {
-              systemInstruction = rawTxt.trim();
+          const res = await fetch(pUrl);
+          if (res.ok) {
+            const cType = res.headers.get('content-type') || '';
+            if (cType.includes('application/json')) {
+              const data = await res.json();
+              if (data?.prompt && data.prompt.trim().length > 0) {
+                systemInstruction = data.prompt.trim();
+                break;
+              }
+            } else {
+              const rawTxt = await res.text();
+              if (rawTxt && !rawTxt.trim().startsWith('<!DOCTYPE') && rawTxt.trim().length > 10) {
+                systemInstruction = rawTxt.trim();
+                break;
+              }
             }
           }
         } catch (e) {
-          console.warn('정적 프롬프트 파일 로드 실패:', e);
+          // 다음 경로 시도
         }
       }
 
       // 3순위: IndexedDB에 저장된 사용자 커스텀 프롬프트 (설정 등에서 지정된 경우)
       if (!systemInstruction) {
-        const promptData = await DB.get('prompts', category);
-        if (promptData?.content?.trim()) {
-          systemInstruction = promptData.content.trim();
-        }
+        try {
+          const promptData = await DB.get('prompts', category);
+          if (promptData?.content?.trim()) {
+            systemInstruction = promptData.content.trim();
+          }
+        } catch (e) {}
       }
 
-      // 만약 여전히 프롬프트가 비어있다면, 임의의 가짜/하드코딩 프롬프트로 속이지 않고 명확한 에러 발생
-      if (!systemInstruction) {
+      // 만약 Vertex AI 직접 모드(서버 프록시 미사용)인데 프롬프트가 없는 경우에만 에러 발생
+      if (!systemInstruction && !apiKey && parsedVertexConfig) {
         const fileName = category === 'psychology' ? 'prompt_psychology.txt' : 'prompt_saju.txt';
         throw new Error(`[${category === 'psychology' ? '심리학' : '명리학'}] 프롬프트 파일(${fileName})을 불러오지 못했습니다. 파일 내용이 비어있지 않은지 확인해 주세요.`);
       }
@@ -3951,8 +3959,11 @@ const ChatManager = {
       ...photos
     ];
 
-    // 입력값 유효성 검사 (텍스트가 없어도 사진이나 명식이 첨부되어 있으면 전송 허용)
-    if (!text && attachedProfiles.length === 0) return;
+    // 입력값 유효성 검사 (텍스트를 1자 이상 입력해야만 전송 가능하도록 엄격히 제한)
+    if (!text) {
+      if (inputEl) inputEl.focus();
+      return;
+    }
 
     // 1. 전송 UI 상태 잠금
     this.isGenerating = true;
@@ -3969,11 +3980,8 @@ const ChatManager = {
       this.currentSessionId = newSession.id;
     }
 
-    // 2. 사용자 말풍선 표시 및 DB 영구 저장 (프라이버시 절대 엄수: AI 및 메시지 데이터에 프로필 이름 주입 완전 배제)
-    const defaultPrompt = isPsychology
-      ? '첨부한 사진을 바탕으로 심리 분석 및 통찰을 제공해 주세요.'
-      : '만세력을 바탕으로 사주를 분석해 주세요.';
-    const promptText = text || defaultPrompt;
+    // 2. 사용자 말풍선 표시 및 DB 영구 저장 (순수 사용자 입력 텍스트만 전송, 인위적 템플릿 문구 전면 배제)
+    const promptText = text;
     const attachmentsToSave = attachedProfiles.length > 0
       ? attachedProfiles.map(p => ({ imageData: p.imageData }))
       : [];
@@ -4018,10 +4026,10 @@ const ChatManager = {
     if (modelBubble) modelBubble.classList.add('is-thinking');
     let hasScrolledToTop = false;
 
-    // 5. AI 통신 호출
+    // 5. AI 통신 호출 (오직 사용자가 입력한 순수 텍스트만 전달)
     await AIEngine.sendRequest({
       category: category,
-      userText: text || (isPsychology ? '첨부한 사진을 바탕으로 심리 분석 및 통찰을 제공해 주세요.' : '만세력을 바탕으로 사주를 분석해 주세요.'),
+      userText: text,
       history: this.activeHistory,
       attachedProfiles: attachedProfiles,
 
