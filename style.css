@@ -1262,6 +1262,18 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   border: 1px solid var(--border-subtle);
 }
 
+.attached-doc-icon {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  color: #3b82f6;
+}
+
+.attached-doc-chip {
+  background-color: var(--bg-card);
+  border-color: var(--border-strong);
+}
+
 .attached-image-name {
   flex: 1;
   min-width: 0;

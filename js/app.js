@@ -261,46 +261,80 @@ const AttachmentManager = {
           const files = e.target.files;
           if (!files || files.length === 0) return;
           for (let i = 0; i < files.length; i++) {
-            await this.addPhoto(cat, files[i]);
+            await this.addFile(cat, files[i]);
           }
         });
       }
     });
   },
 
-  // 무손실 원본 로드 (인위적인 리사이징/압축 손실 없이 FileReader로 100% 원본 그대로 반환)
-  async addPhoto(category, file) {
-    if (!file || !file.type.startsWith('image/')) return;
+  // 무손실 원본 로드 (이미지는 원본 DataURL, TXT 및 HTML 문서는 100% 무손실 UTF-8 텍스트 원문 로드)
+  async addFile(category, file) {
+    if (!file) return;
+    const isImage = file.type.startsWith('image/') || /\.(jpe?g|png|webp|gif|bmp)$/i.test(file.name);
+    const isDoc = file.type === 'text/plain' || file.type === 'text/html' || /\.(txt|html)$/i.test(file.name);
+
+    if (!isImage && !isDoc) {
+      alert('이미지 파일 또는 .txt, .html 파일만 첨부할 수 있습니다.');
+      return;
+    }
+
     try {
-      const dataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target.result);
-        reader.onerror = (e) => reject(e);
-        reader.readAsDataURL(file);
-      });
+      if (isImage) {
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = (e) => reject(e);
+          reader.readAsDataURL(file);
+        });
 
-      const photoItem = {
-        id: `photo_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-        fileName: file.name || 'image.jpg',
-        imageData: dataUrl
-      };
+        const photoItem = {
+          id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+          type: 'image',
+          fileName: file.name || 'image.jpg',
+          imageData: dataUrl
+        };
 
-      this.attachedPhotos[category].push(photoItem);
+        this.attachedPhotos[category].push(photoItem);
+      } else if (isDoc) {
+        // [원문 100% 무손실 읽기] 사용자가 작성한 .txt, .html의 원문 문자열 전체를 UTF-8로 온전히 로드
+        const textContent = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = (e) => reject(e);
+          reader.readAsText(file, 'utf-8');
+        });
+
+        const docItem = {
+          id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+          type: 'doc',
+          fileName: file.name || (file.name.endsWith('.html') ? 'document.html' : 'document.txt'),
+          textContent: textContent
+        };
+
+        this.attachedPhotos[category].push(docItem);
+      }
+
       this.render(category);
       await this.syncToSession(category);
     } catch (err) {
-      console.error('사진 첨부 로드 실패:', err);
+      console.error('파일 첨부 로드 실패:', err);
     }
   },
 
-  // 첨부 사진 제거
+  // 하위 호환성을 위해 addPhoto 유지
+  async addPhoto(category, file) {
+    return this.addFile(category, file);
+  },
+
+  // 첨부 항목(사진 또는 문서) 제거
   async removePhoto(category, id) {
     this.attachedPhotos[category] = this.attachedPhotos[category].filter(p => p.id !== id);
     this.render(category);
     await this.syncToSession(category);
   },
 
-  // 입력창 상단 썸네일 칩 렌더링
+  // 입력창 상단 첨부 칩(사진 썸네일 또는 문서 아이콘) 렌더링
   render(category) {
     if (category === 'saju') {
       if (typeof SajuManager !== 'undefined') {
@@ -312,8 +346,8 @@ const AttachmentManager = {
     const container = document.getElementById('psychology-attached-tags');
     if (!container) return;
 
-    const photos = this.attachedPhotos.psychology || [];
-    if (photos.length === 0) {
+    const items = this.attachedPhotos.psychology || [];
+    if (items.length === 0) {
       container.classList.add('hidden');
       container.innerHTML = '';
       return;
@@ -322,14 +356,23 @@ const AttachmentManager = {
     container.classList.remove('hidden');
     container.innerHTML = '';
 
-    photos.forEach(photo => {
+    items.forEach(item => {
       const chip = document.createElement('div');
-      chip.className = 'attached-image-chip';
-      chip.innerHTML = `
-        <img src="${photo.imageData}" alt="" class="attached-image-thumb" />
-        <span class="attached-image-name" title="${photo.fileName}">${photo.fileName}</span>
-        <button type="button" class="attached-image-remove" data-id="${photo.id}">✕</button>
-      `;
+      if (item.type === 'doc' || item.textContent) {
+        chip.className = 'attached-image-chip attached-doc-chip';
+        chip.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="attached-doc-icon"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>
+          <span class="attached-image-name" title="${item.fileName}">${item.fileName}</span>
+          <button type="button" class="attached-image-remove" data-id="${item.id}">✕</button>
+        `;
+      } else {
+        chip.className = 'attached-image-chip';
+        chip.innerHTML = `
+          <img src="${item.imageData}" alt="" class="attached-image-thumb" />
+          <span class="attached-image-name" title="${item.fileName}">${item.fileName}</span>
+          <button type="button" class="attached-image-remove" data-id="${item.id}">✕</button>
+        `;
+      }
       container.appendChild(chip);
     });
 
@@ -492,15 +535,24 @@ const SajuManager = {
       container.appendChild(chip);
     });
 
-    // 2. 모바일/PC 직접 첨부 사진 썸네일 칩
-    photos.forEach(photo => {
+    // 2. 모바일/PC 직접 첨부 사진 및 문서 칩
+    photos.forEach(item => {
       const chip = document.createElement('div');
-      chip.className = 'attached-image-chip';
-      chip.innerHTML = `
-        <img src="${photo.imageData}" alt="" class="attached-image-thumb" />
-        <span class="attached-image-name" title="${photo.fileName}">${photo.fileName}</span>
-        <button type="button" class="attached-image-remove" data-id="${photo.id}">✕</button>
-      `;
+      if (item.type === 'doc' || item.textContent) {
+        chip.className = 'attached-image-chip attached-doc-chip';
+        chip.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="attached-doc-icon"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>
+          <span class="attached-image-name" title="${item.fileName}">${item.fileName}</span>
+          <button type="button" class="attached-image-remove" data-id="${item.id}">✕</button>
+        `;
+      } else {
+        chip.className = 'attached-image-chip';
+        chip.innerHTML = `
+          <img src="${item.imageData}" alt="" class="attached-image-thumb" />
+          <span class="attached-image-name" title="${item.fileName}">${item.fileName}</span>
+          <button type="button" class="attached-image-remove" data-id="${item.id}">✕</button>
+        `;
+      }
       container.appendChild(chip);
     });
 
@@ -2984,24 +3036,29 @@ const AIEngine = {
     return { mimeType: 'image/jpeg', data: dataUrl.replace(/\s/g, '') };
   },
 
-  // 멀티모달 페이로드 빌더 (프라이버시 엄수: 이름 절대 전송 금지, 순수 이미지만 패키징 & Multiturn 교차 순서 강제)
+  // 멀티모달 페이로드 빌더 (프라이버시 엄수: 이름 절대 전송 금지, 순수 이미지만 패키징 & TXT/HTML 문서 원문 온전히 주입 & Multiturn 교차 순서 강제)
   async buildContents(history, userText, attachedProfiles = [], category = 'saju') {
     const contents = [];
 
-    // 1. 유효한 텍스트 및 과거 턴 첨부 이미지 필터링
-    // 현재 최신 턴에 직접 실리는 활성 첨부 사진은 최신 턴에 온전히 실리므로 과거 턴 중복 삽입을 방지하여 페이로드 크기 및 API 비용 최적화
+    // 1. 유효한 텍스트 및 과거 턴 첨부 파일 필터링
+    // 현재 최신 턴에 직접 실리는 활성 첨부 사진/문서는 최신 턴에 온전히 실리므로 과거 턴 중복 삽입을 방지하여 페이로드 크기 및 API 비용 최적화
     const activePhotoDatas = new Set(
       (attachedProfiles || [])
         .filter(p => p && p.imageData)
         .map(p => this.extractBase64(p.imageData).data)
         .filter(Boolean)
     );
+    const activeDocNames = new Set(
+      (attachedProfiles || [])
+        .filter(p => p && p.textContent && p.fileName)
+        .map(p => p.fileName)
+    );
 
     const validHistory = (history || [])
       .filter(msg => msg && msg.content && typeof msg.content === 'string' && msg.content.trim() && !msg.content.startsWith('⚠️'))
       .map(msg => {
         const parts = [];
-        // 과거 사용자 턴에 첨부되었던 모든 만세력 이미지 보존 (이름 정보 없이 순수 이미지만)
+        // 과거 사용자 턴에 첨부되었던 모든 만세력 이미지 및 비활성 문서 보존 (이름 정보 없이 순수 내용만)
         if (msg.role === 'user' && msg.attachments && Array.isArray(msg.attachments)) {
           for (const att of msg.attachments) {
             if (att && att.imageData) {
@@ -3012,6 +3069,12 @@ const AIEngine = {
                     mimeType: mimeType || 'image/jpeg',
                     data: data
                   }
+                });
+              }
+            } else if (att && att.textContent) {
+              if (!activeDocNames.has(att.fileName)) {
+                parts.push({
+                  text: `[첨부 파일: ${att.fileName || '문서'}]\n${att.textContent}`
                 });
               }
             }
@@ -3059,11 +3122,12 @@ const AIEngine = {
     // 현재 사용자 턴 조립
     const currentParts = [];
 
-    // [핵심] 첨부된 명식 이미지가 있는 경우 이름은 완전히 제외하고 순수 고해상도 원본 이미지 바이너리만 첨부
+    // [핵심] 첨부된 명식/사진 이미지가 있는 경우 이름은 완전히 제외하고 순수 고해상도 원본 이미지 바이너리만 첨부
+    // 첨부된 TXT 및 HTML 문서 파일이 있는 경우 100% 무손실 원문 그대로 첨부
     if (attachedProfiles && attachedProfiles.length > 0) {
-      for (const profile of attachedProfiles) {
-        if (profile && profile.imageData) {
-          const { mimeType, data } = this.extractBase64(profile.imageData);
+      for (const item of attachedProfiles) {
+        if (item && item.imageData) {
+          const { mimeType, data } = this.extractBase64(item.imageData);
           if (data) {
             currentParts.push({
               inlineData: {
@@ -3072,6 +3136,11 @@ const AIEngine = {
               }
             });
           }
+        } else if (item && item.textContent) {
+          // [원문 100% 무손실] 사용자가 첨부한 문서의 내용 전체를 파싱/변형 없이 그대로 주입
+          currentParts.push({
+            text: `[첨부 파일: ${item.fileName || '문서'}]\n${item.textContent}`
+          });
         }
       }
     }
@@ -4038,7 +4107,12 @@ const ChatManager = {
     // 2. 사용자 말풍선 표시 및 DB 영구 저장 (순수 사용자 입력 텍스트만 전송, 인위적 템플릿 문구 전면 배제)
     const promptText = text;
     const attachmentsToSave = attachedProfiles.length > 0
-      ? attachedProfiles.map(p => ({ imageData: p.imageData }))
+      ? attachedProfiles.map(p => ({
+          type: p.type || (p.textContent ? 'doc' : 'image'),
+          fileName: p.fileName || (p.name ? `${p.name}의 만세력` : 'attachment'),
+          imageData: p.imageData || null,
+          textContent: p.textContent || null
+        }))
       : [];
 
     const userMsgId = `msg_${Date.now()}_u_${Math.random().toString(36).substr(2, 6)}`;
