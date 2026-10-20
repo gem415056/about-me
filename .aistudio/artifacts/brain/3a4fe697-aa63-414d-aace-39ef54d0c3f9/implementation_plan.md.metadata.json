@@ -1,0 +1,6 @@
+{
+  "summary":  "대화방 내 텍스트 및 활성 칩 온전 전송, ✕ 삭제 칩의 페이로드 즉시 배제 및 Vertex AI 400 오류/5분 멈춤 현상 원천 해결 계획서",
+  "updatedAt":  "2026-10-20T19:17:38.118915696Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

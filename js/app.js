@@ -2942,26 +2942,9 @@ const VertexManager = {
       }
     }
 
-    // 만약 thinkingConfig로 인해 Vertex AI에서 400(Request contains an invalid argument) 발생 시:
-    // thinkingConfig를 즉시 제거하고 1회 자동 재시도
-    if (!response.ok && payload?.generationConfig?.thinkingConfig) {
-      try {
-        console.warn('[Firebase Vertex AI] 400 또는 거부 확인 ➔ thinkingConfig 제거 후 자동 재시도');
-        const retryPayload = JSON.parse(JSON.stringify(payload));
-        delete retryPayload.generationConfig.thinkingConfig;
-        response = await fetch(url, {
-          method: 'POST',
-          headers: headers,
-          body: JSON.stringify(retryPayload)
-        });
-      } catch (retryErr) {
-        console.warn('[Firebase Vertex AI thinkingConfig 재시도 실패]:', retryErr);
-      }
-    }
-
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
-      const errMsg = errData.error?.message || `HTTP ${response.status}`;
+      const errMsg = errData.error?.message || (errData.error ? JSON.stringify(errData.error) : `HTTP ${response.status}`);
       throw new Error(`Firebase Vertex AI 오류: ${errMsg}`);
     }
 
@@ -3091,9 +3074,11 @@ const AIEngine = {
 
           if (userTurnText.trim()) {
             parts.push({ text: userTurnText.trim() });
+          } else {
+            parts.push({ text: '만세력을 바탕으로 분석해 주세요.' });
           }
 
-          if (parts.length > 0) {
+          if (parts.length > 0 && nextMsg.content && nextMsg.content.trim()) {
             validHistory.push({ role: 'user', parts: parts });
             validHistory.push({ role: 'model', parts: [{ text: nextMsg.content.trim() }] });
           }
@@ -3143,6 +3128,11 @@ const AIEngine = {
     // currentParts가 비어있지 않은 경우에만 전송
     if (currentParts.length > 0) {
       contents.push({ role: 'user', parts: currentParts });
+    }
+
+    // contents가 완전히 비어있는 비정상 상태 원천 방지
+    if (contents.length === 0) {
+      contents.push({ role: 'user', parts: [{ text: userText || '안녕하세요.' }] });
     }
 
     return contents;
