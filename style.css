@@ -1225,6 +1225,17 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   padding: 2px 0;
 }
 
+.attached-tags-container.hidden,
+.attached-tags-container:empty {
+  display: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  border: none !important;
+  overflow: hidden !important;
+}
+
 .saju-tag-chip {
   display: inline-flex;
   align-items: center;
