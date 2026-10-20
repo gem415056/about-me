@@ -3259,8 +3259,6 @@ const AIEngine = {
 
       // 3. 설정된 모델명 및 안전필터 Payload 결합
       const modelName = generalSetting?.model || 'gemini-3.8-flash';
-      const cleanModel = modelName.replace(/^models\//, '');
-      const isGemini3 = /gemini-3|gemini-4/i.test(cleanModel);
 
       // 생각 깊이 (Reasoning) 설정 적용 (사용자 요청: thinkingBudget: -1 완전 원복)
       const reasoningMode = generalSetting?.reasoning || 'high';
