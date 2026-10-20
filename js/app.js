@@ -2942,6 +2942,23 @@ const VertexManager = {
       }
     }
 
+    // 만약 thinkingConfig로 인해 Vertex AI에서 400(Request contains an invalid argument) 발생 시:
+    // thinkingConfig를 즉시 제거하고 1회 자동 재시도
+    if (!response.ok && payload?.generationConfig?.thinkingConfig) {
+      try {
+        console.warn('[Firebase Vertex AI] 400 또는 거부 확인 ➔ thinkingConfig 제거 후 자동 재시도');
+        const retryPayload = JSON.parse(JSON.stringify(payload));
+        delete retryPayload.generationConfig.thinkingConfig;
+        response = await fetch(url, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(retryPayload)
+        });
+      } catch (retryErr) {
+        console.warn('[Firebase Vertex AI thinkingConfig 재시도 실패]:', retryErr);
+      }
+    }
+
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
       const errMsg = errData.error?.message || `HTTP ${response.status}`;
@@ -3024,106 +3041,74 @@ const VertexManager = {
 
 // 10. AI 멀티모달 통신 엔진 (AIEngine)
 const AIEngine = {
-  // Base64 Data URL에서 MIME 타입과 순수 바이너리 데이터 안전 추출
+  // Base64 Data URL에서 MIME 타입과 순수 바이너리 데이터 안전 추출 및 정규화
   extractBase64(dataUrl) {
     if (!dataUrl) return { mimeType: 'image/jpeg', data: '' };
     const commaIdx = dataUrl.indexOf(',');
+    let mime = 'image/jpeg';
+    let base64 = '';
     if (commaIdx !== -1 && dataUrl.startsWith('data:')) {
-      const mime = dataUrl.slice(5, commaIdx).split(';')[0] || 'image/jpeg';
-      const base64 = dataUrl.slice(commaIdx + 1).replace(/\s/g, '');
-      return { mimeType: mime, data: base64 };
+      mime = dataUrl.slice(5, commaIdx).split(';')[0] || 'image/jpeg';
+      base64 = dataUrl.slice(commaIdx + 1).replace(/\s/g, '');
+    } else {
+      base64 = dataUrl.replace(/\s/g, '');
     }
-    return { mimeType: 'image/jpeg', data: dataUrl.replace(/\s/g, '') };
+    // MIME 타입 정규화 (Vertex AI 및 Gemini 엄격 규격 준수: image/jpg 등은 image/jpeg로 표준화)
+    if (mime.toLowerCase() === 'image/jpg' || mime.toLowerCase() === 'image/pjpeg') {
+      mime = 'image/jpeg';
+    }
+    return { mimeType: mime, data: base64 };
   },
 
   // 멀티모달 페이로드 빌더 (프라이버시 엄수: 이름 절대 전송 금지, 순수 이미지만 패키징 & TXT/HTML 문서 원문 온전히 주입 & Multiturn 교차 순서 강제)
   async buildContents(history, userText, attachedProfiles = [], category = 'saju') {
     const contents = [];
 
-    // 1. 유효한 텍스트 및 과거 턴 첨부 파일 필터링
-    // 현재 최신 턴에 직접 실리는 활성 첨부 사진/문서는 최신 턴에 온전히 실리므로 과거 턴 중복 삽입을 방지하여 페이로드 크기 및 API 비용 최적화
-    const activePhotoDatas = new Set(
-      (attachedProfiles || [])
-        .filter(p => p && p.imageData)
-        .map(p => this.extractBase64(p.imageData).data)
-        .filter(Boolean)
-    );
-    const activeDocNames = new Set(
-      (attachedProfiles || [])
-        .filter(p => p && p.textContent && p.fileName)
-        .map(p => p.fileName)
+    // 1. 과거 히스토리 정제 (완성된 유효 턴만 필터링)
+    // ⚠️ 오류 메시지나 빈 내용은 엄격히 배제
+    const rawHistory = (history || []).filter(msg => 
+      msg && 
+      typeof msg.content === 'string' && 
+      msg.content.trim() && 
+      !msg.content.trim().startsWith('⚠️')
     );
 
-    const validHistory = (history || [])
-      .filter(msg => msg && msg.content && typeof msg.content === 'string' && msg.content.trim() && !msg.content.startsWith('⚠️'))
-      .map(msg => {
-        const parts = [];
-        // 과거 사용자 턴에 첨부되었던 모든 만세력 이미지 및 비활성 문서 보존 (이름 정보 없이 순수 내용만)
-        if (msg.role === 'user' && msg.attachments && Array.isArray(msg.attachments)) {
-          for (const att of msg.attachments) {
-            if (att && att.imageData) {
-              const { mimeType, data } = this.extractBase64(att.imageData);
-              if (data && !activePhotoDatas.has(data)) {
-                parts.push({
-                  inlineData: {
-                    mimeType: mimeType || 'image/jpeg',
-                    data: data
-                  }
-                });
-              }
-            } else if (att && att.textContent) {
-              if (!activeDocNames.has(att.fileName)) {
-                parts.push({
-                  text: `[첨부 파일: ${att.fileName || '문서'}]\n${att.textContent}`
-                });
-              }
-            }
+    // 유효한 user - model 쌍만 추출 (미응답/실패된 사용자 턴 제외하여 Multiturn strict 교차 구조 보장)
+    const validHistory = [];
+    for (let i = 0; i < rawHistory.length; i++) {
+      const msg = rawHistory[i];
+      if (msg.role === 'user') {
+        // 다음 메시지가 model 응답인 경우에만 유효한 완료 턴으로 인정
+        const nextMsg = rawHistory[i + 1];
+        if (nextMsg && nextMsg.role === 'model' && nextMsg.content && !nextMsg.content.trim().startsWith('⚠️')) {
+          const parts = [];
+          let userTurnText = '';
+
+          const cleanContent = msg.content.replace(/\[[^\]]+의 만세력\]\s*/g, '').trim();
+          if (cleanContent) {
+            userTurnText += cleanContent;
           }
-        }
-        // [프라이버시 엄수] 과거 메시지에 남아있을 수 있는 '[...의 만세력]' 같은 이름 태그를 완벽히 제거
-        const cleanContent = msg.content.replace(/\[[^\]]+의 만세력\]\s*/g, '').trim();
-        if (cleanContent) {
-          parts.push({ text: cleanContent });
-        }
-        return {
-          role: msg.role === 'user' ? 'user' : 'model',
-          parts: parts
-        };
-      })
-      .filter(msg => msg.parts.length > 0);
 
-    // 2. Gemini Multiturn 규칙 강제: 첫 번째 항목은 무조건 'user'여야 함 (model 시작 금지)
-    while (validHistory.length > 0 && validHistory[0].role !== 'user') {
-      validHistory.shift();
-    }
+          if (userTurnText.trim()) {
+            parts.push({ text: userTurnText.trim() });
+          }
 
-    // 3. Gemini Multiturn 규칙 강제: user와 model이 번갈아 교차해야 함 (동일 role 연속 시 parts 병합)
-    const alternatingHistory = [];
-    for (const turn of validHistory) {
-      if (alternatingHistory.length === 0) {
-        alternatingHistory.push(turn);
-      } else {
-        const lastTurn = alternatingHistory[alternatingHistory.length - 1];
-        if (lastTurn.role === turn.role) {
-          lastTurn.parts.push(...turn.parts);
-        } else {
-          alternatingHistory.push(turn);
+          if (parts.length > 0) {
+            validHistory.push({ role: 'user', parts: parts });
+            validHistory.push({ role: 'model', parts: [{ text: nextMsg.content.trim() }] });
+          }
+          i++; // model 메시지까지 함께 소비
         }
       }
     }
 
-    // 4. 새 사용자 턴이 추가될 예정이므로, history의 마지막 턴이 user라면 제거 (미응답 잔여 턴 정리)
-    if (alternatingHistory.length > 0 && alternatingHistory[alternatingHistory.length - 1].role === 'user') {
-      alternatingHistory.pop();
-    }
+    contents.push(...validHistory);
 
-    contents.push(...alternatingHistory);
-
-    // 현재 사용자 턴 조립
+    // 2. 현재 사용자 턴 조립
     const currentParts = [];
 
-    // [핵심] 첨부된 명식/사진 이미지가 있는 경우 이름은 완전히 제외하고 순수 고해상도 원본 이미지 바이너리만 첨부
-    // 첨부된 TXT 및 HTML 문서 파일이 있는 경우 100% 무손실 원문 그대로 첨부
+    // 활성 첨부 파일(명식 이미지, 첨부 사진, TXT/HTML 문서) 주입
+    let docCombinedText = '';
     if (attachedProfiles && attachedProfiles.length > 0) {
       for (const item of attachedProfiles) {
         if (item && item.imageData) {
@@ -3137,20 +3122,28 @@ const AIEngine = {
             });
           }
         } else if (item && item.textContent) {
-          // [원문 100% 무손실] 사용자가 첨부한 문서의 내용 전체를 파싱/변형 없이 그대로 주입
-          currentParts.push({
-            text: `[첨부 파일: ${item.fileName || '문서'}]\n${item.textContent}`
-          });
+          // [원문 100% 무손실] 문서 원문 내용 누적
+          docCombinedText += `[첨부 파일: ${item.fileName || '문서'}]\n${item.textContent}\n\n`;
         }
       }
     }
 
-    // [프라이버시 엄수] 사용자 텍스트 질문에서 혹시 모를 이름 태그 완전 제거하여 순수 질문만 AI에 전송 (인위적 템플릿 문구 전면 배제)
+    // 순수 사용자 입력 질문
     const cleanUserText = (userText || '').replace(/\[[^\]]+의 만세력\]\s*/g, '').trim();
-    if (cleanUserText) {
-      currentParts.push({ text: cleanUserText });
+    let finalUserText = (docCombinedText + cleanUserText).trim();
+
+    if (!finalUserText && currentParts.length > 0) {
+      finalUserText = '첨부된 파일과 만세력을 바탕으로 분석해 주세요.';
     }
-    contents.push({ role: 'user', parts: currentParts });
+
+    if (finalUserText) {
+      currentParts.push({ text: finalUserText });
+    }
+
+    // currentParts가 비어있지 않은 경우에만 전송
+    if (currentParts.length > 0) {
+      contents.push({ role: 'user', parts: currentParts });
+    }
 
     return contents;
   },
@@ -4220,12 +4213,18 @@ const ChatManager = {
       },
 
       // 오류 발생 시
-      onError: (errMsg) => {
+      onError: async (errMsg) => {
         if (modelBubble && modelBubble.updateRawContent) {
           modelBubble.updateRawContent(`⚠️ ${errMsg}`);
         } else {
           modelBubble.innerHTML = `<span style="color: #9C413D;">⚠️ ${errMsg}</span>`;
         }
+        // [중요] 통신 실패 시 방금 추가된 미완료 사용자 메시지를 activeHistory 및 DB에서 즉시 롤백하여 후속 전송 오염 차단
+        const failedUserIdx = this.activeHistory.findIndex(m => m.id === userMsgId);
+        if (failedUserIdx !== -1) {
+          this.activeHistory.splice(failedUserIdx, 1);
+        }
+        await DB.delete('chat_messages', userMsgId).catch(() => {});
         this.isGenerating = false;
         sendBtn.disabled = false;
       }
