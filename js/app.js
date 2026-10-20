@@ -1366,7 +1366,7 @@ const MarkdownParser = {
             if (innerHtml && !innerHtml.endsWith('<br>') && !innerHtml.endsWith('</div>')) {
               innerHtml += '<br>';
             }
-            innerHtml += part;
+            innerHtml += this.parseInline(part);
           }
         }
         let level = 1;
@@ -1416,7 +1416,7 @@ const MarkdownParser = {
             dotSymbol = SVG_BULLETS.dash;
           }
 
-          const subContent = subBulletMatch[3];
+          const subContent = this.parseInline(subBulletMatch[3]);
           currentContentLines.push(`<div class="md-sub-bullet sub-level-${level}"><span class="md-sub-bullet-dot">${dotSymbol}&#8203;</span><span class="md-sub-bullet-text">${subContent}</span></div>`);
         } else {
           flushNumberedItem();
@@ -1476,7 +1476,9 @@ const MarkdownParser = {
         }
 
         const cleaned = item.replace(/^[ \t]*[-*•][ \t]+/, '').replace(/\n[ \t]{2,}/g, '<br>');
-        return `<div class="md-bullet-item bullet-level-${level}"><span class="md-sub-bullet-dot">${dotSymbol}&#8203;</span><span class="md-sub-bullet-text">${cleaned.trim()}</span></div>`;
+        // 불릿 항목 내부에서만 parseInline을 호출하여 항목 간 서식 누수를 원천 차단!
+        const parsedItemText = this.parseInline(cleaned.trim());
+        return `<div class="md-bullet-item bullet-level-${level}"><span class="md-sub-bullet-dot">${dotSymbol}&#8203;</span><span class="md-sub-bullet-text">${parsedItemText}</span></div>`;
       }).join('');
       return `<div class="md-bullet-group">${items}</div>`;
     });
@@ -1975,14 +1977,14 @@ const MarkdownParser = {
     processed = processed.replace(/^## (.*$)/gim, '<h2>$1</h2>');
     processed = processed.replace(/^# (.*$)/gim, '<h1>$1</h1>');
 
-    // 4. 인용구 (> 문장)
-    processed = processed.replace(/(?:^>\s?.*(?:\n|$))+/gm, (block) => {
-      const innerLines = block.trim().split('\n')
-        .map(l => l.replace(/^>\s?/, ''))
-        .filter(l => l.length > 0);
-      const inlineLines = innerLines.map(l => this.parseInline(l));
-      const innerContent = this.parseLists(inlineLines.join('\n'));
-      const formatted = innerContent.split('\n')
+    // 4. 인용구 (> 문장) - 엔터로 떨어진 복수 줄 볼드(**줄1\n줄2**)도 온전히 지원 (Lazy continuation 포함)
+    processed = processed.replace(/(?:^[ \t]*>[ \t]?.*(?:\n(?![ \t]*(?:[#\-*]|\d+\.|---|```|<))[^\n]+)*(\n|$))+/gm, (block) => {
+      const rawLines = block.trim().split('\n');
+      const innerLines = rawLines.map(l => l.replace(/^[ \t]*>[ \t]?/, ''));
+      const blockText = innerLines.join('\n');
+      const listProcessed = this.parseLists(blockText);
+      const inlineFormatted = this.parseInline(listProcessed);
+      const formatted = inlineFormatted.split('\n')
         .filter(l => l.trim().length > 0)
         .reduce((acc, curr) => {
           if (!acc) return curr;
@@ -1992,37 +1994,22 @@ const MarkdownParser = {
       return saveBlock(`<blockquote>${formatted}</blockquote>\n`);
     });
 
-    // 5. 볼드체, 인라인 코드, 밑줄 파싱
-    processed = processed.replace(/\*\*\*([\s\S]+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-    processed = processed.replace(/\*\*([\s\S]+?)\*\*/g, '<span class="md-bold-highlight">$1</span>');
-    processed = processed.replace(/__([\s\S]+?)__/g, '<span class="md-bold-highlight">$1</span>');
-    // `코드` 인라인 칩
-    processed = processed.replace(/`([^`\n]+?)`/g, '<span class="md-inline-code">$1</span>');
-    // *텍스트* : 별표를 완전히 없애고 깔끔한 밑줄로 파싱!
-    processed = processed.replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, '<span class="md-underline">$1</span>');
-    processed = processed.replace(/(?<!_)_([^_\n]+?)_(?!_)/g, '<span class="md-underline">$1</span>');
-
-    // 5.5 만세력 첨부 칩 (대괄호 제거, 서책 SVG 아이콘 장착)
-    processed = processed.replace(/\[([^\]\n]+?의\s*만세력)\]/g, (match, name) => {
-      return `<span class="manse-chip-badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10"/><path d="M6 10h10"/></svg><span>${name}</span></span>`;
-    });
-
-    // 6. 구분선
+    // 5. 구분선
     processed = processed.replace(/^---$/gim, '<hr>');
 
-    // 7. 목록(List) 변환
+    // 6. 목록(List) 변환 (항목별 격리 인라인 파싱 수행)
     processed = this.parseLists(processed);
 
-    // 8. 단락(<p>) 및 자연스러운 여백 처리 (과도한 <br> 누적 방지)
+    // 7. 단락(<p>) 및 자연스러운 여백 처리 (과도한 <br> 누적 방지)
     const blocks = processed.split(/\n{2,}/);
     processed = blocks.map(block => {
       const trimmed = block.trim();
       if (!trimmed) return '';
       // 이미 블록 레벨 태그나 주석 보호 블록인 경우 p 태그로 감싸지 않음
-      if (/^<(h[1-6]|div class="md-h7"|table|div|ul|ol|blockquote|hr|!--)/i.test(trimmed)) {
+      if (/^<(h[1-6]|div class="md-h7"|div class="md-bullet|div class="md-num|table|div|ul|ol|blockquote|hr|!--)/i.test(trimmed)) {
         return trimmed;
       }
-      return `<p>${trimmed.replace(/\n/g, '<br>')}</p>`;
+      return `<p>${this.parseInline(trimmed).replace(/\n/g, '<br>')}</p>`;
     }).filter(Boolean).join('');
 
     // 9. 보호된 HTML 블록 전량 원본 복원
@@ -2077,15 +2064,25 @@ const MarkdownParser = {
   // 인라인 마크다운 (볼드체, 인라인 코드, 밑줄) 전용 파서
   parseInline(str) {
     if (!str) return '';
-    let s = this.escapeHtml(str);
+    let s = str.includes('<') ? str : this.escapeHtml(str);
     // 테이블 및 본문 내 안전한 개행(<br>, <br/>) 복원
     s = s.replace(/&lt;br\s*\/?&gt;/gi, '<br>');
+    // 1. 만세력 첨부 칩
+    s = s.replace(/\[([^\]\n]+?의\s*만세력)\]/g, (match, name) => {
+      return `<span class="manse-chip-badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10"/><path d="M6 10h10"/></svg><span>${name}</span></span>`;
+    });
+    // 2. 인라인 코드 `...`
+    s = s.replace(/`([^`\n]+?)`/g, '<span class="md-inline-code">$1</span>');
+    // 3. 볼드 + 이탤릭 ***...***
     s = s.replace(/\*\*\*([\s\S]+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    // 4. 볼드 **...** (엔터/줄바꿈 포함 복수 줄 매칭 허용)
     s = s.replace(/\*\*([\s\S]+?)\*\*/g, '<span class="md-bold-highlight">$1</span>');
     s = s.replace(/__([\s\S]+?)__/g, '<span class="md-bold-highlight">$1</span>');
-    s = s.replace(/`([^`\n]+?)`/g, '<span class="md-inline-code">$1</span>');
+    // 5. 밑줄 *...* 및 _..._
     s = s.replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, '<span class="md-underline">$1</span>');
     s = s.replace(/(?<!_)_([^_\n]+?)_(?!_)/g, '<span class="md-underline">$1</span>');
+    // 6. 짝 안 맞는 잔여 별표 정리
+    s = s.replace(/\*\*/g, '');
     return s;
   },
 
