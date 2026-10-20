@@ -349,12 +349,10 @@ const AttachmentManager = {
     const items = this.attachedPhotos.psychology || [];
     if (items.length === 0) {
       container.classList.add('hidden');
-      container.style.display = 'none';
       container.innerHTML = '';
       return;
     }
 
-    container.style.display = '';
     container.classList.remove('hidden');
     container.innerHTML = '';
 
@@ -519,12 +517,10 @@ const SajuManager = {
 
     if (profiles.length === 0 && photos.length === 0) {
       container.classList.add('hidden');
-      container.style.display = 'none';
       container.innerHTML = '';
       return;
     }
 
-    container.style.display = '';
     container.classList.remove('hidden');
     container.innerHTML = '';
 
@@ -2946,26 +2942,6 @@ const VertexManager = {
       }
     }
 
-    // 만약 400 Bad Request (Request contains an invalid argument 등) 오류 발생 시:
-    // 모델과 thinkingConfig 간 호환성 문제일 경우 thinkingConfig를 생략하고 즉시 1회 자동 재시도
-    if (!response.ok && response.status === 400 && payload?.generationConfig?.thinkingConfig) {
-      try {
-        console.warn('[Firebase Vertex AI] 400 invalid argument 수신 ➔ thinkingConfig 제거 후 즉시 1회 자동 재시도');
-        const retryPayload = JSON.parse(JSON.stringify(payload));
-        delete retryPayload.generationConfig.thinkingConfig;
-        const retryRes = await fetch(url, {
-          method: 'POST',
-          headers: headers,
-          body: JSON.stringify(retryPayload)
-        });
-        if (retryRes.ok) {
-          response = retryRes;
-        }
-      } catch (retryErr) {
-        console.warn('[Firebase Vertex AI thinkingConfig 재시도 실패]:', retryErr);
-      }
-    }
-
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
       const errMsg = errData.error?.message || `HTTP ${response.status}`;
@@ -3169,14 +3145,12 @@ const AIEngine = {
       }
     }
 
-    // [프라이버시 엄수] 사용자 텍스트 질문에서 혹시 모를 이름 태그 완전 제거하여 순수 질문만 AI에 전송 (인위적 템플릿 문구 및 공백 전면 배제)
+    // [프라이버시 엄수] 사용자 텍스트 질문에서 혹시 모를 이름 태그 완전 제거하여 순수 질문만 AI에 전송 (인위적 템플릿 문구 전면 배제)
     const cleanUserText = (userText || '').replace(/\[[^\]]+의 만세력\]\s*/g, '').trim();
     if (cleanUserText) {
       currentParts.push({ text: cleanUserText });
     }
-    if (currentParts.length > 0) {
-      contents.push({ role: 'user', parts: currentParts });
-    }
+    contents.push({ role: 'user', parts: currentParts });
 
     return contents;
   },
@@ -3257,10 +3231,7 @@ const AIEngine = {
         }
       };
 
-      // 3. 설정된 모델명 및 안전필터 Payload 결합
-      const modelName = generalSetting?.model || 'gemini-3.8-flash';
-
-      // 생각 깊이 (Reasoning) 설정 적용 (사용자 요청: thinkingBudget: -1 완전 원복)
+      // 생각 깊이 (Reasoning) 설정 적용 (AI Studio와 100% 동일한 고성능 동적/심층 사고)
       const reasoningMode = generalSetting?.reasoning || 'high';
       const customBudget = parseInt(generalSetting?.reasoningBudget, 10);
       let thinkingBudget = -1;
@@ -3273,7 +3244,7 @@ const AIEngine = {
       } else if (reasoningMode === 'medium') {
         thinkingBudget = 8192;
       } else if (reasoningMode === 'high') {
-        thinkingBudget = -1; // AI Studio High와 동일한 무제한 동적 사고 (-1)
+        thinkingBudget = -1; // AI Studio High와 100% 동일한 무제한 동적 사고 (Dynamic Thinking)
       } else if (reasoningMode === 'budget') {
         thinkingBudget = !isNaN(customBudget) && customBudget > 0 ? customBudget : -1;
       }
@@ -3288,7 +3259,10 @@ const AIEngine = {
         };
       }
 
+      // 3. 설정된 모델명 및 안전필터 Payload 결합
+      const modelName = generalSetting?.model || 'gemini-3.8-flash';
       const safety = generalSetting?.safety || {};
+
       payload.safetySettings = [
         { category: 'HARM_CATEGORY_HARASSMENT', threshold: safety.harassment || 'BLOCK_NONE' },
         { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: safety.hate || 'BLOCK_NONE' },
