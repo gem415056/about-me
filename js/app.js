@@ -2,9 +2,11 @@
  * ABOUT ME - Core Application & Navigation Stack Manager
  */
 
-// iOS 기기 판별 및 루트 클래스 부여
-const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+// iOS 기기 판별 및 루트 클래스 부여 (안드로이드는 엄격히 제외)
+const uaString = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+const isAndroidDevice = /Android/i.test(uaString);
+const isIOSDevice = !isAndroidDevice && (/iPad|iPhone|iPod/.test(uaString) || 
+                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
 if (isIOSDevice && typeof document !== 'undefined') {
   document.documentElement.classList.add('is-ios');
 }
@@ -134,10 +136,15 @@ const Router = {
 // 5. 모바일 가상 키보드 뷰포트 관리자 (KeyboardViewportManager)
 const KeyboardViewportManager = {
   init() {
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+    const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+    const isAndroid = /Android/i.test(ua);
+    // [중요 원칙 엄수] 안드로이드 기기는 브라우저 자체의 뷰포트 리사이즈 및 기본 동작을 100% 보존하며 일체 건드리지 않음
+    if (isAndroid) return;
+
+    const isIOS = /iPad|iPhone|iPod/.test(ua) || 
                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-    // [안드로이드 & 일반 PC] 브라우저 고유의 네이티브 뷰포트 정렬을 그대로 유지하여 화면 들썩거림을 100% 방지
+    // 아이폰/아이패드가 아니거나 visualViewport가 없으면 건너뜀
     if (!isIOS || !window.visualViewport) return;
 
     const handleViewportChange = () => {
@@ -146,34 +153,50 @@ const KeyboardViewportManager = {
         window.scrollTo(0, 0);
       }
 
-      const keyboardHeight = window.innerHeight - window.visualViewport.height;
+      const vv = window.visualViewport;
+      const offsetTop = vv ? vv.offsetTop : 0;
+      const vvHeight = vv ? vv.height : window.innerHeight;
+      const visibleBottom = offsetTop + vvHeight;
+      // 전체 레이아웃 바닥에서부터 가상 키보드 및 Safari 플로팅 '확인'/'완료' 툴바 상단까지의 거리 정밀 실측
+      const keyboardHeight = Math.max(0, Math.round(window.innerHeight - visibleBottom));
+      const isKeyboardOpen = keyboardHeight > 40;
 
-      // 1) 대화창 영역 여백 보정 (아이폰 전용)
+      // 1) 대화창 하단 입력 바 위치 보정 (아이폰 가상 키보드 및 플로팅 툴바 바로 위로 정확히 밀어올림)
+      const allInputBars = document.querySelectorAll('.chat-input-bar');
+      allInputBars.forEach(bar => {
+        if (isKeyboardOpen) {
+          bar.style.marginBottom = `${keyboardHeight}px`;
+          bar.style.paddingBottom = '6px';
+        } else {
+          bar.style.marginBottom = '';
+          bar.style.paddingBottom = '';
+        }
+      });
+
+      // 2) 대화창 메시지 영역 여백 및 스크롤 보정
       const activeChatScroll = document.querySelector('.view-section.active .chat-messages-container');
       if (activeChatScroll) {
-        if (keyboardHeight > 80) {
-          activeChatScroll.style.paddingBottom = `${keyboardHeight + 100}px`;
+        if (isKeyboardOpen) {
+          activeChatScroll.style.paddingBottom = '8px';
           const activeEl = document.activeElement;
           if (activeEl && !activeEl.closest('.app-modal') && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
             setTimeout(() => {
-              activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 100);
+              activeChatScroll.scrollTop = activeChatScroll.scrollHeight;
+            }, 60);
           }
         } else {
           activeChatScroll.style.paddingBottom = '';
         }
       }
 
-      // 2) 설정 모달창 / 명식 모달창 여백 및 위치 보정 (아이폰 API 설정창 앱체크 키 가림 완벽 해결)
+      // 3) 설정 모달창 / 명식 모달창 여백 및 위치 보정 (아이폰 설정 모달 키보드 가림 방지)
       const openModal = document.querySelector('.app-modal:not(.hidden)');
       const modalLayer = document.getElementById('modal-container');
       if (openModal) {
         const modalBody = openModal.querySelector('.modal-body');
         if (modalBody) {
-          if (keyboardHeight > 80) {
-            // 키보드 + 퀵타입 자동완성 툴바 위로 충분히 스크롤될 수 있도록 넉넉한 하단 공간 제공
+          if (isKeyboardOpen) {
             modalBody.style.paddingBottom = `${keyboardHeight + 140}px`;
-            // 모달이 키보드 아래로 파묻히지 않도록, 상단 정렬로 자연스럽고 안정감 있게 올려줌 (과도하지 않게 12px 패딩)
             if (modalLayer) {
               modalLayer.style.alignItems = 'flex-start';
               modalLayer.style.paddingTop = '12px';
@@ -190,13 +213,9 @@ const KeyboardViewportManager = {
     };
 
     window.visualViewport.addEventListener('resize', handleViewportChange);
-    window.visualViewport.addEventListener('scroll', () => {
-      if (window.scrollY !== 0 || window.scrollX !== 0) {
-        window.scrollTo(0, 0);
-      }
-    });
+    window.visualViewport.addEventListener('scroll', handleViewportChange);
 
-    // 아이폰 전용 포커스 중심축 스크롤 보정
+    // 아이폰 전용 포커스 인/아웃 실시간 리스너 바인딩
     document.addEventListener('focusin', (e) => {
       if (!e.target) return;
       const tag = e.target.tagName;
@@ -205,15 +224,19 @@ const KeyboardViewportManager = {
         if (modalBody) {
           modalBody.style.paddingBottom = '340px';
           setTimeout(() => {
-            // 대화창처럼 적당한 중앙 중심 배치로 부드럽게 스크롤 (화면 밖으로 튕기지 않고 안정적 노출)
             e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }, 280);
         } else if (!e.target.closest('.app-modal')) {
-          setTimeout(() => {
-            e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }, 280);
+          setTimeout(handleViewportChange, 50);
+          setTimeout(handleViewportChange, 250);
+          setTimeout(handleViewportChange, 450);
         }
       }
+    });
+
+    document.addEventListener('focusout', () => {
+      setTimeout(handleViewportChange, 100);
+      setTimeout(handleViewportChange, 300);
     });
   }
 };
