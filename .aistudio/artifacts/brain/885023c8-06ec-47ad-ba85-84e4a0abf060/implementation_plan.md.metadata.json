@@ -1,6 +1,6 @@
 {
-  "summary":  "마크다운 파싱 순서 최적화, 불릿 항목 단일 흐름 블록 격리(saveBlock 보호) 및 모바일 뷰포트 컬럼 쪼개짐 방지 개선 계획서",
-  "updatedAt":  "2026-10-20T20:36:55.136932009Z",
+  "summary":  "Implementation plan to enable natural word-wrapping in markdown code blocks and normalize bullet list margins/widths so bullet items align with paragraph right padding.",
+  "updatedAt":  "2026-10-21T22:36:41.460076782Z",
   "requestFeedback":  true,
   "userFacing":  true
 }
