@@ -1352,6 +1352,14 @@ const MarkdownParser = {
     let currentNum = '';
     let currentIndent = 0;
     let currentContentLines = [];
+    let currentNumberedGroup = [];
+
+    // SVG 불릿 아이콘 (말차 테마 일치, 아이폰/안드로이드 기기별 폰트 왜곡 방지 및 네모/세모 동일 비율)
+    const SVG_BULLETS = {
+      dash: '<svg class="bullet-svg bullet-svg-dash" viewBox="0 0 10 10" style="width: 0.7em; height: 0.7em; display: block;" aria-hidden="true"><rect x="1" y="4" width="8" height="2" rx="1" fill="currentColor"/></svg>',
+      square: '<svg class="bullet-svg bullet-svg-square" viewBox="0 0 10 10" style="width: 0.7em; height: 0.7em; display: block;" aria-hidden="true"><rect x="2" y="2" width="6" height="6" rx="1" fill="currentColor"/></svg>',
+      arrow: '<svg class="bullet-svg bullet-svg-arrow" viewBox="0 0 10 10" style="width: 0.7em; height: 0.7em; display: block;" aria-hidden="true"><polygon points="2,2 8,5 2,8" fill="currentColor"/></svg>'
+    };
 
     const flushNumberedItem = () => {
       if (inNumberedItem) {
@@ -1372,7 +1380,7 @@ const MarkdownParser = {
         let level = 1;
         if (currentIndent >= 6) level = 3;
         else if (currentIndent >= 2) level = 2;
-        newLines.push(`<div class="md-numbered-item num-level-${level}"><span class="md-num-label">${currentNum}</span><div class="md-bullet-content md-num-content">${innerHtml.trim()}</div></div>`);
+        currentNumberedGroup.push(`<div class="md-numbered-item num-level-${level}"><span class="md-num-label">${currentNum}</span><div class="md-bullet-content md-num-content">${innerHtml.trim()}</div></div>`);
         inNumberedItem = false;
         currentNum = '';
         currentIndent = 0;
@@ -1380,11 +1388,13 @@ const MarkdownParser = {
       }
     };
 
-    // SVG 불릿 아이콘 (말차 테마 일치, 아이폰/안드로이드 기기별 폰트 왜곡 방지 및 네모/세모 동일 비율)
-    const SVG_BULLETS = {
-      dash: '<svg class="bullet-svg bullet-svg-dash" viewBox="0 0 10 10" style="width: 0.7em; height: 0.7em; display: block;" aria-hidden="true"><rect x="1" y="4" width="8" height="2" rx="1" fill="currentColor"/></svg>',
-      square: '<svg class="bullet-svg bullet-svg-square" viewBox="0 0 10 10" style="width: 0.7em; height: 0.7em; display: block;" aria-hidden="true"><rect x="2" y="2" width="6" height="6" rx="1" fill="currentColor"/></svg>',
-      arrow: '<svg class="bullet-svg bullet-svg-arrow" viewBox="0 0 10 10" style="width: 0.7em; height: 0.7em; display: block;" aria-hidden="true"><polygon points="2,2 8,5 2,8" fill="currentColor"/></svg>'
+    const flushNumberedGroup = () => {
+      flushNumberedItem();
+      if (currentNumberedGroup.length > 0) {
+        const groupHtml = `<div class="md-numbered-group">${currentNumberedGroup.join('')}</div>\n`;
+        newLines.push(saveBlock ? saveBlock(groupHtml) : groupHtml);
+        currentNumberedGroup = [];
+      }
     };
 
     for (let i = 0; i < lines.length; i++) {
@@ -1419,23 +1429,35 @@ const MarkdownParser = {
           const subContent = this.parseInline(subBulletMatch[3]);
           currentContentLines.push(`<div class="md-sub-bullet sub-level-${level}"><span class="md-sub-bullet-dot">${dotSymbol}&#8203;</span><div class="md-bullet-content md-sub-bullet-text">${subContent}</div></div>`);
         } else {
-          flushNumberedItem();
+          flushNumberedGroup();
           newLines.push(line);
         }
       } else if (inNumberedItem) {
         const trimmed = line.trim();
         if (!trimmed) {
-          const nextLine = lines[i + 1];
-          if (nextLine && /^[ \t]+[*•\-]/.test(nextLine)) {
-            // 바로 다음 줄이 서브 불릿인 경우만 번호 항목 유지
-          } else {
-            // 빈 줄 후 일반 텍스트나 다음 번호, 블록이 올 때 즉시 번호 항목 종료
+          let nextAction = 'end';
+          for (let k = i + 1; k < lines.length; k++) {
+            const nextTrimmed = lines[k].trim();
+            if (!nextTrimmed) continue;
+            if (/^[ \t]+[*•\-]/.test(lines[k])) {
+              nextAction = 'keep_sub';
+            } else if (/^[ \t]*\d{1,2}[\.\)][ \t]+/.test(lines[k])) {
+              nextAction = 'keep_group';
+            }
+            break;
+          }
+
+          if (nextAction === 'keep_sub') {
+            // 서브 불릿 대기
+          } else if (nextAction === 'keep_group') {
             flushNumberedItem();
+          } else {
+            flushNumberedGroup();
             newLines.push(line);
           }
         } else if (/^[ \t]{0,1}(?:[#>\-*]|```|<h[1-6]|<table|<div|<blockquote|<hr)/i.test(line)) {
-          // 최상위 블록 요소가 오면 번호 항목 종료
-          flushNumberedItem();
+          // 최상위 블록 요소가 오면 번호 목록 종료
+          flushNumberedGroup();
           newLines.push(line);
         } else {
           // 서브 불릿의 이어지는 줄이거나 번호 항목의 본문 이어짐 (들여쓰기가 있는 경우)
@@ -1445,23 +1467,18 @@ const MarkdownParser = {
           } else if (/^[ \t]+/.test(line)) {
             currentContentLines.push(line.replace(/^[ \t]+/, ''));
           } else {
-            // 들여쓰기 없는 일반 텍스트 줄이 오면 번호 항목 종료하고 일반 텍스트로 처리
-            flushNumberedItem();
+            // 들여쓰기 없는 일반 텍스트 줄이 오면 번호 목록 종료하고 일반 텍스트로 처리
+            flushNumberedGroup();
             newLines.push(line);
           }
         }
       } else {
+        flushNumberedGroup();
         newLines.push(line);
       }
     }
-    flushNumberedItem();
+    flushNumberedGroup();
     text = newLines.join('\n');
-
-    // 번호 목록 그룹 묶음 및 보호
-    text = text.replace(/(?:<div class="md-numbered-item[\s\S]*?<\/div><\/div>\n?)+/g, (groupMatch) => {
-      const groupHtml = `<div class="md-numbered-group">${groupMatch.trim()}</div>\n`;
-      return saveBlock ? saveBlock(groupHtml) : groupHtml;
-    });
 
     // 2. 최상위 및 순수 불릿 목록 (- or * or •) 다계층 파싱 (1단계: -, 2단계: ▪, 3단계: ‣)
     text = text.replace(/(?:^[ \t]*[-*•][ \t]+.+?(?:\n[ \t]{2,}.+?)*(\n|$))+/gm, (match) => {
