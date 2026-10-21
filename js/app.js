@@ -1344,7 +1344,7 @@ const MarkdownParser = {
   },
 
   // [핵심 3] 불릿 및 순서 목록 파서 (AI 원본 번호 & 하위/하위하위 다계층 6px 마이크로 인덴트)
-  parseLists(text) {
+  parseLists(text, saveBlock = null) {
     // 1. 번호 매겨진 목록 (1. 2. 3. 또는 1) 2) 3)) 및 내부 다계층 서브 불릿(*, -) 중첩 파싱
     const lines = text.split('\n');
     const newLines = [];
@@ -1372,7 +1372,7 @@ const MarkdownParser = {
         let level = 1;
         if (currentIndent >= 6) level = 3;
         else if (currentIndent >= 2) level = 2;
-        newLines.push(`<div class="md-numbered-item num-level-${level}"><span class="md-num-label">${currentNum}</span><div class="md-num-content">${innerHtml.trim()}</div></div>`);
+        newLines.push(`<div class="md-numbered-item num-level-${level}"><span class="md-num-label">${currentNum}</span><div class="md-bullet-content md-num-content">${innerHtml.trim()}</div></div>`);
         inNumberedItem = false;
         currentNum = '';
         currentIndent = 0;
@@ -1417,7 +1417,7 @@ const MarkdownParser = {
           }
 
           const subContent = this.parseInline(subBulletMatch[3]);
-          currentContentLines.push(`<div class="md-sub-bullet sub-level-${level}"><span class="md-sub-bullet-dot">${dotSymbol}&#8203;</span><span class="md-sub-bullet-text">${subContent}</span></div>`);
+          currentContentLines.push(`<div class="md-sub-bullet sub-level-${level}"><span class="md-sub-bullet-dot">${dotSymbol}&#8203;</span><div class="md-bullet-content md-sub-bullet-text">${subContent}</div></div>`);
         } else {
           flushNumberedItem();
           newLines.push(line);
@@ -1441,7 +1441,7 @@ const MarkdownParser = {
           // 서브 불릿의 이어지는 줄이거나 번호 항목의 본문 이어짐 (들여쓰기가 있는 경우)
           const lastIdx = currentContentLines.length - 1;
           if (lastIdx >= 0 && currentContentLines[lastIdx].startsWith('<div class="md-sub-bullet') && /^[ \t]{4,}/.test(line)) {
-            currentContentLines[lastIdx] = currentContentLines[lastIdx].replace('</span></div>', `<br>${line.trim()}</span></div>`);
+            currentContentLines[lastIdx] = currentContentLines[lastIdx].replace('</div></div>', `<br>${line.trim()}</div></div>`);
           } else if (/^[ \t]+/.test(line)) {
             currentContentLines.push(line.replace(/^[ \t]+/, ''));
           } else {
@@ -1456,6 +1456,12 @@ const MarkdownParser = {
     }
     flushNumberedItem();
     text = newLines.join('\n');
+
+    // 번호 목록 그룹 묶음 및 보호
+    text = text.replace(/(?:<div class="md-numbered-item[\s\S]*?<\/div><\/div>\n?)+/g, (groupMatch) => {
+      const groupHtml = `<div class="md-numbered-group">${groupMatch.trim()}</div>\n`;
+      return saveBlock ? saveBlock(groupHtml) : groupHtml;
+    });
 
     // 2. 최상위 및 순수 불릿 목록 (- or * or •) 다계층 파싱 (1단계: -, 2단계: ▪, 3단계: ‣)
     text = text.replace(/(?:^[ \t]*[-*•][ \t]+.+?(?:\n[ \t]{2,}.+?)*(\n|$))+/gm, (match) => {
@@ -1478,9 +1484,10 @@ const MarkdownParser = {
         const cleaned = item.replace(/^[ \t]*[-*•][ \t]+/, '').replace(/\n[ \t]{2,}/g, '<br>');
         // 불릿 항목 내부에서만 parseInline을 호출하여 항목 간 서식 누수를 원천 차단!
         const parsedItemText = this.parseInline(cleaned.trim());
-        return `<div class="md-bullet-item bullet-level-${level}"><span class="md-sub-bullet-dot">${dotSymbol}&#8203;</span><span class="md-sub-bullet-text">${parsedItemText}</span></div>`;
+        return `<div class="md-bullet-item bullet-level-${level}"><span class="md-sub-bullet-dot">${dotSymbol}&#8203;</span><div class="md-bullet-content md-sub-bullet-text">${parsedItemText}</div></div>`;
       }).join('');
-      return `<div class="md-bullet-group">${items}</div>`;
+      const groupHtml = `<div class="md-bullet-group">${items}</div>\n`;
+      return saveBlock ? saveBlock(groupHtml) : groupHtml;
     });
 
     return text;
@@ -1997,8 +2004,8 @@ const MarkdownParser = {
     // 5. 구분선
     processed = processed.replace(/^---$/gim, '<hr>');
 
-    // 6. 목록(List) 변환 (항목별 격리 인라인 파싱 수행)
-    processed = this.parseLists(processed);
+    // 6. 목록(List) 변환 (항목별 격리 인라인 파싱 수행 및 saveBlock으로 안전 보호)
+    processed = this.parseLists(processed, saveBlock);
 
     // 7. 단락(<p>) 및 자연스러운 여백 처리 (과도한 <br> 누적 방지)
     const blocks = processed.split(/\n{2,}/);

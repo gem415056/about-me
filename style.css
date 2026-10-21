@@ -2198,6 +2198,8 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
 .report-body-scroll blockquote .md-num-content,
 .chat-bubble blockquote .md-num-label,
 .report-body-scroll blockquote .md-num-label,
+.chat-bubble blockquote .md-bullet-content,
+.report-body-scroll blockquote .md-bullet-content,
 .chat-bubble blockquote .md-sub-bullet-text,
 .report-body-scroll blockquote .md-sub-bullet-text {
   color: var(--quote-bold) !important; /* #FFFDF5 웜 아이보리 (생화이트 아님) */
@@ -2770,12 +2772,14 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   color: #FAF8F2 !important;
 }
 
-/* 마크다운 순수 불릿 목록 그룹 */
-.md-bullet-group {
-  margin: 2px 0 4px 0 !important;
+/* 마크다운 순수 불릿 및 번호 목록 그룹 */
+.md-bullet-group,
+.md-numbered-group {
+  margin: 2px 0 6px 0 !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 2px !important;
+  gap: 3px !important;
+  width: 100% !important;
 }
 
 /* 번호 매겨진 목록 내부 서브 불릿 및 순수 불릿 항목 (상위 텍스트 시작선 기준 완벽 정렬) */
@@ -2787,6 +2791,7 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
   margin: 1px 0 !important;
   font-size: 0.94em !important;
   line-height: 1.66 !important;
+  width: 100% !important;
 }
 
 /* 순수 불릿 목록 들여쓰기 (1단계: 0px [-], 2단계: 14px [▪], 3단계: 28px [·]) */
@@ -2828,8 +2833,9 @@ blockquote .md-sub-bullet-dot {
   color: rgba(239, 236, 230, 0.85) !important;
 }
 
+.md-bullet-content,
 .md-sub-bullet-text {
-  flex: 1 1 0% !important;
+  flex: 1 1 auto !important;
   min-width: 0 !important;
   width: 100% !important;
   display: block !important;
@@ -2837,7 +2843,20 @@ blockquote .md-sub-bullet-dot {
   word-break: break-word !important;
 }
 
+.md-bullet-content > span,
+.md-sub-bullet-text > span,
+.md-bullet-content .md-bold-highlight,
+.md-sub-bullet-text .md-bold-highlight,
+.md-bullet-content .md-underline,
+.md-sub-bullet-text .md-underline,
+.md-bullet-content .md-inline-code,
+.md-sub-bullet-text .md-inline-code {
+  display: inline !important;
+  vertical-align: baseline !important;
+}
+
 .chat-bubble.user .md-sub-bullet-dot,
+.chat-bubble.user .md-bullet-content,
 .chat-bubble.user .md-sub-bullet-text {
   color: #FAF8F2 !important;
 }
