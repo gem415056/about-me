@@ -1992,14 +1992,14 @@ const MarkdownParser = {
       return saveBlock(this.parseMarkdownTable(tableMarkdown, isReport));
     });
 
-    // 3. 7단계 마크다운 헤더 변환 (긴 기호부터 순차 치환)
-    processed = processed.replace(/^####### (.*$)/gim, '<div class="md-h7">$1</div>');
-    processed = processed.replace(/^###### (.*$)/gim, '<h6>$1</h6>');
-    processed = processed.replace(/^##### (.*$)/gim, '<h5>$1</h5>');
-    processed = processed.replace(/^#### (.*$)/gim, '<h4>$1</h4>');
-    processed = processed.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-    processed = processed.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-    processed = processed.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+    // 3. 7단계 마크다운 헤더 변환 (긴 기호부터 순차 치환 & saveBlock 격리 & 인라인 서식 적용)
+    processed = processed.replace(/^[ \t]*#######[ \t]+(.*$)/gim, (_, text) => saveBlock(`<div class="md-h7">${this.parseInline(text)}</div>`));
+    processed = processed.replace(/^[ \t]*######[ \t]+(.*$)/gim, (_, text) => saveBlock(`<h6>${this.parseInline(text)}</h6>`));
+    processed = processed.replace(/^[ \t]*#####[ \t]+(.*$)/gim, (_, text) => saveBlock(`<h5>${this.parseInline(text)}</h5>`));
+    processed = processed.replace(/^[ \t]*####[ \t]+(.*$)/gim, (_, text) => saveBlock(`<h4>${this.parseInline(text)}</h4>`));
+    processed = processed.replace(/^[ \t]*###[ \t]+(.*$)/gim, (_, text) => saveBlock(`<h3>${this.parseInline(text)}</h3>`));
+    processed = processed.replace(/^[ \t]*##[ \t]+(.*$)/gim, (_, text) => saveBlock(`<h2>${this.parseInline(text)}</h2>`));
+    processed = processed.replace(/^[ \t]*#[ \t]+(.*$)/gim, (_, text) => saveBlock(`<h1>${this.parseInline(text)}</h1>`));
 
     // 4. 인용구 (> 문장) - 엔터로 떨어진 복수 줄 볼드(**줄1\n줄2**)도 온전히 지원 (Lazy continuation 포함)
     processed = processed.replace(/(?:^[ \t]*>[ \t]?.*(?:\n(?![ \t]*(?:[#\-*]|\d+\.|---|```|<))[^\n]+)*(\n|$))+/gm, (block) => {
@@ -2019,7 +2019,7 @@ const MarkdownParser = {
     });
 
     // 5. 구분선
-    processed = processed.replace(/^---$/gim, '<hr>');
+    processed = processed.replace(/^[ \t]*---[ \t]*$/gim, () => saveBlock('<hr>'));
 
     // 6. 목록(List) 변환 (항목별 격리 인라인 파싱 수행 및 saveBlock으로 안전 보호)
     processed = this.parseLists(processed, saveBlock);
