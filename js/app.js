@@ -1380,7 +1380,7 @@ const MarkdownParser = {
         let level = 1;
         if (currentIndent >= 6) level = 3;
         else if (currentIndent >= 2) level = 2;
-        currentNumberedGroup.push(`<div class="md-numbered-item num-level-${level}"><span class="md-num-label">${currentNum}</span><div class="md-bullet-content md-num-content">${innerHtml.trim()}</div></div>`);
+        currentNumberedGroup.push(`<div class="md-numbered-item num-level-${level}"><span class="md-num-label">${currentNum}</span><div class="md-num-content">${innerHtml.trim()}</div></div>`);
         inNumberedItem = false;
         currentNum = '';
         currentIndent = 0;

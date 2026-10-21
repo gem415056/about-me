@@ -2741,9 +2741,9 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
 .md-numbered-item {
   display: flex !important;
   flex-direction: row !important;
-  flex-wrap: wrap !important;
+  flex-wrap: nowrap !important;
   align-items: flex-start !important;
-  gap: 4px !important;
+  gap: 6px !important;
   margin: 3px 0 !important;
   line-height: 1.66 !important;
   width: 100% !important;
@@ -2756,7 +2756,7 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
 .md-numbered-item.num-level-4 { margin-left: 42px !important; }
 
 .md-num-label {
-  font-weight: 400 !important;
+  font-weight: 500 !important;
   color: inherit !important;
   flex-shrink: 0 !important;
   font-variant-numeric: tabular-nums !important;
@@ -2764,20 +2764,19 @@ strong, b, .chat-bubble strong, .chat-bubble b, .report-body-scroll strong, .rep
 }
 
 .md-num-content {
-  flex: 1 1 0% !important;
+  flex: 1 1 auto !important;
   min-width: 0 !important;
+  width: auto !important;
   display: block !important;
   color: var(--text-primary) !important;
   line-height: inherit !important;
   word-break: break-word !important;
 }
 
-/* 번호 항목 내부의 서브 불릿 또는 자식 불릿이 가로 컬럼으로 쪼개지지 않도록 100% 너비 수직 스택 보장 */
-.md-num-content > .md-sub-bullet,
-.md-numbered-item > .md-sub-bullet {
+/* 번호 항목 내부의 서브 불릿은 번호 본문 아래에서 100% 너비로 정렬 */
+.md-num-content > .md-sub-bullet {
   display: flex !important;
   width: 100% !important;
-  flex-basis: 100% !important;
   margin: 2px 0 !important;
 }
 
