@@ -1415,10 +1415,10 @@ const MarkdownParser = {
           const relativeIndent = indentSpaces - currentIndent;
           let level = 1;
           let dotSymbol = SVG_BULLETS.dash;
-          if (relativeIndent >= 6) {
+          if (relativeIndent >= 7) {
             level = 3;
             dotSymbol = SVG_BULLETS.arrow;
-          } else if (relativeIndent >= 3) {
+          } else if (relativeIndent >= 5) {
             level = 2;
             dotSymbol = SVG_BULLETS.square;
           } else {
