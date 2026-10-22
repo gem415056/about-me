@@ -3053,14 +3053,33 @@ const TokenEstimator = {
     let tokens = 0;
     for (let i = 0; i < text.length; i++) {
       const code = text.charCodeAt(i);
+      // 1) 한글 완성형 음절 (가~힣: AC00-D7A3) -> 평균 약 1.5 토큰 (Gemini SentencePiece 기준)
       if (code >= 0xAC00 && code <= 0xD7A3) {
-        tokens += 1.5; // 한글 음절당 약 1.5 토큰
-      } else if (code > 255) {
-        tokens += 1.5; // 한자 및 다국어 특수문자
-      } else if (text[i] === ' ' || text[i] === '\n') {
+        tokens += 1.5;
+      }
+      // 2) 한글 자모 및 호환 자모 (ㄱ~ㅎ, ㅏ~ㅣ: 1100-11FF, 3130-318F) -> 약 1.5 토큰
+      else if ((code >= 0x1100 && code <= 0x11FF) || (code >= 0x3130 && code <= 0x318F)) {
+        tokens += 1.5;
+      }
+      // 3) 한자(사주 천간/지지 등 CJK 통합 한자: 4E00-9FFF) -> 약 1.8 토큰
+      else if (code >= 0x4E00 && code <= 0x9FFF) {
+        tokens += 1.8;
+      }
+      // 4) 이모지 및 특수 서로게이트 문자 -> 약 2.0 토큰
+      else if (code >= 0xD800 && code <= 0xDFFF) {
+        tokens += 2.0;
+      }
+      // 5) 기타 다국어 유니코드 문자 (code > 255) -> 약 1.5 토큰
+      else if (code > 255) {
+        tokens += 1.5;
+      }
+      // 6) 공백 및 줄바꿈 -> 약 0.3 토큰
+      else if (text[i] === ' ' || text[i] === '\n' || text[i] === '\r' || text[i] === '\t') {
         tokens += 0.3;
-      } else {
-        tokens += 0.28; // 영문, 숫자
+      }
+      // 7) 영문 알파벳, 숫자, 기본 기호 (ASCII: 0-127) -> 영문 3.5~4자당 1토큰 (글자당 약 0.28 토큰)
+      else {
+        tokens += 0.28;
       }
     }
     return Math.ceil(tokens);
@@ -3070,16 +3089,30 @@ const TokenEstimator = {
     return 258; // Gemini 표준 이미지당 고정 토큰
   },
 
+  _cachedPromptTokens: {},
+
   async calculateCurrentTokens(category) {
     const currentCat = category || (typeof Router !== 'undefined' ? Router.currentView : 'saju');
     if (currentCat === 'landing' || !currentCat) return 0;
 
-    // 1. 시스템 프롬프트 토큰 추정 (약 4,500 토큰)
-    let promptTokens = 4500;
+    // 1. 시스템 프롬프트 토큰 추정 (심리학 약 14,000, 명리학 약 7,000)
+    let promptTokens = currentCat === 'psychology' ? 14000 : 7000;
     try {
       const promptData = await DB.get('prompts', currentCat);
       if (promptData?.content) {
         promptTokens = this.estimateTextTokens(promptData.content);
+      } else if (this._cachedPromptTokens[currentCat]) {
+        promptTokens = this._cachedPromptTokens[currentCat];
+      } else {
+        // 비동기 fetch로 실제 프롬프트 정확도 보정
+        fetch(`/api/prompt/${currentCat}`)
+          .then(r => r.json())
+          .then(d => {
+            if (d?.prompt) {
+              this._cachedPromptTokens[currentCat] = this.estimateTextTokens(d.prompt);
+              this.updateDisplay(currentCat);
+            }
+          }).catch(() => {});
       }
     } catch (e) {}
 

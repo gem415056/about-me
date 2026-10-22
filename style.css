@@ -687,6 +687,8 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
 
 /* 팝업 모달: 출렁거림 없는 고정 규격 */
 .app-modal {
+  position: relative;
+  z-index: 260;
   width: 100%;
   max-width: 440px;
   height: 520px; /* Firebase 스크립트 기준 고정 높이 */
