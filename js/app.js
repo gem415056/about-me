@@ -130,6 +130,9 @@ const Router = {
       }
       this.headers.title.textContent = '𝗔𝗕𝗢𝗨𝗧 𝗠𝗘';
     }
+    if (typeof TokenEstimator !== 'undefined') {
+      TokenEstimator.updateDisplay(viewName);
+    }
   }
 };
 
@@ -3043,6 +3046,106 @@ const VertexManager = {
   }
 };
 
+// 9.5. 실시간 토큰 추정 및 플로팅 카운터 매니저 (TokenEstimator)
+const TokenEstimator = {
+  estimateTextTokens(text) {
+    if (!text || typeof text !== 'string') return 0;
+    let tokens = 0;
+    for (let i = 0; i < text.length; i++) {
+      const code = text.charCodeAt(i);
+      if (code >= 0xAC00 && code <= 0xD7A3) {
+        tokens += 1.5; // 한글 음절당 약 1.5 토큰
+      } else if (code > 255) {
+        tokens += 1.5; // 한자 및 다국어 특수문자
+      } else if (text[i] === ' ' || text[i] === '\n') {
+        tokens += 0.3;
+      } else {
+        tokens += 0.28; // 영문, 숫자
+      }
+    }
+    return Math.ceil(tokens);
+  },
+
+  estimateImageTokens() {
+    return 258; // Gemini 표준 이미지당 고정 토큰
+  },
+
+  async calculateCurrentTokens(category) {
+    const currentCat = category || (typeof Router !== 'undefined' ? Router.currentView : 'saju');
+    if (currentCat === 'landing' || !currentCat) return 0;
+
+    // 1. 시스템 프롬프트 토큰 추정 (약 4,500 토큰)
+    let promptTokens = 4500;
+    try {
+      const promptData = await DB.get('prompts', currentCat);
+      if (promptData?.content) {
+        promptTokens = this.estimateTextTokens(promptData.content);
+      }
+    } catch (e) {}
+
+    // 2. 현재 활성 대화 히스토리 토큰
+    let historyTokens = 0;
+    if (typeof ChatManager !== 'undefined' && ChatManager.activeHistory && Array.isArray(ChatManager.activeHistory)) {
+      for (const msg of ChatManager.activeHistory) {
+        if (msg && msg.content && !msg.content.startsWith('⚠️')) {
+          historyTokens += this.estimateTextTokens(msg.content);
+        }
+        if (msg && Array.isArray(msg.attachments)) {
+          for (const att of msg.attachments) {
+            if (att.imageData) historyTokens += this.estimateImageTokens();
+            if (att.textContent) historyTokens += this.estimateTextTokens(att.textContent);
+          }
+        }
+      }
+    }
+
+    // 3. 현재 입력창 텍스트
+    const isPsychology = currentCat === 'psychology';
+    const inputEl = document.getElementById(isPsychology ? 'psychology-input' : 'saju-input');
+    let currentInputTokens = 0;
+    if (inputEl && inputEl.value) {
+      currentInputTokens = this.estimateTextTokens(inputEl.value);
+    }
+
+    // 4. 현재 첨부 파일들
+    let attachedTokens = 0;
+    if (typeof AttachmentManager !== 'undefined') {
+      const photos = AttachmentManager.attachedPhotos[currentCat] || [];
+      for (const p of photos) {
+        if (p.imageData) attachedTokens += this.estimateImageTokens();
+        if (p.textContent) attachedTokens += this.estimateTextTokens(p.textContent);
+      }
+    }
+    if (currentCat === 'saju' && typeof SajuManager !== 'undefined' && Array.isArray(SajuManager.attachedProfiles)) {
+      for (const p of SajuManager.attachedProfiles) {
+        if (p.imageData) attachedTokens += this.estimateImageTokens();
+      }
+    }
+
+    return Math.ceil(promptTokens + historyTokens + currentInputTokens + attachedTokens);
+  },
+
+  async updateDisplay(category) {
+    const displayEl = document.getElementById('token-count-display');
+    const chipEl = document.getElementById('token-floating-chip');
+    if (!displayEl || !chipEl) return;
+
+    const currentCat = category || (typeof Router !== 'undefined' ? Router.currentView : null);
+    if (!currentCat || currentCat === 'landing') {
+      chipEl.classList.add('hidden');
+      return;
+    }
+    chipEl.classList.remove('hidden');
+
+    const currentTokens = await this.calculateCurrentTokens(currentCat);
+    const config = await DB.get('settings', 'token_slicing_config').catch(() => null);
+    const isEnabled = Boolean(config?.enabled);
+    const targetTokens = (isEnabled && config?.maxTokens) ? parseInt(config.maxTokens, 10) : 50000;
+
+    displayEl.textContent = `${currentTokens} / ${targetTokens}`;
+  }
+};
+
 // 10. AI 멀티모달 통신 엔진 (AIEngine)
 const AIEngine = {
   // Base64 Data URL에서 MIME 타입과 순수 바이너리 데이터 안전 추출 및 정규화
@@ -3064,12 +3167,11 @@ const AIEngine = {
     return { mimeType: mime, data: base64 };
   },
 
-  // 멀티모달 페이로드 빌더 (프라이버시 엄수: 이름 절대 전송 금지, 순수 이미지만 패키징 & TXT/HTML 문서 원문 온전히 주입 & Multiturn 교차 순서 강제)
+  // 멀티모달 페이로드 빌더 (프라이버시 엄수: 순수 이미지만 패키징 & TXT/HTML 문서 원문 온전히 주입 & Multiturn 교차 순서 무삭제 보존 & 토큰 슬라이싱)
   async buildContents(history, userText, attachedProfiles = [], category = 'saju') {
     const contents = [];
 
-    // 1. 과거 히스토리 정제 (완성된 유효 턴만 필터링)
-    // ⚠️ 오류 메시지나 빈 내용은 엄격히 배제
+    // 1. 과거 히스토리 정제 (오류 메시지나 빈 내용은 제외하되, 모든 대화 턴은 삭제 없이 100% 보존)
     const rawHistory = (history || []).filter(msg => 
       msg && 
       typeof msg.content === 'string' && 
@@ -3077,44 +3179,48 @@ const AIEngine = {
       !msg.content.trim().startsWith('⚠️')
     );
 
-    // 유효한 user - model 쌍만 추출 (미응답/실패된 사용자 턴 제외하여 Multiturn strict 교차 구조 보장)
-    const validHistory = [];
-    for (let i = 0; i < rawHistory.length; i++) {
-      const msg = rawHistory[i];
-      if (msg.role === 'user') {
-        // 다음 메시지가 model 응답인 경우에만 유효한 완료 턴으로 인정
-        const nextMsg = rawHistory[i + 1];
-        if (nextMsg && nextMsg.role === 'model' && nextMsg.content && !nextMsg.content.trim().startsWith('⚠️')) {
-          const parts = [];
-          let userTurnText = '';
+    // [무삭제 교차 순서 보장] 대화 턴을 절대 임의 삭제하지 않고, 짝이 어긋난 경우 '.'을 채워넣어 완전 보존
+    const alternatingHistory = [];
+    let expectedRole = 'user';
 
-          const cleanContent = msg.content.replace(/\[[^\]]+의 만세력\]\s*/g, '').trim();
-          if (cleanContent) {
-            userTurnText += cleanContent;
-          }
+    for (const msg of rawHistory) {
+      const cleanContent = msg.content.replace(/\[[^\]]+의 만세력\]\s*/g, '').trim() || '.';
+      
+      if (msg.role === expectedRole) {
+        alternatingHistory.push({
+          role: msg.role,
+          parts: [{ text: cleanContent }]
+        });
+        expectedRole = expectedRole === 'user' ? 'model' : 'user';
+      } else {
+        // 순서가 어긋난 경우(예: 연속 user 또는 연속 model) 삭제하지 않고 중간에 빈 턴('.')을 채워넣음
+        alternatingHistory.push({
+          role: expectedRole,
+          parts: [{ text: '.' }]
+        });
+        expectedRole = expectedRole === 'user' ? 'model' : 'user';
 
-          if (userTurnText.trim()) {
-            parts.push({ text: userTurnText.trim() });
-          } else {
-            parts.push({ text: '만세력을 바탕으로 분석해 주세요.' });
-          }
-
-          if (parts.length > 0 && nextMsg.content && nextMsg.content.trim()) {
-            validHistory.push({ role: 'user', parts: parts });
-            validHistory.push({ role: 'model', parts: [{ text: nextMsg.content.trim() }] });
-          }
-          i++; // model 메시지까지 함께 소비
-        }
+        // 그리고 현재 메시지를 온전히 추가
+        alternatingHistory.push({
+          role: msg.role,
+          parts: [{ text: cleanContent }]
+        });
+        expectedRole = expectedRole === 'user' ? 'model' : 'user';
       }
     }
 
-    contents.push(...validHistory);
+    // 마지막 턴이 user로 끝나 있다면 model 응답('.' placeholder)을 채워넣어 다음 현재 질문(user)과 완벽 교차되도록 보장
+    if (alternatingHistory.length > 0 && alternatingHistory[alternatingHistory.length - 1].role === 'user') {
+      alternatingHistory.push({
+        role: 'model',
+        parts: [{ text: '.' }]
+      });
+    }
 
-    // 2. 현재 사용자 턴 조립
+    // 2. 현재 사용자 턴 조립 (사진, 만세력 이미지, 문서는 절대 슬라이싱 대상이 아니며 100% 무손실 보존)
     const currentParts = [];
-
-    // 활성 첨부 파일(명식 이미지, 첨부 사진, TXT/HTML 문서) 주입
     let docCombinedText = '';
+
     if (attachedProfiles && attachedProfiles.length > 0) {
       for (const item of attachedProfiles) {
         if (item && item.imageData) {
@@ -3128,13 +3234,11 @@ const AIEngine = {
             });
           }
         } else if (item && item.textContent) {
-          // [원문 100% 무손실] 문서 원문 내용 누적
           docCombinedText += `[첨부 파일: ${item.fileName || '문서'}]\n${item.textContent}\n\n`;
         }
       }
     }
 
-    // 순수 사용자 입력 질문
     const cleanUserText = (userText || '').replace(/\[[^\]]+의 만세력\]\s*/g, '').trim();
     let finalUserText = (docCombinedText + cleanUserText).trim();
 
@@ -3146,12 +3250,55 @@ const AIEngine = {
       currentParts.push({ text: finalUserText });
     }
 
-    // currentParts가 비어있지 않은 경우에만 전송
+    // [토큰 슬라이싱 제어]
+    const slicingConfig = await DB.get('settings', 'token_slicing_config').catch(() => null);
+    const isSlicingEnabled = Boolean(slicingConfig?.enabled);
+    const maxTokens = (isSlicingEnabled && slicingConfig?.maxTokens) ? parseInt(slicingConfig.maxTokens, 10) : 50000;
+
+    let finalHistory = alternatingHistory;
+
+    // 슬라이싱 토글이 켜져 있을 때만 동작: 사진/문서는 100% 보존하고 대화 텍스트만 오래된 순부터 컷팅
+    if (isSlicingEnabled && alternatingHistory.length > 2) {
+      let baseTokens = 4500;
+      baseTokens += TokenEstimator.estimateTextTokens(finalUserText);
+      for (const p of currentParts) {
+        if (p.inlineData) baseTokens += 258;
+      }
+
+      // [user, model] 짝 단위로 묶어서 최신 턴부터 역순으로 보존
+      const pairs = [];
+      for (let i = 0; i < alternatingHistory.length; i += 2) {
+        if (alternatingHistory[i] && alternatingHistory[i + 1]) {
+          pairs.push([alternatingHistory[i], alternatingHistory[i + 1]]);
+        }
+      }
+
+      let selectedPairs = [];
+      let accumulatedTokens = baseTokens;
+
+      for (let i = pairs.length - 1; i >= 0; i--) {
+        const pair = pairs[i];
+        const uText = pair[0].parts?.[0]?.text || '';
+        const mText = pair[1].parts?.[0]?.text || '';
+        const pairTokens = TokenEstimator.estimateTextTokens(uText) + TokenEstimator.estimateTextTokens(mText);
+
+        if (accumulatedTokens + pairTokens <= maxTokens || selectedPairs.length === 0) {
+          selectedPairs.unshift(pair);
+          accumulatedTokens += pairTokens;
+        } else {
+          break; // 설정 토큰 초과 시 이전 턴 슬라이싱
+        }
+      }
+
+      finalHistory = selectedPairs.flat();
+    }
+
+    contents.push(...finalHistory);
+
     if (currentParts.length > 0) {
       contents.push({ role: 'user', parts: currentParts });
     }
 
-    // contents가 완전히 비어있는 비정상 상태 원천 방지
     if (contents.length === 0) {
       contents.push({ role: 'user', parts: [{ text: userText || '안녕하세요.' }] });
     }
@@ -3312,7 +3459,7 @@ const AIEngine = {
             })
           });
 
-          // 정적 호스팅(Cloud CDN/GCS 등)에서 POST 요청 시 405 발생하거나 프록시가 없는 404인 경우
+          // 정적 호스팅(Cloud CDN/GCS 등)에서 POST 요청 시 405 발생하거나 프록시가 없는 404인 경우에만 다이렉트 호출 시도
           if (response.status === 405 || response.status === 404) {
             const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:${action}${sep}key=${apiKey}`;
             response = await fetch(directUrl, {
@@ -3322,13 +3469,18 @@ const AIEngine = {
             });
           }
         } catch (fetchErr) {
-          // 프록시 네트워크 실패 시 클라이언트에서 직접 Google Gemini API 호출
-          const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:${action}${sep}key=${apiKey}`;
-          response = await fetch(directUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
+          console.warn('[AIEngine] /api/gemini 프록시 호출 실패:', fetchErr);
+          // 프록시 호출이 완전 실패한 경우 다이렉트 호출 시도하되 안전하게 에러 캡처
+          try {
+            const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:${action}${sep}key=${apiKey}`;
+            response = await fetch(directUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+          } catch (directErr) {
+            throw new Error('서버 또는 Gemini API 연결에 실패했습니다 (Failed to fetch). 네트워크 상태를 확인하시거나 1~2분 뒤 다시 시도해 주세요.');
+          }
         }
       } else if (!parsedVertexConfig) {
         // [핵심 분기 3] API 키도 없고 Vertex AI 설정도 없는 경우: 서버 프록시 호출 시도 또는 친절한 안내
@@ -3360,6 +3512,7 @@ const AIEngine = {
           const errClone = await response.clone().json().catch(() => ({}));
           const errMsg = errClone.error?.message || '';
           if (errMsg.toLowerCase().includes('thinking') || errMsg.toLowerCase().includes('budget')) {
+            console.warn(`Model ${cleanModel} rejected thinkingConfig (${errMsg}). Retrying without thinkingConfig.`);
             const retryPayload = JSON.parse(JSON.stringify(payload));
             delete retryPayload.generationConfig.thinkingConfig;
             if (apiKey) {
@@ -3378,11 +3531,21 @@ const AIEngine = {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const msg = errorData.error?.message;
-        if (response.status === 400 && (!apiKey || msg?.includes('API key'))) {
+        const rawMsg = errorData.error?.message || errorData.message || '';
+        
+        if (response.status === 429 || rawMsg.toLowerCase().includes('quota') || rawMsg.toLowerCase().includes('resource_exhausted')) {
+          throw new Error('Gemini API 분당 사용량 한도(TPM/RPM Quota)를 일시 초과했습니다. 무료 티어는 분당 토큰/요청 수가 제한되어 있으므로 1~2분 뒤 다시 시도해 주세요.');
+        }
+        if (response.status === 400 && (!apiKey || rawMsg.includes('API key'))) {
           throw new Error('Gemini API 키가 유효하지 않거나 등록되지 않았습니다. 좌측 서랍의 [설정] 메뉴에서 API 키를 입력해 주세요.');
         }
-        throw new Error(msg || `통신 오류 (상태 코드: ${response.status})`);
+        if (response.status === 403) {
+          throw new Error(`Gemini API 권한 오류(403): API 키의 권한 및 사용 가능한 모델 설정을 확인해 주세요. (${rawMsg})`);
+        }
+        if (response.status === 503) {
+          throw new Error('Google Gemini 모델 서버가 일시적으로 과부하 상태입니다. 잠시 후 다시 시도해 주세요.');
+        }
+        throw new Error(rawMsg || `통신 오류 (상태 코드: ${response.status})`);
       }
 
       // 4-A. 일시 출력 (Batch) 방식
@@ -3468,7 +3631,11 @@ const AIEngine = {
 
     } catch (error) {
       console.error('[AIEngine 오류]:', error);
-      if (onError) onError(error.message || '요청 처리 중 오류가 발생했습니다.');
+      let errMsg = error.message || '요청 처리 중 오류가 발생했습니다.';
+      if (errMsg.includes('Failed to fetch') || error.name === 'TypeError') {
+        errMsg = '네트워크 통신 또는 API 연결에 실패했습니다 (Failed to fetch). 분당 토큰/요청 한도(TPM Quota) 초과 또는 일시적인 네트워크 지연일 수 있으니 1~2분 후 아래 [다시 시도]를 눌러주세요.';
+      }
+      if (onError) onError(errMsg);
     }
   }
 };
@@ -3975,6 +4142,9 @@ const SessionManager = {
     }
 
     await this.renderSessionList(session.category);
+    if (typeof TokenEstimator !== 'undefined') {
+      TokenEstimator.updateDisplay(session.category);
+    }
   },
 
   async saveMessage(sessionId, role, content) {
@@ -4221,15 +4391,33 @@ const ChatManager = {
         // 잠금 해제
         this.isGenerating = false;
         sendBtn.disabled = false;
+        if (typeof TokenEstimator !== 'undefined') {
+          TokenEstimator.updateDisplay(category);
+        }
       },
 
       // 오류 발생 시
       onError: async (errMsg) => {
-        if (modelBubble && modelBubble.updateRawContent) {
-          modelBubble.updateRawContent(`⚠️ ${errMsg}`);
-        } else {
-          modelBubble.innerHTML = `<span style="color: #9C413D;">⚠️ ${errMsg}</span>`;
+        let displayError = errMsg;
+        if (displayError.includes('Failed to fetch')) {
+          displayError = '네트워크 통신 또는 API 연결에 실패했습니다 (Failed to fetch). 분당 토큰/요청 한도(TPM Quota) 초과 또는 일시적인 네트워크 지연일 수 있으니 1~2분 뒤 리롤(새로고침) 버튼을 눌러주세요.';
         }
+
+        const errorHtml = `
+          <div class="chat-error-card" style="display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; align-items:flex-start; gap:6px; color:#B45309; line-height:1.5; font-size:0.92rem;">
+              <span style="flex-shrink:0;">⚠️</span>
+              <span>${displayError}</span>
+            </div>
+          </div>
+        `;
+
+        if (modelBubble) {
+          modelBubble.classList.remove('is-thinking');
+          const contentDiv = modelBubble.querySelector('.chat-bubble-content') || modelBubble;
+          contentDiv.innerHTML = errorHtml;
+        }
+
         // [중요] 통신 실패 시 방금 추가된 미완료 사용자 메시지를 activeHistory 및 DB에서 즉시 롤백하여 후속 전송 오염 차단
         const failedUserIdx = this.activeHistory.findIndex(m => m.id === userMsgId);
         if (failedUserIdx !== -1) {
@@ -4238,6 +4426,9 @@ const ChatManager = {
         await DB.delete('chat_messages', userMsgId).catch(() => {});
         this.isGenerating = false;
         sendBtn.disabled = false;
+        if (typeof TokenEstimator !== 'undefined') {
+          TokenEstimator.updateDisplay(category);
+        }
       }
     });
   },
@@ -4338,15 +4529,41 @@ const ChatManager = {
           }
         }
 
+        if (typeof TokenEstimator !== 'undefined') {
+          TokenEstimator.updateDisplay(category);
+        }
+
         this.isGenerating = false;
       },
-      onError: (errMsg) => {
-        if (modelBubble && modelBubble.updateRawContent) {
-          modelBubble.updateRawContent(`⚠️ ${errMsg}`);
-        } else {
-          modelBubble.innerHTML = `<span style="color: #9C413D;">⚠️ ${errMsg}</span>`;
+      onError: async (errMsg) => {
+        let displayError = errMsg;
+        if (displayError.includes('Failed to fetch')) {
+          displayError = '네트워크 통신 또는 API 연결에 실패했습니다 (Failed to fetch). 분당 토큰/요청 한도(TPM Quota) 초과 또는 일시적인 네트워크 지연일 수 있으니 1~2분 뒤 다시 시도해 주세요.';
         }
+
+        if (modelBubble) {
+          modelBubble.classList.remove('is-thinking');
+          const contentDiv = modelBubble.querySelector('.chat-bubble-content') || modelBubble;
+          contentDiv.innerHTML = `
+            <div class="chat-error-card" style="display:flex; flex-direction:column; gap:6px;">
+              <div style="display:flex; align-items:flex-start; gap:6px; color:#B45309; line-height:1.5; font-size:0.92rem;">
+                <span style="flex-shrink:0;">⚠️</span>
+                <span>${displayError}</span>
+              </div>
+            </div>
+          `;
+        }
+
+        // [중요] 선택지 페이로드 실패 시에도 미완료 사용자 메시지를 롤백하여 다음 전송 순서 오염 원천 방지
+        const failedUserIdx = this.activeHistory.findIndex(m => m.id === userMsgId);
+        if (failedUserIdx !== -1) {
+          this.activeHistory.splice(failedUserIdx, 1);
+        }
+        await DB.delete('chat_messages', userMsgId).catch(() => {});
         this.isGenerating = false;
+        if (typeof TokenEstimator !== 'undefined') {
+          TokenEstimator.updateDisplay(category);
+        }
       }
     });
   }
@@ -4839,6 +5056,18 @@ const ModalController = {
         syncCustomDropdown('dropdown-safety-hate', 'safety-hate', 'dropdown-hate-text', safety.hate || 'BLOCK_NONE');
         syncCustomDropdown('dropdown-safety-sex', 'safety-sex', 'dropdown-sex-text', safety.sex || 'BLOCK_NONE');
         syncCustomDropdown('dropdown-safety-danger', 'safety-danger', 'dropdown-danger-text', safety.danger || 'BLOCK_NONE');
+      } else if (modalId === 'modal-token-settings') {
+        const config = await DB.get('settings', 'token_slicing_config').catch(() => null);
+        const isEnabled = Boolean(config?.enabled);
+        const maxTokens = (config && config.maxTokens) ? config.maxTokens : 50000;
+
+        const toggle = document.getElementById('toggle-token-slicing');
+        const inputGroup = document.getElementById('token-slicing-input-group');
+        const inputTokens = document.getElementById('input-max-tokens');
+
+        if (toggle) toggle.checked = isEnabled;
+        if (inputTokens) inputTokens.value = maxTokens;
+        if (inputGroup) inputGroup.classList.toggle('hidden', !isEnabled);
       }
     } catch (e) {
       console.error('데이터 로드 실패:', e);
@@ -4892,6 +5121,23 @@ const ModalController = {
           const placeholder = document.getElementById('saju-upload-placeholder');
           if (placeholder) placeholder.classList.remove('hidden');
           SajuManager.tempImageData = null;
+        }
+      } else if (modalId === 'modal-token-settings') {
+        const toggle = document.getElementById('toggle-token-slicing');
+        const inputTokens = document.getElementById('input-max-tokens');
+
+        const isEnabled = Boolean(toggle?.checked);
+        const maxTokens = parseInt(inputTokens?.value, 10) || 50000;
+
+        await DB.set('settings', {
+          id: 'token_slicing_config',
+          enabled: isEnabled,
+          maxTokens: maxTokens,
+          updatedAt: Date.now()
+        });
+
+        if (typeof TokenEstimator !== 'undefined') {
+          TokenEstimator.updateDisplay();
         }
       }
     } catch (e) {
@@ -5053,8 +5299,43 @@ document.addEventListener('DOMContentLoaded', () => {
     textarea.addEventListener('input', function() {
       this.style.height = 'auto';
       this.style.height = (this.scrollHeight) + 'px';
+      if (typeof TokenEstimator !== 'undefined') {
+        TokenEstimator.updateDisplay();
+      }
     });
   });
+
+  // 토큰 카운팅 플로팅 칩 클릭 이벤트
+  const tokenFloatingChip = document.getElementById('token-floating-chip');
+  if (tokenFloatingChip) {
+    tokenFloatingChip.addEventListener('click', () => {
+      ModalController.open('modal-token-settings');
+    });
+  }
+
+  // 토큰 슬라이싱 토글 및 입력창 실시간 연동
+  const toggleTokenSlicing = document.getElementById('toggle-token-slicing');
+  const tokenSlicingInputGroup = document.getElementById('token-slicing-input-group');
+  const inputMaxTokens = document.getElementById('input-max-tokens');
+
+  if (toggleTokenSlicing) {
+    toggleTokenSlicing.addEventListener('change', () => {
+      if (tokenSlicingInputGroup) {
+        tokenSlicingInputGroup.classList.toggle('hidden', !toggleTokenSlicing.checked);
+      }
+      if (typeof TokenEstimator !== 'undefined') {
+        TokenEstimator.updateDisplay();
+      }
+    });
+  }
+
+  if (inputMaxTokens) {
+    inputMaxTokens.addEventListener('input', () => {
+      if (typeof TokenEstimator !== 'undefined') {
+        TokenEstimator.updateDisplay();
+      }
+    });
+  }
 
   // 랜딩 화면 버튼 이벤트 바인딩
   const btnPsychology = document.getElementById('btn-start-psychology');

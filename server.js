@@ -56,11 +56,19 @@ async function callGemini(modelName, action, apiKey, payload) {
   const cleanModel = modelName.replace(/^models\//, '');
   const sep = action.includes('?') ? '&' : '?';
   const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:${action}${sep}key=${apiKey}`;
-  return await fetch(targetUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
+  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 180000); // 3분 넉넉한 타임아웃
+  try {
+    return await fetch(targetUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 // Gemini API Server Proxy Route
@@ -111,7 +119,28 @@ app.post('/api/gemini', async (req, res) => {
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
-      return res.status(response.status).json(errData);
+      const rawMsg = errData.error?.message || `HTTP ${response.status}`;
+      console.warn(`[Gemini Proxy API Error] Status: ${response.status} | Raw: ${rawMsg}`);
+
+      let friendlyMessage = rawMsg;
+      if (response.status === 429 || rawMsg.toLowerCase().includes('quota') || rawMsg.toLowerCase().includes('resource_exhausted')) {
+        friendlyMessage = `Gemini API 분당 토큰/요청 한도(TPM/RPM Quota)를 일시 초과했습니다. 무료 티어는 분당 사용량이 제한되어 있으므로 1~2분 뒤 다시 시도해 주세요. (${rawMsg})`;
+      } else if (response.status === 400 && rawMsg.toLowerCase().includes('api key')) {
+        friendlyMessage = `Gemini API 키가 올바르지 않거나 만료되었습니다. 좌측 [설정] 메뉴에서 유효한 API 키를 확인해 주세요.`;
+      } else if (response.status === 403) {
+        friendlyMessage = `API 키 권한이 없거나 해당 모델에 접근할 수 없습니다. (${rawMsg})`;
+      } else if (response.status === 503) {
+        friendlyMessage = `Google Gemini 모델 서버가 일시적으로 과부하 상태입니다. 잠시 후 다시 시도해 주세요.`;
+      }
+
+      return res.status(response.status).json({
+        error: {
+          code: response.status,
+          message: friendlyMessage,
+          rawMessage: rawMsg,
+          status: errData.error?.status
+        }
+      });
     }
 
     if (stream) {
@@ -128,20 +157,32 @@ app.post('/api/gemini', async (req, res) => {
         reader.cancel().catch(() => {});
       });
 
-      while (!isClosed) {
-        const { done, value } = await reader.read();
-        if (done || isClosed) break;
-        res.write(value);
+      try {
+        while (!isClosed) {
+          const { done, value } = await reader.read();
+          if (done || isClosed) break;
+          res.write(value);
+        }
+      } catch (streamErr) {
+        console.warn('[Gemini Proxy Stream read error]:', streamErr);
+      } finally {
+        if (!res.writableEnded) {
+          res.end();
+        }
       }
-      res.end();
     } else {
       const data = await response.json();
       res.json(data);
     }
   } catch (error) {
     console.error('[Gemini Proxy Error]:', error);
+    const isAbort = error.name === 'AbortError';
     res.status(500).json({
-      error: { message: error.message || '서버 처리 중 오류가 발생했습니다.' }
+      error: { 
+        message: isAbort 
+          ? 'Gemini 응답 생성 시간이 초과되었습니다(3분 타임아웃). 잠시 후 다시 시도해 주세요.' 
+          : (error.message || '서버 처리 중 오류가 발생했습니다.')
+      }
     });
   }
 });

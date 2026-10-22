@@ -7,7 +7,7 @@
   <meta name="description" content="나를 깊이 이해하는 두 가지 여정: 심리학과 명리학 기반 심층 분석 대화형 웹 애플리케이션">
   <meta property="og:title" content="ABOUT ME">
   <meta property="og:description" content="나를 깊이 이해하는 두 가지 여정: 심리학과 명리학 기반 심층 분석 대화형 웹 애플리케이션">
-  <link rel="stylesheet" href="style.css?v=20261021_v160_wrap_padding">
+  <link rel="stylesheet" href="style.css?v=20261022_v170_tokens">
 </head>
 <body>
   <!-- 모바일 메인 뷰포트 컨테이너 -->
@@ -23,6 +23,11 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-hand"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
       </button>
     </header>
+
+    <!-- 헤더 바로 아래 우측 플로팅 알약 칩 (현재토큰 / 권장또는슬라이싱토큰) -->
+    <button type="button" id="token-floating-chip" class="token-floating-chip hidden" aria-label="토큰 통계 및 슬라이싱 설정" title="대화 맥락 및 토큰 설정">
+      <span id="token-count-display">0 / 50000</span>
+    </button>
 
     <!-- 메인 동적 화면 전환 영역 -->
     <main id="main-content">
@@ -431,6 +436,45 @@
               </div>
             </div>
           </div>
+      </div>
+
+      <!-- 4. 토큰 슬라이싱 설정 모달 (서랍 설정 팝업 디자인 일치) -->
+      <div id="modal-token-settings" class="app-modal modal-token-config hidden" role="dialog" aria-modal="true">
+        <div class="modal-header">
+          <h2 class="modal-title">대화 맥락 및 토큰 설정</h2>
+          <button type="button" class="btn-close-modal icon-btn" data-target="modal-token-settings">
+            <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+        </div>
+        <div class="modal-body spacious-body">
+          <div class="token-config-info-card">
+            <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+              기본 권장 토큰(50,000)을 초과하더라도 모든 대화가 온전히 전송됩니다.<br>
+              API 분당 사용량 한도(429)를 고려하여 대화 길이를 제한하려면 슬라이싱을 켜세요.
+            </p>
+          </div>
+
+          <!-- 토글 스위치 행 -->
+          <div class="toggle-setting-row" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0;">
+            <div>
+              <label class="input-label" style="margin-bottom: 2px; cursor: pointer;" for="toggle-token-slicing">대화 토큰 슬라이싱 제한</label>
+              <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">지정 토큰을 초과하면 이전 대화 텍스트만 오래된 순으로 잘라냅니다.</span>
+            </div>
+            <label class="switch-toggle">
+              <input type="checkbox" id="toggle-token-slicing">
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <!-- 조건부 노출되는 슬라이싱 토큰 수 입력 필드 -->
+          <div id="token-slicing-input-group" class="form-group-item hidden">
+            <label class="input-label" for="input-max-tokens">슬라이싱 기준 토큰 수</label>
+            <div style="position: relative; display: flex; align-items: center;">
+              <input type="number" id="input-max-tokens" class="modal-input" placeholder="50000" min="1000" step="1000" value="50000" style="padding-right: 50px;">
+              <span style="position: absolute; right: 14px; font-size: 0.82rem; font-weight: 600; color: var(--text-muted); pointer-events: none;">토큰</span>
+            </div>
+            <p class="input-guide">사진, 만세력 이미지, 첨부 문서는 항상 100% 무손실 보존되며, 순수 대화 텍스트만 슬라이싱됩니다.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -453,6 +497,6 @@
   </div>
 
   <script src="js/db.js?v=20261010_v150_force"></script>
-  <script src="js/app.js?v=20261021_v160_wrap_padding"></script>
+  <script src="js/app.js?v=20261022_v170_tokens"></script>
 </body>
 </html>
