@@ -2152,15 +2152,15 @@ const MarkdownParser = {
     const codeEl = codeBlock.querySelector('.md-code-body code');
     if (!codeEl) return;
     const text = codeEl.textContent || '';
-    navigator.clipboard.writeText(text).then(() => {
-      const originalSvg = btn.innerHTML;
-      btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5D664D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check"><path d="M20 6 9 17l-5-5"/></svg>`;
-      if (typeof UIManager !== 'undefined' && UIManager.showToast) {
-        UIManager.showToast('코드가 클립보드에 복사되었습니다.');
+    copyToClipboard(text).then(success => {
+      if (success) {
+        const originalSvg = btn.innerHTML;
+        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5D664D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check"><path d="M20 6 9 17l-5-5"/></svg>`;
+        showToast('코드가 클립보드에 복사되었습니다.');
+        setTimeout(() => {
+          btn.innerHTML = originalSvg;
+        }, 1800);
       }
-      setTimeout(() => {
-        btn.innerHTML = originalSvg;
-      }, 1800);
     });
   },
 
@@ -4813,6 +4813,81 @@ const ChatManager = {
   }
 };
 
+// 범용 피드백 토스트 알림 헬퍼
+function showToast(message, duration = 2000) {
+  let toast = document.getElementById('app-feedback-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'app-feedback-toast';
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 84px;
+      left: 50%;
+      transform: translateX(-50%) translateY(10px);
+      background: rgba(30, 32, 28, 0.92);
+      color: #FFFFFF;
+      font-size: 0.82rem;
+      font-weight: 500;
+      padding: 8px 16px;
+      border-radius: 20px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      z-index: 99999;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+      white-space: nowrap;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    `;
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.style.display = 'block';
+  requestAnimationFrame(() => {
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateX(-50%) translateY(0)';
+  });
+  if (toast._timer) clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(-50%) translateY(10px)';
+  }, duration);
+}
+
+if (typeof window !== 'undefined') {
+  window.UIManager = window.UIManager || {};
+  window.UIManager.showToast = showToast;
+}
+
+// iOS Safari / WebKit 및 크로스 플랫폼 최적화 클립보드 복사 유틸
+async function copyToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (e) {
+      // fallback to execCommand below
+    }
+  }
+  try {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.setAttribute('readonly', '');
+    textArea.style.position = 'fixed';
+    textArea.style.top = '-9999px';
+    textArea.style.left = '-9999px';
+    textArea.style.opacity = '0';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.setSelectionRange(0, text.length);
+    const successful = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    return successful;
+  } catch (err) {
+    return false;
+  }
+}
+
 // 6. 대화 UI 헬퍼 및 자동 스크롤 (ChatUI)
 const ChatUI = {
   // 메시지 행 추가 (말풍선 + 외곽 하단 수정/삭제 버튼, 사용자/AI 공통 적용)
@@ -4922,14 +4997,22 @@ const ChatUI = {
 
     row.appendChild(bubble);
 
-    // [요구사항] 시스템 첫 인사가 아니면 말풍선 아예 끝난 바깥 하단에 액션 버튼 배치 (사용자/AI 공통 적용)
+    // [요구사항] 모든 대화방 말풍선 바깥 하단에 액션 버튼 배치 (사용자/AI/온보딩 전체 공통)
+    const actionBar = document.createElement('div');
+    actionBar.className = 'bubble-action-bar-outside';
+
+    let buttonsHtml = `
+      <button type="button" class="bubble-action-btn btn-refresh-msg" title="다시 전송 (새로고침)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-refresh-cw"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+      </button>
+      <button type="button" class="bubble-action-btn btn-copy-msg" title="전체 복사">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy preview-icon"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+      </button>
+    `;
+
+    // 시스템 첫 인사가 아닌 일반 메시지인 경우 수정 및 삭제 버튼 제공
     if (!isGreeting) {
-      const actionBar = document.createElement('div');
-      actionBar.className = 'bubble-action-bar-outside';
-      actionBar.innerHTML = `
-        <button type="button" class="bubble-action-btn btn-refresh-msg" title="다시 전송 (새로고침)">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-refresh-cw"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
-        </button>
+      buttonsHtml += `
         <button type="button" class="bubble-action-btn btn-edit-msg" title="메시지 수정">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pen-line"><path d="M13 21h8"/><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>
         </button>
@@ -4937,60 +5020,45 @@ const ChatUI = {
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eraser"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/><path d="m5.082 11.09 8.828 8.828"/></svg>
         </button>
       `;
+    }
 
-      // 새로고침(재전송) 클릭 - 선택지 카드는 선택 완료 버튼 재활성화, 일반 말풍선은 즉시 재전송
-      actionBar.querySelector('.btn-refresh-msg').addEventListener('click', async () => {
-        if (ChatManager.isGenerating) return;
+    actionBar.innerHTML = buttonsHtml;
 
-        const targetId = bubble.dataset.msgId || currentMsgId;
-        const isPsychology = containerId === 'psychology-chat-messages';
-        const category = isPsychology ? 'psychology' : 'saju';
+    // 새로고침(재전송/리롤) 클릭 - 선택지 카드는 선택 완료 버튼 재활성화, 일반 말풍선은 즉시 재전송
+    actionBar.querySelector('.btn-refresh-msg').addEventListener('click', async () => {
+      if (ChatManager.isGenerating) return;
 
-        // 1. 이 카드가 심리학 질문 카드(선택지 또는 온보딩)인 경우:
-        //    즉시 재전송하지 않고 '선택 완료!' 버튼을 다시 활성화하여 사용자가 기존 선택을 보면서 수정할 수 있게 함
-        const quoteSection = row.querySelector('.integrated-quote-section');
-        if (quoteSection) {
-          const submitBtn = quoteSection.querySelector(`#btn-submit-${targetId}`) || quoteSection.querySelector(`#btn-submit-onboarding-${targetId}`);
-          if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.style.opacity = '1';
-            submitBtn.innerHTML = `
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-check"><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></svg>
-              <span>선택 완료!</span>
-            `;
-            submitBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          }
-          return;
+      const targetId = bubble.dataset.msgId || currentMsgId;
+      const isPsychology = containerId === 'psychology-chat-messages';
+      const category = isPsychology ? 'psychology' : 'saju';
+
+      // 1. 이 카드가 심리학 질문 카드(선택지 또는 온보딩)인 경우:
+      //    즉시 재전송하지 않고 '선택 완료!' 버튼을 다시 활성화하여 사용자가 기존 선택을 보면서 수정할 수 있게 함
+      const quoteSection = row.querySelector('.integrated-quote-section');
+      if (quoteSection) {
+        const submitBtn = quoteSection.querySelector(`#btn-submit-${targetId}`) || quoteSection.querySelector(`#btn-submit-onboarding-${targetId}`);
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.style.opacity = '1';
+          submitBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-check"><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></svg>
+            <span>선택 완료!</span>
+          `;
+          submitBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
+        return;
+      }
 
-        // 2. 사용자 말풍선인 경우 (사주 질문, 심리학 후속 질의응답 등):
-        if (role === 'user') {
-          const userContent = currentRaw;
-          // 이 메시지 및 이후 후속 메시지 제거
-          let nextRow = row.nextElementSibling;
-          while (nextRow) {
-            const toRemove = nextRow;
-            nextRow = nextRow.nextElementSibling;
-            const nId = toRemove.querySelector('.chat-bubble')?.dataset?.msgId;
-            if (nId) {
-              await DB.delete('chat_messages', nId);
-              ChatManager.activeHistory = ChatManager.activeHistory.filter(h => h.id !== nId);
-            }
-            toRemove.remove();
-          }
-          if (targetId) {
-            await DB.delete('chat_messages', targetId);
-            ChatManager.activeHistory = ChatManager.activeHistory.filter(h => h.id !== targetId);
-          }
-          row.remove();
+      // 첫 안내 메시지(예: 사주 첫 인사)인 경우
+      if (isGreeting) {
+        showToast('대화의 시작 안내 메시지입니다.');
+        return;
+      }
 
-          const inputEl = document.getElementById(isPsychology ? 'psychology-input' : 'saju-input');
-          if (inputEl) inputEl.value = userContent;
-          await ChatManager.sendMessage(category);
-          return;
-        }
-
-        // 3. 일반 모델 응답인 경우: 직전 사용자 질문 바탕으로 다시 생성 (이 모델 응답 및 이후 응답 전부 삭제)
+      // 2. 사용자 말풍선인 경우 (사주 질문, 심리학 후속 질의응답 등):
+      if (role === 'user') {
+        const userContent = currentRaw;
+        // 이 메시지 및 이후 후속 메시지 제거
         let nextRow = row.nextElementSibling;
         while (nextRow) {
           const toRemove = nextRow;
@@ -5002,161 +5070,290 @@ const ChatUI = {
           }
           toRemove.remove();
         }
-
-        const prevRow = row.previousElementSibling;
-        if (prevRow) {
-          const prevBubble = prevRow.querySelector('.chat-bubble.user');
-          if (prevBubble) {
-            const prevText = prevBubble.dataset.rawContent || prevBubble.textContent;
-            const prevId = prevBubble.dataset.msgId;
-            if (targetId) {
-              await DB.delete('chat_messages', targetId);
-              ChatManager.activeHistory = ChatManager.activeHistory.filter(h => h.id !== targetId);
-            }
-            row.remove();
-            if (prevId) {
-              await DB.delete('chat_messages', prevId);
-              ChatManager.activeHistory = ChatManager.activeHistory.filter(h => h.id !== prevId);
-            }
-            prevRow.remove();
-
-            const inputEl = document.getElementById(isPsychology ? 'psychology-input' : 'saju-input');
-            if (inputEl) inputEl.value = prevText;
-            await ChatManager.sendMessage(category);
-          }
+        if (targetId) {
+          await DB.delete('chat_messages', targetId);
+          ChatManager.activeHistory = ChatManager.activeHistory.filter(h => h.id !== targetId);
         }
-      });
+        row.remove();
 
-      // 수정 클릭 시: 본문 완전 숨김 + AI 완성본 본문이 온전히 들어간 텍스트에리어 활성화
-      actionBar.querySelector('.btn-edit-msg').addEventListener('click', () => {
-        // 기존 본문 완벽하게 숨김
-        contentDiv.classList.add('hidden');
-        contentDiv.style.display = 'none';
-        actionBar.classList.add('hidden');
+        const inputEl = document.getElementById(isPsychology ? 'psychology-input' : 'saju-input');
+        if (inputEl) inputEl.value = userContent;
+        await ChatManager.sendMessage(category);
+        return;
+      }
 
-        // 카드 그대로 두고, 원래 텍스트 박스 가로 너비 및 넉넉한 편집 폭 유지
-        bubble.classList.add('is-editing');
-        const origWidth = bubble.offsetWidth;
-        const parentWidth = bubble.parentElement ? bubble.parentElement.offsetWidth : 360;
-        bubble.style.width = `${Math.max(origWidth, parentWidth * 0.88)}px`;
+      // 3. 일반 모델 응답인 경우: 직전 사용자 질문 바탕으로 다시 생성 (이 모델 응답 및 이후 응답 전부 삭제)
+      let nextRow = row.nextElementSibling;
+      while (nextRow) {
+        const toRemove = nextRow;
+        nextRow = nextRow.nextElementSibling;
+        const nId = toRemove.querySelector('.chat-bubble')?.dataset?.msgId;
+        if (nId) {
+          await DB.delete('chat_messages', nId);
+          ChatManager.activeHistory = ChatManager.activeHistory.filter(h => h.id !== nId);
+        }
+        toRemove.remove();
+      }
 
-        // 중복 방지
-        const existingEdit = bubble.querySelector('.bubble-edit-textarea');
-        if (existingEdit) existingEdit.remove();
-        const existingOutside = row.querySelector('.bubble-action-bar-outside.is-editing-bar');
-        if (existingOutside) existingOutside.remove();
-
-        const editArea = document.createElement('textarea');
-        editArea.className = 'bubble-edit-textarea';
-        // AI 본문 전체를 100% 온전하게 주입
-        editArea.value = currentRaw;
-        bubble.appendChild(editArea);
-
-        // 텍스트 에리어 크기만큼 자동으로 크기 조절
-        const autoResize = () => {
-          editArea.style.height = 'auto';
-          editArea.style.height = `${Math.max(editArea.scrollHeight, 60)}px`;
-        };
-        autoResize();
-        editArea.addEventListener('input', autoResize);
-        editArea.focus();
-        editArea.setSelectionRange(editArea.value.length, editArea.value.length);
-
-        // [취소] [확인] 버튼 바는 말풍선 바깥 아래쪽 우측에 배치
-        const outsideEditBar = document.createElement('div');
-        outsideEditBar.className = 'bubble-action-bar-outside is-editing-bar';
-        outsideEditBar.style.cssText = 'display:flex; justify-content:flex-end; gap:12px; margin-top:6px;';
-        outsideEditBar.innerHTML = `
-          <button type="button" class="btn-bubble-cancel" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; display:inline-flex; align-items:center; gap:4px; font-size:0.8rem;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-            <span>취소</span>
-          </button>
-          <button type="button" class="btn-bubble-confirm" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; display:inline-flex; align-items:center; gap:4px; font-size:0.8rem; font-weight:600;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check"><path d="M20 6 9 17l-5-5"/></svg>
-            <span>확인</span>
-          </button>
-        `;
-
-        // 취소 클릭
-        outsideEditBar.querySelector('.btn-bubble-cancel').addEventListener('click', () => {
-          editArea.remove();
-          outsideEditBar.remove();
-          bubble.classList.remove('is-editing');
-          bubble.style.width = '';
-          bubble.style.minWidth = '';
-          contentDiv.classList.remove('hidden');
-          contentDiv.style.display = '';
-          actionBar.classList.remove('hidden');
-        });
-
-        // 확인 클릭: DB 저장 및 다음 Payload 완벽 동기화
-        outsideEditBar.querySelector('.btn-bubble-confirm').addEventListener('click', async () => {
-          const updatedText = editArea.value.trim();
-          if (!updatedText) return;
-
-          const oldText = currentRaw;
-          currentRaw = updatedText;
-          bubble.dataset.rawContent = updatedText;
-          renderInnerContent();
-
-          const targetId = bubble.dataset.msgId || currentMsgId;
-          if (targetId) {
-            const msgObj = await DB.get('chat_messages', targetId);
-            if (msgObj) {
-              msgObj.content = updatedText;
-              await DB.set('chat_messages', msgObj);
-            }
-          }
-
-          // activeHistory 동기화
-          const histItem = ChatManager.activeHistory.find(h => (h.id && h.id === targetId) || (h.role === role && h.content === oldText));
-          if (histItem) {
-            histItem.content = updatedText;
-          }
-
-          editArea.remove();
-          outsideEditBar.remove();
-          bubble.classList.remove('is-editing');
-          bubble.style.width = '';
-          bubble.style.minWidth = '';
-          contentDiv.classList.remove('hidden');
-          contentDiv.style.display = '';
-          actionBar.classList.remove('hidden');
-        });
-
-        row.appendChild(outsideEditBar);
-      });
-
-      // 삭제 클릭
-      actionBar.querySelector('.btn-delete-msg').addEventListener('click', async () => {
-        if (confirm('이 메시지를 삭제하시겠습니까?')) {
-          const targetId = bubble.dataset.msgId || currentMsgId;
+      const prevRow = row.previousElementSibling;
+      if (prevRow) {
+        const prevBubble = prevRow.querySelector('.chat-bubble.user');
+        if (prevBubble) {
+          const prevText = prevBubble.dataset.rawContent || prevBubble.textContent;
+          const prevId = prevBubble.dataset.msgId;
           if (targetId) {
             await DB.delete('chat_messages', targetId);
+            ChatManager.activeHistory = ChatManager.activeHistory.filter(h => h.id !== targetId);
           }
-          // activeHistory에서 완벽 필터링 제거
-          ChatManager.activeHistory = ChatManager.activeHistory.filter(h => {
-            if (h.id && targetId) return h.id !== targetId;
-            return !(h.role === role && h.content === currentRaw);
-          });
-
-          // 만약 심리학 질문에 대한 모델 응답을 삭제한 경우, 직전 silent 사용자 답변도 정리하고 버튼 복원
-          const prevRow = row.previousElementSibling;
-          if (prevRow) {
-            const submitBtn = prevRow.querySelector('[id^="btn-submit-"]');
-            if (submitBtn) {
-              submitBtn.disabled = false;
-              submitBtn.style.opacity = '1';
-              submitBtn.innerHTML = '선택 완료';
-            }
-          }
-
           row.remove();
+          if (prevId) {
+            await DB.delete('chat_messages', prevId);
+            ChatManager.activeHistory = ChatManager.activeHistory.filter(h => h.id !== prevId);
+          }
+          prevRow.remove();
+
+          const inputEl = document.getElementById(isPsychology ? 'psychology-input' : 'saju-input');
+          if (inputEl) inputEl.value = prevText;
+          await ChatManager.sendMessage(category);
+        }
+      }
+    });
+
+    // [전체 복사] 클릭 - 아이폰/모바일 환경에서도 대화 내용 전체를 즉시 클립보드에 복사
+    const copyBtn = actionBar.querySelector('.btn-copy-msg');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', async () => {
+        let textToCopy = '';
+        const currentText = bubble.dataset.rawContent || (bubble.getRawContent ? bubble.getRawContent() : currentRaw);
+
+        // 1. 심리학 온보딩 대화창
+        const onboardingSection = row.querySelector('.onboarding-quote-section');
+        if (onboardingSection || (currentText && currentText.includes('__PSYCHOLOGY_ONBOARDING__'))) {
+          const preambleEl = row.querySelector('.ai-dialogue-body');
+          const preamble = preambleEl ? preambleEl.textContent.trim() : '본격적으로 이야기를 시작하기 전에, 가장 편안한 대화 환경부터 맞춰볼게요!';
+          const lines = [preamble, ''];
+
+          // 1번 질문: 대화 톤
+          const q1El = row.querySelector('.onboarding-question-block:nth-of-type(1) .onboarding-q-title');
+          const q1 = q1El ? q1El.textContent.trim() : '1. 어떤 대화 톤이 편하신가요?';
+          lines.push(q1);
+          const checkedTone = row.querySelector('.onboarding-tone-options input[type="radio"]:checked');
+          if (checkedTone) {
+            lines.push(`(선택: ${checkedTone.value})`);
+          } else {
+            const toneLabels = Array.from(row.querySelectorAll('.onboarding-tone-options .choice-label-text')).map(el => `- ${el.textContent.trim()}`);
+            if (toneLabels.length) lines.push(...toneLabels);
+          }
+          lines.push('');
+
+          // 2번 질문: 호칭
+          const q2El = row.querySelector('.onboarding-question-block:nth-of-type(2) .onboarding-q-title');
+          const q2 = q2El ? q2El.textContent.trim() : '2. 대화하는 동안 제가 어떤 호칭(닉네임)으로 불러드리면 좋을까요?';
+          lines.push(q2);
+          const nickVal = row.querySelector('textarea[id^="onboarding-nickname"]')?.value?.trim();
+          if (nickVal) {
+            lines.push(`(입력: ${nickVal})`);
+          }
+          lines.push('');
+
+          // 3번 질문: 첫 이야기
+          const q3El = row.querySelector('.onboarding-question-block:nth-of-type(3) .onboarding-q-title');
+          const q3 = q3El ? q3El.textContent.trim() : '3. 지금 머릿속에 가장 먼저 떠오르는 이야기 하나만 편하게 꺼내주세요!';
+          lines.push(q3);
+          const storyVal = row.querySelector('textarea[id^="onboarding-story"]')?.value?.trim();
+          if (storyVal) {
+            lines.push(`(입력: ${storyVal})`);
+          }
+
+          textToCopy = lines.join('\n').trim();
+        } else if (currentText && typeof MarkdownParser !== 'undefined' && MarkdownParser.extractReport(currentText).hasReport) {
+          // 2. 보고서 카드
+          const rep = MarkdownParser.extractReport(currentText);
+          textToCopy = rep.reportContent ? rep.reportContent.trim() : '';
+        } else if (row.querySelector('.integrated-quote-section')) {
+          // 3. 심리학 대화형 선택지 카드
+          const quoteSec = row.querySelector('.integrated-quote-section');
+          const preamble = row.querySelector('.ai-dialogue-body')?.textContent?.trim();
+          const scenario = quoteSec.querySelector('.quote-scenario-title')?.textContent?.trim();
+          const choiceRows = Array.from(quoteSec.querySelectorAll('.choice-item-row')).map(item => {
+            const chk = item.querySelector('.choice-chk')?.checked;
+            const lbl = item.querySelector('.choice-label-text')?.textContent?.trim();
+            return `${chk ? '[선택] ' : ''}${lbl || ''}`;
+          });
+          const supp = quoteSec.querySelector('.field-supplement')?.value?.trim();
+
+          const parts = [];
+          if (preamble) parts.push(preamble);
+          if (scenario) parts.push(scenario);
+          if (choiceRows.length) parts.push(choiceRows.join('\n'));
+          if (supp) parts.push(`답변 보충: ${supp}`);
+          textToCopy = parts.join('\n\n').trim();
+        } else if (currentText && currentText !== '생각하는 중...') {
+          // 4. 일반 메시지
+          textToCopy = currentText.trim();
+        } else {
+          const contentEl = bubble.querySelector('.bubble-text-content');
+          textToCopy = contentEl ? contentEl.innerText.trim() : '';
+        }
+
+        if (!textToCopy) {
+          showToast('복사할 대화 내용이 없습니다.');
+          return;
+        }
+
+        const success = await copyToClipboard(textToCopy);
+        if (success) {
+          const originalSvg = copyBtn.innerHTML;
+          copyBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5D664D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check preview-icon"><path d="M20 6 9 17l-5-5"/></svg>
+          `;
+          showToast('대화 내용이 전체 복사되었습니다.');
+          setTimeout(() => {
+            copyBtn.innerHTML = originalSvg;
+          }, 1800);
+        } else {
+          showToast('복사에 실패했습니다.');
         }
       });
-
-      row.appendChild(actionBar);
     }
+
+    if (!isGreeting) {
+      // 수정 클릭 시: 본문 완전 숨김 + AI 완성본 본문이 온전히 들어간 텍스트에리어 활성화
+      const editBtn = actionBar.querySelector('.btn-edit-msg');
+      if (editBtn) {
+        editBtn.addEventListener('click', () => {
+          // 기존 본문 완벽하게 숨김
+          contentDiv.classList.add('hidden');
+          contentDiv.style.display = 'none';
+          actionBar.classList.add('hidden');
+
+          // 카드 그대로 두고, 원래 텍스트 박스 가로 너비 및 넉넉한 편집 폭 유지
+          bubble.classList.add('is-editing');
+          const origWidth = bubble.offsetWidth;
+          const parentWidth = bubble.parentElement ? bubble.parentElement.offsetWidth : 360;
+          bubble.style.width = `${Math.max(origWidth, parentWidth * 0.88)}px`;
+
+          // 중복 방지
+          const existingEdit = bubble.querySelector('.bubble-edit-textarea');
+          if (existingEdit) existingEdit.remove();
+          const existingOutside = row.querySelector('.bubble-action-bar-outside.is-editing-bar');
+          if (existingOutside) existingOutside.remove();
+
+          const editArea = document.createElement('textarea');
+          editArea.className = 'bubble-edit-textarea';
+          // AI 본문 전체를 100% 온전하게 주입
+          editArea.value = currentRaw;
+          bubble.appendChild(editArea);
+
+          // 텍스트 에리어 크기만큼 자동으로 크기 조절
+          const autoResize = () => {
+            editArea.style.height = 'auto';
+            editArea.style.height = `${Math.max(editArea.scrollHeight, 60)}px`;
+          };
+          autoResize();
+          editArea.addEventListener('input', autoResize);
+          editArea.focus();
+          editArea.setSelectionRange(editArea.value.length, editArea.value.length);
+
+          // [취소] [확인] 버튼 바는 말풍선 바깥 아래쪽 우측에 배치
+          const outsideEditBar = document.createElement('div');
+          outsideEditBar.className = 'bubble-action-bar-outside is-editing-bar';
+          outsideEditBar.style.cssText = 'display:flex; justify-content:flex-end; gap:12px; margin-top:6px;';
+          outsideEditBar.innerHTML = `
+            <button type="button" class="btn-bubble-cancel" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; display:inline-flex; align-items:center; gap:4px; font-size:0.8rem;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              <span>취소</span>
+            </button>
+            <button type="button" class="btn-bubble-confirm" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; display:inline-flex; align-items:center; gap:4px; font-size:0.8rem; font-weight:600;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check"><path d="M20 6 9 17l-5-5"/></svg>
+              <span>확인</span>
+            </button>
+          `;
+
+          // 취소 클릭
+          outsideEditBar.querySelector('.btn-bubble-cancel').addEventListener('click', () => {
+            editArea.remove();
+            outsideEditBar.remove();
+            bubble.classList.remove('is-editing');
+            bubble.style.width = '';
+            bubble.style.minWidth = '';
+            contentDiv.classList.remove('hidden');
+            contentDiv.style.display = '';
+            actionBar.classList.remove('hidden');
+          });
+
+          // 확인 클릭: DB 저장 및 다음 Payload 완벽 동기화
+          outsideEditBar.querySelector('.btn-bubble-confirm').addEventListener('click', async () => {
+            const updatedText = editArea.value.trim();
+            if (!updatedText) return;
+
+            const oldText = currentRaw;
+            currentRaw = updatedText;
+            bubble.dataset.rawContent = updatedText;
+            renderInnerContent();
+
+            const targetId = bubble.dataset.msgId || currentMsgId;
+            if (targetId) {
+              const msgObj = await DB.get('chat_messages', targetId);
+              if (msgObj) {
+                msgObj.content = updatedText;
+                await DB.set('chat_messages', msgObj);
+              }
+            }
+
+            // activeHistory 동기화
+            const histItem = ChatManager.activeHistory.find(h => (h.id && h.id === targetId) || (h.role === role && h.content === oldText));
+            if (histItem) {
+              histItem.content = updatedText;
+            }
+
+            editArea.remove();
+            outsideEditBar.remove();
+            bubble.classList.remove('is-editing');
+            bubble.style.width = '';
+            bubble.style.minWidth = '';
+            contentDiv.classList.remove('hidden');
+            contentDiv.style.display = '';
+            actionBar.classList.remove('hidden');
+          });
+
+          row.appendChild(outsideEditBar);
+        });
+      }
+
+      // 삭제 클릭
+      const deleteBtn = actionBar.querySelector('.btn-delete-msg');
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', async () => {
+          if (confirm('이 메시지를 삭제하시겠습니까?')) {
+            const targetId = bubble.dataset.msgId || currentMsgId;
+            if (targetId) {
+              await DB.delete('chat_messages', targetId);
+            }
+            // activeHistory에서 완벽 필터링 제거
+            ChatManager.activeHistory = ChatManager.activeHistory.filter(h => {
+              if (h.id && targetId) return h.id !== targetId;
+              return !(h.role === role && h.content === currentRaw);
+            });
+
+            // 만약 심리학 질문에 대한 모델 응답을 삭제한 경우, 직전 silent 사용자 답변도 정리하고 버튼 복원
+            const prevRow = row.previousElementSibling;
+            if (prevRow) {
+              const submitBtn = prevRow.querySelector('[id^="btn-submit-"]');
+              if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = '1';
+                submitBtn.innerHTML = '선택 완료';
+              }
+            }
+
+            row.remove();
+          }
+        });
+      }
+    }
+
+    row.appendChild(actionBar);
 
     container.appendChild(row);
     container.scrollTop = container.scrollHeight;

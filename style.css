@@ -1149,10 +1149,22 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   align-items: center;
   justify-content: center;
   border-radius: 4px;
+  transition: color 0.15s ease, transform 0.1s ease;
+}
+
+.bubble-action-btn svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.bubble-action-btn:hover {
+  color: var(--text-primary);
 }
 
 .bubble-action-btn:active {
   color: var(--text-primary);
+  transform: scale(0.95);
 }
 
 /* 수정 폼: 기존 카드와 100% 동일한 배경과 크기 유지 */
