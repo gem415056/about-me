@@ -3909,15 +3909,132 @@ const CloudBackupManager = {
     return JSON.stringify(dump);
   },
 
-  // 1MB 제한 극복: 문자열을 800KB(약 800,000자) 안전 크기로 분할
-  sliceIntoChunks(str, chunkSize = 750000) {
+  // 1MB 제한 극복: UTF-8 바이트 기준으로 600KB(안전 여유치 포함) 단위 분할
+  sliceIntoChunks(str, maxBytes = 600000) {
     const chunks = [];
-    let i = 0;
-    while (i < str.length) {
-      chunks.push(str.slice(i, i + chunkSize));
-      i += chunkSize;
+    const encoder = new TextEncoder();
+    let startIdx = 0;
+
+    while (startIdx < str.length) {
+      let endIdx = Math.min(str.length, startIdx + Math.floor(maxBytes / 3));
+      let slice = str.slice(startIdx, endIdx);
+      let bytes = encoder.encode(slice).length;
+
+      while (endIdx < str.length) {
+        const step = Math.min(str.length - endIdx, Math.max(100, Math.floor((maxBytes - bytes) / 3)));
+        if (step <= 0) break;
+        const nextSlice = str.slice(endIdx, endIdx + step);
+        const nextBytes = encoder.encode(nextSlice).length;
+        if (bytes + nextBytes > maxBytes) break;
+        bytes += nextBytes;
+        endIdx += step;
+      }
+
+      chunks.push(str.slice(startIdx, endIdx));
+      startIdx = endIdx;
     }
     return chunks;
+  },
+
+  // 상단 진행 상태 안내 토스트
+  showProgressToast(message) {
+    let toast = document.getElementById('cloud-backup-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'cloud-backup-toast';
+      toast.style.cssText = `
+        position: fixed;
+        top: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #2A3022;
+        color: #FAF8F2;
+        padding: 10px 22px;
+        border-radius: 9999px;
+        font-size: 0.86rem;
+        font-weight: 600;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.22);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+      `;
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.style.opacity = '1';
+    toast.style.display = 'flex';
+  },
+
+  hideProgressToast() {
+    const toast = document.getElementById('cloud-backup-toast');
+    if (toast) {
+      toast.style.opacity = '0';
+      setTimeout(() => {
+        if (toast.parentElement) toast.parentElement.removeChild(toast);
+      }, 250);
+    }
+  },
+
+  // 타임아웃 방지 및 실패 시 자동 재시도 (Exponential Backoff + AppCheck 토큰 재갱신)
+  async fetchWithRetry(url, options = {}, maxRetries = 4) {
+    let lastError = null;
+    let delay = 600;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const controller = new AbortController();
+      // 단일 청크 타임아웃을 넉넉하게 60초로 설정
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+      try {
+        const fetchOptions = {
+          ...options,
+          signal: controller.signal
+        };
+        const res = await fetch(url, fetchOptions);
+
+        // 401/403 AppCheck 토큰 만료 시 즉시 토큰 강제 갱신
+        if ((res.status === 401 || res.status === 403) && typeof VertexManager !== 'undefined') {
+          console.warn(`[Firestore Auth Retry] HTTP ${res.status}. Refreshing AppCheck token...`);
+          const freshToken = await VertexManager.getAppCheckToken(true).catch(() => null);
+          if (freshToken) {
+            options.headers = options.headers || {};
+            options.headers['X-Firebase-AppCheck'] = freshToken;
+          }
+        }
+
+        if (res.ok) {
+          clearTimeout(timeoutId);
+          return res;
+        }
+
+        // 429(속도 한도), 5xx 서버 오류 시 재시도
+        const isRetryable = res.status === 429 || res.status >= 500 || res.status === 401 || res.status === 403;
+        if (!isRetryable || attempt === maxRetries) {
+          clearTimeout(timeoutId);
+          const errBody = await res.text().catch(() => '');
+          throw new Error(`HTTP ${res.status}: ${errBody || res.statusText}`);
+        }
+
+        clearTimeout(timeoutId);
+        console.warn(`[Firestore Write Retry ${attempt + 1}/${maxRetries}] Status ${res.status}, waiting ${delay}ms...`);
+        await new Promise(r => setTimeout(r, delay));
+        delay *= 1.8;
+      } catch (err) {
+        clearTimeout(timeoutId);
+        lastError = err;
+        const isAbort = err.name === 'AbortError';
+        console.warn(`[Firestore Fetch Error attempt ${attempt + 1}/${maxRetries}]: ${isAbort ? 'Timeout (60s)' : err.message}`);
+        if (attempt === maxRetries) {
+          throw new Error(isAbort ? '네트워크 요청 시간 초과(60초 타임아웃)' : err.message);
+        }
+        await new Promise(r => setTimeout(r, delay));
+        delay *= 1.8;
+      }
+    }
+    throw lastError || new Error('네트워크 요청 실패');
   },
 
   // 클라우드 백업 실행
@@ -3935,9 +4052,11 @@ const CloudBackupManager = {
     const cleanKey = encodeURIComponent(backupKey.trim());
 
     try {
-      // 1. 전체 로컬 DB 패키징 및 슬라이스 분할
+      this.showProgressToast('📦 로컬 데이터베이스 압축 및 패키징 중...');
+
+      // 1. 전체 로컬 DB 패키징 및 UTF-8 안전 슬라이스 분할
       const fullJson = await this.exportFullDatabase();
-      const chunks = this.sliceIntoChunks(fullJson);
+      const chunks = this.sliceIntoChunks(fullJson, 600000);
       const baseUrl = `https://firestore.googleapis.com/v1/projects/${config.projectId}/databases/(default)/documents`;
 
       const appCheckToken = await VertexManager.getAppCheckToken().catch(() => null);
@@ -3945,6 +4064,8 @@ const CloudBackupManager = {
       if (appCheckToken) {
         reqHeaders['X-Firebase-AppCheck'] = appCheckToken;
       }
+
+      this.showProgressToast(`☁️ 메타데이터 생성 중... (총 ${chunks.length}개 청크)`);
 
       // 2. 메타데이터 문서 저장
       const metaUrl = `${baseUrl}/about_me_backups/${cleanKey}?key=${config.apiKey}`;
@@ -3956,18 +4077,17 @@ const CloudBackupManager = {
         }
       };
 
-      const metaRes = await fetch(metaUrl, {
+      await this.fetchWithRetry(metaUrl, {
         method: 'PATCH',
         headers: reqHeaders,
         body: JSON.stringify(metaPayload)
       });
 
-      if (!metaRes.ok) {
-        throw new Error(`메타데이터 저장 실패 (상태 코드: ${metaRes.status})`);
-      }
-
-      // 3. 분할된 청크 순차 업로드
+      // 3. 분할된 청크 순차 업로드 (타임아웃 방지 + 진행률 토스트 + 버스트 방지 80ms 간격)
       for (let idx = 0; idx < chunks.length; idx++) {
+        const percent = Math.round(((idx + 1) / chunks.length) * 100);
+        this.showProgressToast(`☁️ 백업 업로드 중... (${idx + 1} / ${chunks.length} 청크, ${percent}%)`);
+
         const chunkUrl = `${baseUrl}/about_me_backups/${cleanKey}/chunks/part_${idx}?key=${config.apiKey}`;
         const chunkPayload = {
           fields: {
@@ -3976,19 +4096,20 @@ const CloudBackupManager = {
           }
         };
 
-        const chunkRes = await fetch(chunkUrl, {
+        await this.fetchWithRetry(chunkUrl, {
           method: 'PATCH',
           headers: reqHeaders,
           body: JSON.stringify(chunkPayload)
         });
 
-        if (!chunkRes.ok) {
-          throw new Error(`청크 ${idx + 1}/${chunks.length} 업로드 실패`);
-        }
+        // Firestore 쓰기 속도 제한(Rate Limiting) 방지를 위한 미세 대기
+        await new Promise(r => setTimeout(r, 80));
       }
 
+      this.hideProgressToast();
       alert(`✅ 백업이 성공적으로 완료되었습니다!\n총 ${chunks.length}개의 조각으로 안전하게 분할 저장되었습니다.\n복원 코드: ${backupKey.trim()}`);
     } catch (err) {
+      this.hideProgressToast();
       console.error('[백업 오류]:', err);
       alert(`⚠️ 백업 실패: ${err.message}`);
     }
@@ -4009,6 +4130,7 @@ const CloudBackupManager = {
     const cleanKey = encodeURIComponent(backupKey.trim());
 
     try {
+      this.showProgressToast('🔍 백업 메타데이터 조회 중...');
       const baseUrl = `https://firestore.googleapis.com/v1/projects/${config.projectId}/databases/(default)/documents`;
 
       const appCheckToken = await VertexManager.getAppCheckToken().catch(() => null);
@@ -4016,29 +4138,28 @@ const CloudBackupManager = {
 
       // 1. 메타데이터 조회
       const metaUrl = `${baseUrl}/about_me_backups/${cleanKey}?key=${config.apiKey}`;
-      const metaRes = await fetch(metaUrl, { headers: reqHeaders });
-
-      if (!metaRes.ok) {
-        throw new Error('해당 복원 코드의 백업 데이터를 찾을 수 없습니다.');
-      }
+      const metaRes = await this.fetchWithRetry(metaUrl, { headers: reqHeaders });
 
       const metaData = await metaRes.json();
       const totalChunks = parseInt(metaData.fields?.totalChunks?.integerValue || '1', 10);
 
-      // 2. 분할 청크 순차 다운로드 및 병합
+      // 2. 분할 청크 순차 다운로드 및 병합 (타임아웃 방지 + 진행률 토스트)
       let reconstructedJson = '';
       for (let idx = 0; idx < totalChunks; idx++) {
-        const chunkUrl = `${baseUrl}/about_me_backups/${cleanKey}/chunks/part_${idx}?key=${config.apiKey}`;
-        const chunkRes = await fetch(chunkUrl, { headers: reqHeaders });
+        const percent = Math.round(((idx + 1) / totalChunks) * 100);
+        this.showProgressToast(`📥 복원 데이터 다운로드 중... (${idx + 1} / ${totalChunks} 청크, ${percent}%)`);
 
-        if (!chunkRes.ok) {
-          throw new Error(`청크 ${idx + 1}/${totalChunks} 복원 실패`);
-        }
+        const chunkUrl = `${baseUrl}/about_me_backups/${cleanKey}/chunks/part_${idx}?key=${config.apiKey}`;
+        const chunkRes = await this.fetchWithRetry(chunkUrl, { headers: reqHeaders });
 
         const chunkData = await chunkRes.json();
         const partText = chunkData.fields?.data?.stringValue || '';
         reconstructedJson += partText;
+
+        await new Promise(r => setTimeout(r, 40));
       }
+
+      this.showProgressToast('💾 로컬 데이터베이스 복구 및 인덱싱 중...');
 
       // 3. JSON 역직렬화 및 IndexedDB 트랜잭션 복원
       const restored = JSON.parse(reconstructedJson);
@@ -4064,9 +4185,11 @@ const CloudBackupManager = {
       await SessionManager.renderSessionList('psychology');
       await SessionManager.renderSessionList('saju');
 
-      alert('🎉 모든 데이터(API 설정, 프롬프트, 만세력 사진, 대화 기록)가 완벽하게 복원되었습니다!');
-      location.reload(); // 복원된 최신 환경으로 완전 새로고침
+      this.hideProgressToast();
+      alert('🎉 모든 데이터(설정, 프롬프트, 명식 정보, 대화 기록)가 완벽하게 복원되었습니다!');
+      location.reload();
     } catch (err) {
+      this.hideProgressToast();
       console.error('[복원 오류]:', err);
       alert(`⚠️ 복원 실패: ${err.message}`);
     }
