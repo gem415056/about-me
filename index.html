@@ -400,10 +400,10 @@
         </div>
       </div>
 
-      <!-- 3. 명식 추가 모달 (닫힐 때 자동 저장) -->
+      <!-- 3. 명식 추가/수정 모달 (닫힐 때 자동 저장) -->
       <div id="modal-add-saju" class="app-modal modal-saju-add hidden" role="dialog" aria-modal="true">
         <div class="modal-header">
-          <h2 class="modal-title">명식 추가</h2>
+          <h2 id="modal-saju-title" class="modal-title">명식 추가</h2>
           <button type="button" class="btn-close-modal icon-btn" data-target="modal-add-saju">
             <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
           </button>
@@ -413,44 +413,12 @@
             <label class="input-label" for="saju-profile-name">이름</label>
             <input type="text" id="saju-profile-name" class="modal-input" placeholder="이름을 입력하세요">
           </div>
-          
-          <div class="form-group-item saju-photo-flex-group">
-            <div class="photo-label-row">
-              <label class="input-label" style="margin-bottom: 0;">만세력 사진</label>
-              <!-- 배경/테두리 없는 순수 텍스트 버튼 -->
-              <button type="button" id="btn-select-saju-image" class="file-text-btn">사진 선택하기</button>
-            </div>
-            <input type="file" id="saju-image-file" accept="image/*" class="hidden">
-            
-            <!-- 사진 뷰포트 & 미리보기 -->
-            <div class="saju-photo-viewport" id="saju-file-dropzone" title="터치하여 만세력 사진 선택">
-              <div id="saju-image-preview" class="image-preview-container hidden">
-                <img id="saju-preview-img" src="" alt="만세력 미리보기">
-                <div class="preview-filename-badge">
-                  <span id="saju-file-name" class="preview-filename"></span>
-                </div>
-              </div>
-              <div id="saju-upload-placeholder" class="upload-placeholder-content">
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 6px;"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-                <span class="placeholder-tip">터치하여 만세력 캡처 사진 등록 (선택)</span>
-              </div>
-            </div>
-          </div>
 
           <!-- 만세력 YAML 텍스트 직접 입력 영역 -->
           <div class="form-group-item saju-text-group">
-            <div class="photo-label-row">
-              <label class="input-label" for="saju-profile-text" style="margin-bottom: 0;">만세력 텍스트 (YAML 등)</label>
-              <span style="font-size: 0.74rem; color: var(--text-muted);">사진 대신 또는 함께 전송</span>
-            </div>
-            <textarea id="saju-profile-text" class="modal-textarea saju-text-area" rows="4" placeholder="만세력 정보를 YAML 또는 텍스트 형식으로 입력하세요. (사진 없이 텍스트만 등록 가능)&#10;예시:&#10;생년월일: 1995-03-20 10:30 (양력, 여)&#10;대운수: 4&#10;사주:&#10;  시: 己巳&#10;  일: 甲子&#10;  월: 己卯&#10;  년: 乙亥"></textarea>
-            <p class="input-guide" style="margin-top: 4px;">대화 시 이름은 전송되지 않으며, 오직 만세력 내용만 코드블럭으로 AI에게 안전하게 전달됩니다.</p>
-          </div>
-
-          <div style="margin-top: 6px;">
-            <button type="button" id="btn-save-saju-profile" class="btn-primary-action" style="width: 100%; height: 42px; font-size: 0.88rem; font-weight: 600; border-radius: 12px; background: #747B61; color: #FAF8F2; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
-              <span>등록 완료</span>
-            </button>
+            <label class="input-label" for="saju-profile-text">만세력 텍스트 (YAML 등)</label>
+            <textarea id="saju-profile-text" class="modal-textarea saju-text-area" rows="7" placeholder="만세력 정보를 YAML 또는 텍스트 형식으로 입력하세요.&#10;예시:&#10;생년월일: 1995-03-20 10:30 (양력, 여)&#10;대운수: 4&#10;사주:&#10;  시: 己巳&#10;  일: 甲子&#10;  월: 己卯&#10;  년: 乙亥"></textarea>
+            <p class="input-guide" style="margin-top: 6px;">창을 닫으면 자동으로 저장됩니다. 대화 시 이름은 전송되지 않으며, 오직 만세력 내용만 코드블럭으로 AI에게 안전하게 전달됩니다.</p>
           </div>
         </div>
       </div>

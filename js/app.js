@@ -415,9 +415,36 @@ const AttachmentManager = {
 // 7. 명리학 명식 관리, 다중 누적 첨부 및 일괄 삭제 (SajuManager)
 const SajuManager = {
   attachedProfiles: [],
-  tempImageData: null,
   isDeleteMode: false,
   selectedForDeletion: new Set(),
+  editingProfileId: null,
+
+  // 모달 열기: 새 명식 등록
+  openAddModal() {
+    this.editingProfileId = null;
+    const titleEl = document.getElementById('modal-saju-title');
+    if (titleEl) titleEl.textContent = '명식 추가';
+    const nameInput = document.getElementById('saju-profile-name');
+    const textInput = document.getElementById('saju-profile-text');
+    if (nameInput) nameInput.value = '';
+    if (textInput) textInput.value = '';
+    ModalController.open('modal-add-saju');
+  },
+
+  // 모달 열기: 기존 명식 수정 (길게 누르기)
+  openEditModal(profile) {
+    if (!profile) return;
+    if (this.isDeleteMode) this.toggleDeleteMode();
+    DrawerController.closeRight(false);
+    this.editingProfileId = profile.id;
+    const titleEl = document.getElementById('modal-saju-title');
+    if (titleEl) titleEl.textContent = '명식 수정';
+    const nameInput = document.getElementById('saju-profile-name');
+    const textInput = document.getElementById('saju-profile-text');
+    if (nameInput) nameInput.value = profile.name || '';
+    if (textInput) textInput.value = profile.sajuText || '';
+    ModalController.open('modal-add-saju');
+  },
 
   // 삭제 모드 토글 및 일괄 삭제 실행
   async toggleDeleteMode() {
@@ -444,7 +471,7 @@ const SajuManager = {
     }
   },
 
-  // IndexedDB로부터 명식 목록 화면 렌더링
+  // IndexedDB로부터 명식 목록 화면 렌더링 (단정하게 이름만 표기 + 길게 눌러 수정 지원)
   async renderProfilesList() {
     const listEl = document.getElementById('saju-profiles-list');
     if (!listEl) return;
@@ -460,19 +487,73 @@ const SajuManager = {
       const item = document.createElement('div');
       const isSelected = this.selectedForDeletion.has(p.id);
       item.className = `saju-profile-item ${isSelected ? 'delete-selected' : ''}`;
-      
-      let badgeHtml = '';
-      if (p.imageData && p.sajuText) {
-        badgeHtml = '<span class="saju-badge-type">사진+YAML</span>';
-      } else if (p.sajuText) {
-        badgeHtml = '<span class="saju-badge-type">YAML</span>';
-      } else if (p.imageData) {
-        badgeHtml = '<span class="saju-badge-type">사진</span>';
-      }
+      item.innerHTML = `<span class="saju-item-name">${p.name}</span>`;
 
-      item.innerHTML = `<span class="saju-item-name">${p.name}</span>${badgeHtml}`;
+      // 롱프레스(길게 누르기) 제스처 타이머 및 상태 관리
+      let pressTimer = null;
+      let isLongPressTriggered = false;
+      let startX = 0;
+      let startY = 0;
 
+      const startPress = (e) => {
+        if (this.isDeleteMode) return;
+        isLongPressTriggered = false;
+        if (e.touches && e.touches[0]) {
+          startX = e.touches[0].clientX;
+          startY = e.touches[0].clientY;
+        }
+        pressTimer = setTimeout(() => {
+          isLongPressTriggered = true;
+          if (navigator.vibrate) {
+            try { navigator.vibrate(30); } catch (_) {}
+          }
+          this.openEditModal(p);
+        }, 500);
+      };
+
+      const cancelPress = () => {
+        if (pressTimer) {
+          clearTimeout(pressTimer);
+          pressTimer = null;
+        }
+      };
+
+      const movePress = (e) => {
+        if (!pressTimer) return;
+        if (e.touches && e.touches[0]) {
+          const moveX = Math.abs(e.touches[0].clientX - startX);
+          const moveY = Math.abs(e.touches[0].clientY - startY);
+          if (moveX > 8 || moveY > 8) {
+            cancelPress();
+          }
+        }
+      };
+
+      // 모바일 터치 이벤트
+      item.addEventListener('touchstart', startPress, { passive: true });
+      item.addEventListener('touchend', cancelPress);
+      item.addEventListener('touchcancel', cancelPress);
+      item.addEventListener('touchmove', movePress, { passive: true });
+
+      // PC 마우스 이벤트
+      item.addEventListener('mousedown', startPress);
+      item.addEventListener('mouseup', cancelPress);
+      item.addEventListener('mouseleave', cancelPress);
+
+      // PC 우클릭(컨텍스트 메뉴) 편의 지원
+      item.addEventListener('contextmenu', (e) => {
+        if (!this.isDeleteMode) {
+          e.preventDefault();
+          this.openEditModal(p);
+        }
+      });
+
+      // 일반 클릭(짧은 터치) 처리
       item.addEventListener('click', () => {
+        if (isLongPressTriggered) {
+          isLongPressTriggered = false;
+          return;
+        }
         if (this.isDeleteMode) {
           // 삭제 모드일 때는 선택/해제 토글
           if (this.selectedForDeletion.has(p.id)) {
@@ -520,7 +601,7 @@ const SajuManager = {
     }
   },
 
-  // 입력창 상단 태그 칩 렌더링
+  // 입력창 상단 태그 칩 렌더링 (YAML 등 부가 표지 일절 없이 깔끔하게 이름만 노출)
   renderAttachedTags() {
     const container = document.getElementById('saju-attached-tags');
     if (!container) return;
@@ -541,15 +622,14 @@ const SajuManager = {
     profiles.forEach((p, idx) => {
       const chip = document.createElement('div');
       chip.className = 'saju-tag-chip';
-      const typeBadge = p.sajuText && !p.imageData ? ' (YAML)' : '';
       chip.innerHTML = `
-        <span>[${p.name}]의 만세력${typeBadge}</span>
+        <span>[${p.name}]의 만세력</span>
         <button type="button" class="saju-tag-remove" data-index="${idx}">✕</button>
       `;
       container.appendChild(chip);
     });
 
-    // 2. 모바일/PC 직접 첨부 사진 및 문서 칩
+    // 2. 모바일/PC 직접 첨부 사진 및 문서 칩 (채팅 입력창 첨부 기능 유지)
     photos.forEach(item => {
       const chip = document.createElement('div');
       if (item.type === 'doc' || item.textContent) {
@@ -588,61 +668,50 @@ const SajuManager = {
     });
   },
 
-  // 만세력 이미지 고해상도 온전한 로더 (인위적 손실 압축 배제, AI Studio 수준의 최고 화질 원본 전송)
-  compressImage(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUrl = e.target.result;
-        // 스마트폰 스크린샷 및 8MB 이하 사진은 100% 무손실 원본 그대로 반환하여 글자/한자 뭉개짐을 원천 방지
-        if (!file || file.size <= 8 * 1024 * 1024) {
-          return resolve(dataUrl);
-        }
-        // 8MB 초과 초거대 파일에 한해서만 2800px 최고해상도(0.95 화질)로 안전 보존
-        const img = new Image();
-        img.onload = () => {
-          let { width, height } = img;
-          const maxDim = 2800;
-          if (width > maxDim || height > maxDim) {
-            if (width > height) {
-              height = Math.round((height * maxDim) / width);
-              width = maxDim;
-            } else {
-              width = Math.round((width * maxDim) / height);
-              height = maxDim;
-            }
-          }
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.95));
-        };
-        img.onerror = () => resolve(dataUrl);
-        img.src = dataUrl;
+  // 명식 등록 및 수정 저장 (창 닫힐 때 자동 저장)
+  async saveProfile(name, sajuText = '') {
+    if (!name || !sajuText) return false;
+    const cleanName = name.trim();
+    const cleanText = sajuText.trim();
+
+    if (this.editingProfileId) {
+      // 기존 명식 업데이트
+      const existing = await DB.get('saju_profiles', this.editingProfileId);
+      const updated = {
+        ...(existing || {}),
+        id: this.editingProfileId,
+        name: cleanName,
+        sajuText: cleanText,
+        imageData: null,
+        updatedAt: Date.now()
       };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  },
+      await DB.set('saju_profiles', updated);
 
-  compressDataUrl(dataUrl) {
-    // 2중 재압축 완전 제거: 원본 DataURL 100% 무손실 보존
-    return Promise.resolve(dataUrl);
-  },
+      // 활성 세션 첨부 목록에 해당 명식이 있다면 실시간 업데이트
+      const attachedIdx = this.attachedProfiles.findIndex(p => p.id === this.editingProfileId);
+      if (attachedIdx !== -1) {
+        this.attachedProfiles[attachedIdx] = updated;
+        this.renderAttachedTags();
+        await this.syncToSession();
+      }
+    } else {
+      // 신규 명식 등록
+      await DB.set('saju_profiles', {
+        name: cleanName,
+        sajuText: cleanText,
+        imageData: null,
+        createdAt: Date.now()
+      });
+    }
 
-  // 새 명식 등록 처리 (Base64 이미지 및/또는 YAML/텍스트 저장)
-  async saveNewProfile(name, base64Data, sajuText = '') {
-    if (!name || (!base64Data && !sajuText)) return false;
-    await DB.set('saju_profiles', {
-      name: name.trim(),
-      imageData: base64Data || null,
-      sajuText: sajuText ? sajuText.trim() : '',
-      createdAt: Date.now()
-    });
+    this.editingProfileId = null;
     await this.renderProfilesList();
     return true;
+  },
+
+  // 하위 호환성 유지 메서드
+  async saveNewProfile(name, base64Data, sajuText = '') {
+    return this.saveProfile(name, sajuText || (typeof base64Data === 'string' && !base64Data.startsWith('data:') ? base64Data : ''));
   }
 };
 
@@ -5109,17 +5178,14 @@ const ModalController = {
         syncCustomDropdown('dropdown-safety-sex', 'safety-sex', 'dropdown-sex-text', safety.sex || 'BLOCK_NONE');
         syncCustomDropdown('dropdown-safety-danger', 'safety-danger', 'dropdown-danger-text', safety.danger || 'BLOCK_NONE');
       } else if (modalId === 'modal-add-saju') {
-        const nameInput = document.getElementById('saju-profile-name');
-        const textInput = document.getElementById('saju-profile-text');
-        const fileInput = document.getElementById('saju-image-file');
-        if (nameInput) nameInput.value = '';
-        if (textInput) textInput.value = '';
-        if (fileInput) fileInput.value = '';
-        const previewContainer = document.getElementById('saju-image-preview');
-        if (previewContainer) previewContainer.classList.add('hidden');
-        const placeholder = document.getElementById('saju-upload-placeholder');
-        if (placeholder) placeholder.classList.remove('hidden');
-        SajuManager.tempImageData = null;
+        if (!SajuManager.editingProfileId) {
+          const nameInput = document.getElementById('saju-profile-name');
+          const textInput = document.getElementById('saju-profile-text');
+          if (nameInput) nameInput.value = '';
+          if (textInput) textInput.value = '';
+          const titleEl = document.getElementById('modal-saju-title');
+          if (titleEl) titleEl.textContent = '명식 추가';
+        }
       } else if (modalId === 'modal-token-settings') {
         const config = await DB.get('settings', 'token_slicing_config').catch(() => null);
         const isEnabled = Boolean(config?.enabled);
@@ -5174,23 +5240,17 @@ const ModalController = {
           updatedAt: Date.now()
         });
       } else if (modalId === 'modal-add-saju') {
-        // [요구사항] 명식 추가 창이 닫힐 때 이름과 (이미지 또는 텍스트)가 있으면 자동 저장!
+        // [요구사항] 명식 추가/수정 창이 닫힐 때 이름과 텍스트가 있으면 자동 저장!
         const nameInput = document.getElementById('saju-profile-name');
         const textInput = document.getElementById('saju-profile-text');
-        const fileInput = document.getElementById('saju-image-file');
         const name = nameInput ? nameInput.value.trim() : '';
         const sajuText = textInput ? textInput.value.trim() : '';
-        if (name && (SajuManager.tempImageData || sajuText)) {
-          await SajuManager.saveNewProfile(name, SajuManager.tempImageData, sajuText);
-          nameInput.value = '';
-          if (textInput) textInput.value = '';
-          if (fileInput) fileInput.value = '';
-          const previewContainer = document.getElementById('saju-image-preview');
-          if (previewContainer) previewContainer.classList.add('hidden');
-          const placeholder = document.getElementById('saju-upload-placeholder');
-          if (placeholder) placeholder.classList.remove('hidden');
-          SajuManager.tempImageData = null;
+        if (name && sajuText) {
+          await SajuManager.saveProfile(name, sajuText);
         }
+        if (nameInput) nameInput.value = '';
+        if (textInput) textInput.value = '';
+        SajuManager.editingProfileId = null;
       } else if (modalId === 'modal-token-settings') {
         const toggle = document.getElementById('toggle-token-slicing');
         const inputTokens = document.getElementById('input-max-tokens');
@@ -5527,7 +5587,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnOpenAddSaju.addEventListener('click', () => {
       if (SajuManager.isDeleteMode) SajuManager.toggleDeleteMode();
       DrawerController.closeRight(false);
-      ModalController.open('modal-add-saju');
+      SajuManager.openAddModal();
     });
   }
 
@@ -5536,87 +5596,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnToggleDeleteSaju) {
     btnToggleDeleteSaju.addEventListener('click', () => {
       SajuManager.toggleDeleteMode();
-    });
-  }
-  
-  // 이미지 파일 선택 처리
-  const fileInput = document.getElementById('saju-image-file');
-  const btnSelectImage = document.getElementById('btn-select-saju-image');
-  const dropzone = document.getElementById('saju-file-dropzone');
-  const previewContainer = document.getElementById('saju-image-preview');
-  const previewImg = document.getElementById('saju-preview-img');
-  const previewFileName = document.getElementById('saju-file-name');
-  const uploadPlaceholder = document.getElementById('saju-upload-placeholder');
-
-  if (fileInput) {
-    if (btnSelectImage) {
-      btnSelectImage.addEventListener('click', (e) => {
-        e.stopPropagation();
-        fileInput.click();
-      });
-    }
-    if (dropzone) {
-      dropzone.addEventListener('click', () => fileInput.click());
-    }
-
-    fileInput.addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      try {
-        // 스마트 압축 적용 (10MB 폰 사진 -> 200KB 고선명 만세력 이미지로 최적화)
-        const optimizedBase64 = await SajuManager.compressImage(file);
-        SajuManager.tempImageData = optimizedBase64;
-        previewImg.src = optimizedBase64;
-        previewFileName.textContent = file.name;
-        previewContainer.classList.remove('hidden');
-        if (uploadPlaceholder) uploadPlaceholder.classList.add('hidden');
-      } catch (err) {
-        console.error('이미지 압축 실패, 원본 사용:', err);
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          SajuManager.tempImageData = event.target.result;
-          previewImg.src = event.target.result;
-          previewFileName.textContent = file.name;
-          previewContainer.classList.remove('hidden');
-          if (uploadPlaceholder) uploadPlaceholder.classList.add('hidden');
-        };
-        reader.readAsDataURL(file);
-      }
-    });
-  }
-
-  // 명식 등록 저장 버튼 이벤트
-  const btnSaveSaju = document.getElementById('btn-save-saju-profile');
-  if (btnSaveSaju) {
-    btnSaveSaju.addEventListener('click', async () => {
-      const nameInput = document.getElementById('saju-profile-name');
-      const textInput = document.getElementById('saju-profile-text');
-      const name = nameInput ? nameInput.value.trim() : '';
-      const sajuText = textInput ? textInput.value.trim() : '';
-
-      if (!name) {
-        alert('이름을 입력해 주세요.');
-        return;
-      }
-      if (!SajuManager.tempImageData && !sajuText) {
-        alert('만세력 사진을 등록하거나 텍스트(YAML)를 입력해 주세요.');
-        return;
-      }
-
-      await SajuManager.saveNewProfile(name, SajuManager.tempImageData, sajuText);
-
-      // 입력 필드 초기화
-      if (nameInput) nameInput.value = '';
-      if (textInput) textInput.value = '';
-      if (fileInput) fileInput.value = '';
-      if (previewContainer) previewContainer.classList.add('hidden');
-      if (uploadPlaceholder) uploadPlaceholder.classList.remove('hidden');
-      SajuManager.tempImageData = null;
-
-      // 모달 닫기
-      await ModalController.close(true);
-      DrawerController.openRight();
     });
   }
 

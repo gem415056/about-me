@@ -1559,109 +1559,47 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   color: var(--text-muted);
 }
 
-/* 파일 업로드 박스 및 버튼: 명식 추가 모달 전용 레이아웃 */
+/* 명식 추가/수정 모달 전용 레이아웃 */
 .modal-saju-add {
-  height: 600px;
-  max-height: 88vh;
+  height: 520px;
+  max-height: 85vh;
 }
 
 .modal-saju-body {
-  padding: 16px 20px 24px 20px !important;
+  padding: 18px 20px 24px 20px !important;
   display: flex;
   flex-direction: column;
-  gap: 14px !important;
+  gap: 16px !important;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
 
-.saju-photo-flex-group {
-  flex: none;
+.saju-text-group {
+  flex: 1;
   display: flex;
   flex-direction: column;
-}
-
-.photo-label-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-/* 사진 선택하기: 배경과 테두리를 완전히 걷어내고 순수 텍스트만 단아하게 */
-.file-text-btn {
-  background: none !important;
-  border: none !important;
-  padding: 0 !important;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--accent);
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  transition: opacity 0.15s;
-}
-
-.file-text-btn:hover {
-  opacity: 0.85;
-}
-
-/* 사진 뷰포트 & 미리보기 (입력창과 동일한 연한 소프트 크림) */
-.saju-photo-viewport {
-  width: 100%;
-  border-radius: 14px;
-  background-color: #FCFCFA;
-  border: 1px solid rgba(209, 207, 194, 0.65);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-  cursor: pointer;
-  min-height: 100px;
-  height: 105px;
-  flex: none;
-  transition: border-color 0.2s;
+  min-height: 0;
 }
 
 .saju-text-area {
-  min-height: 95px;
+  flex: 1;
+  min-height: 220px;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 0.82rem;
-  line-height: 1.45;
+  font-size: 0.84rem;
+  line-height: 1.5;
   background-color: #FCFCFA;
   border: 1px solid rgba(209, 207, 194, 0.65);
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   color: var(--text-primary);
-  resize: vertical;
+  resize: none;
 }
 
 .saju-text-area:focus {
   outline: none;
   border-color: var(--accent);
-}
-
-.saju-badge-type {
-  display: inline-block;
-  font-size: 0.68rem;
-  font-weight: 600;
-  color: #5A614A;
-  background-color: rgba(116, 123, 97, 0.12);
-  border: 1px solid rgba(116, 123, 97, 0.25);
-  border-radius: 6px;
-  padding: 1px 6px;
-  margin-left: 8px;
-}
-
-.btn-primary-action:hover {
-  opacity: 0.92;
-  transform: translateY(-1px);
-}
-
-.btn-primary-action:active {
-  transform: scale(0.98);
 }
 
 .saju-photo-viewport:hover {
