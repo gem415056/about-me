@@ -1561,23 +1561,25 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
 
 /* 파일 업로드 박스 및 버튼: 명식 추가 모달 전용 레이아웃 */
 .modal-saju-add {
-  height: 540px;
+  height: 600px;
+  max-height: 88vh;
 }
 
 .modal-saju-body {
-  padding: 16px 22px 24px 22px !important;
+  padding: 16px 20px 24px 20px !important;
   display: flex;
   flex-direction: column;
-  gap: 16px !important;
+  gap: 14px !important;
   flex: 1;
   min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .saju-photo-flex-group {
-  flex: 1;
+  flex: none;
   display: flex;
   flex-direction: column;
-  min-height: 0;
 }
 
 .photo-label-row {
@@ -1605,12 +1607,11 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   opacity: 0.85;
 }
 
-/* 팝업창을 꽉 채우는 사진 뷰포트 & 미리보기 (입력창과 동일한 정말정말 연한 소프트 크림) */
+/* 사진 뷰포트 & 미리보기 (입력창과 동일한 연한 소프트 크림) */
 .saju-photo-viewport {
-  flex: 1;
   width: 100%;
   border-radius: 14px;
-  background-color: #FCFCFA; /* 입력창과 완전히 동일한 정말정말 연한 소프트 크림 */
+  background-color: #FCFCFA;
   border: 1px solid rgba(209, 207, 194, 0.65);
   display: flex;
   align-items: center;
@@ -1618,8 +1619,49 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   position: relative;
   overflow: hidden;
   cursor: pointer;
-  min-height: 250px;
+  min-height: 100px;
+  height: 105px;
+  flex: none;
   transition: border-color 0.2s;
+}
+
+.saju-text-area {
+  min-height: 95px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  background-color: #FCFCFA;
+  border: 1px solid rgba(209, 207, 194, 0.65);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: var(--text-primary);
+  resize: vertical;
+}
+
+.saju-text-area:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.saju-badge-type {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #5A614A;
+  background-color: rgba(116, 123, 97, 0.12);
+  border: 1px solid rgba(116, 123, 97, 0.25);
+  border-radius: 6px;
+  padding: 1px 6px;
+  margin-left: 8px;
+}
+
+.btn-primary-action:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.btn-primary-action:active {
+  transform: scale(0.98);
 }
 
 .saju-photo-viewport:hover {
