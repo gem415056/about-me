@@ -2920,24 +2920,33 @@ blockquote .md-sub-bullet-dot {
 .md-code-body {
   padding: 12px 14px !important;
   margin: 0 !important;
-  overflow-x: hidden !important;
-  white-space: pre-wrap !important;
-  word-break: break-all !important;
-  overflow-wrap: anywhere !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  white-space: pre !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
   font-size: 0.86rem !important;
   line-height: 1.6 !important;
   color: #2A3022 !important;
   font-style: normal !important;
   box-sizing: border-box !important;
+  scrollbar-width: none !important; /* Firefox 스크롤바 숨김 */
+  -ms-overflow-style: none !important; /* IE/Edge */
+}
+
+.md-code-body::-webkit-scrollbar {
+  display: none !important; /* Chrome, Safari, Webkit 스크롤바 숨김 */
+  width: 0 !important;
+  height: 0 !important;
 }
 
 .md-code-body code,
 .md-code-body pre,
 .md-code-body span {
   font-style: normal !important;
-  white-space: pre-wrap !important;
-  word-break: break-all !important;
-  overflow-wrap: anywhere !important;
+  white-space: pre !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
 }
 
 /* 통합 인용구 섹션 */
