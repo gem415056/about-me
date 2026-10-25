@@ -3352,3 +3352,50 @@ html.is-ios .choice-chk {
 
 
 
+
+/* === Custom Mode & Prompt Drawer Extensions === */
+.drawer-bottom-toolbar {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.modal-backdrop-layer {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease forwards;
+}
+
+.custom-prompt-card {
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-touch-callout: none;
+}
+
+.custom-prompt-card:hover {
+  border-color: #747B61 !important;
+}
+
+.custom-prompt-card.active-prompt {
+  background: rgba(116, 123, 97, 0.14) !important;
+  border: 1.5px solid #747B61 !important;
+  box-shadow: 0 2px 14px rgba(116, 123, 97, 0.2) !important;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}
