@@ -7,10 +7,825 @@
   <meta name="description" content="나를 깊이 이해하는 두 가지 여정: 심리학과 명리학 기반 심층 분석 대화형 웹 애플리케이션">
   <meta property="og:title" content="ABOUT ME">
   <meta property="og:description" content="나를 깊이 이해하는 두 가지 여정: 심리학과 명리학 기반 심층 분석 대화형 웹 애플리케이션">
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="style.css?v=20261023_v171_chips">
 </head>
 <body>
-  <div id="root"></div>
-  <script type="module" src="/src/main.tsx"></script>
+  <!-- 모바일 메인 뷰포트 컨테이너 -->
+  <div id="app-container">
+    <!-- 헤더 1 (글로벌 상단 고정 헤더 단일화) -->
+    <header id="header-1" class="app-header header-1">
+      <button type="button" id="btn-open-left-drawer" class="icon-btn" aria-label="메뉴 열기">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg>
+      </button>
+      <h1 id="header-title" class="header-title header-logo" style="cursor: pointer;">𝗔𝗕𝗢𝗨𝗧 𝗠𝗘</h1>
+      <!-- 우측 손가락 아이콘 (명리학 모드에서만 활성화) -->
+      <button type="button" id="btn-toggle-saju-drawer" class="icon-btn hidden" aria-label="명식 서랍 열기">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-hand"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
+      </button>
+      <!-- 우측 프롬프트 설정 아이콘 (커스텀 대화 모드에서만 활성화) -->
+      <button type="button" id="btn-toggle-prompt-drawer" class="icon-btn hidden" aria-label="프롬프트 설정 열기" title="프롬프트 설정">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-cog preview-icon"><path d="M15 8a1 1 0 0 1-1-1V2a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8z"/><path d="M20 8v12a2 2 0 0 1-2 2h-4.182"/><path d="m3.305 19.53.923-.382"/><path d="M4 10.592V4a2 2 0 0 1 2-2h8"/><path d="m4.228 16.852-.924-.383"/><path d="m5.852 15.228-.383-.923"/><path d="m5.852 20.772-.383.924"/><path d="m8.148 15.228.383-.923"/><path d="m8.53 21.696-.382-.924"/><path d="m9.773 16.852.922-.383"/><path d="m9.773 19.148.922.383"/><circle cx="7" cy="18" r="3"/></svg>
+      </button>
+    </header>
+
+    <!-- 헤더 바로 아래 우측 플로팅 알약 칩 (현재토큰 / 권장또는슬라이싱토큰) -->
+    <button type="button" id="token-floating-chip" class="token-floating-chip hidden" aria-label="토큰 통계 및 슬라이싱 설정" title="대화 맥락 및 토큰 설정">
+      <span id="token-count-display">0 / 50000</span>
+    </button>
+
+    <!-- 메인 동적 화면 전환 영역 -->
+    <main id="main-content">
+      <!-- 1. 랜딩 화면 섹션 (1번 Celestial Orbs & 정밀 커스텀 SVG) -->
+      <section id="view-landing" class="view-section active">
+        <div class="landing-celestial-stage">
+          <span class="landing-top-badge">Choose Your Portal</span>
+
+          <!-- 궤도 및 듀얼 오브 (정밀 핸드크래프트 SVG) -->
+          <div class="celestial-orbit-system">
+            <svg viewBox="0 0 270 270" class="orbit-c-expanded-svg" aria-hidden="true">
+              <!-- 은은하고 연한 본래의 앤틱 대시선 궤도 (지름 262px, r=131) -->
+              <circle cx="135" cy="135" r="131" stroke="#D1CFC2" stroke-width="1.1" stroke-dasharray="4 16" fill="none" opacity="0.6" />
+              <!-- 3대 행성군 (가운데 꽉 채워진 솔리드 행성 & 서브 행성) -->
+              <circle cx="135" cy="4" r="6.5" fill="#747B61" />
+              <circle cx="135" cy="4" r="3.2" fill="#5A614A" />
+              <circle cx="248" cy="201" r="5" fill="#8F967E" />
+              <circle cx="22" cy="201" r="4.5" fill="#5A614A" />
+              <!-- 성운 파티클 더스트 (모두 궤도선 R=131 위에 100% 정밀 안착) -->
+              <circle cx="195" cy="18" r="1.8" fill="#747B61" />
+              <circle cx="75" cy="18" r="1.5" fill="#747B61" />
+              <circle cx="264" cy="110" r="1.4" fill="#8F967E" />
+              <circle cx="6" cy="110" r="1.4" fill="#5A614A" />
+              <circle cx="135" cy="266" r="2" fill="#747B61" />
+              <circle cx="235" cy="51" r="2.4" fill="#B2B9A8" />
+              <circle cx="19" cy="74" r="1.2" fill="#8F967E" />
+              <circle cx="180" cy="258" r="2.7" fill="#5A614A" />
+              <circle cx="262" cy="167" r="1.9" fill="#9BA38A" />
+              <circle cx="90" cy="258" r="2.3" fill="#A8B09F" />
+              <circle cx="6" cy="155" r="1.6" fill="#4B533C" />
+            </svg>
+
+            <!-- 오브 1: 심리학 (내면/무의식 아우라 리플 SVG) -->
+            <button type="button" id="btn-start-psychology" class="celestial-orb-btn orb-psyche" aria-label="심리학 세션 시작">
+              <svg width="42" height="42" viewBox="0 0 48 48" fill="none" stroke="#747B61" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="24" cy="24" r="5" fill="#747B61" fill-opacity="0.14"/>
+                <path d="M14 24c0-5.523 4.477-10 10-10s10 4.477 10 10"/>
+                <path d="M8 24c0-8.837 7.163-16 16-16s16 7.163 16 16"/>
+                <path d="M17 29c1.8 3.5 4.5 5 7 5s5.2-1.5 7-5"/>
+                <circle cx="24" cy="24" r="1.5" fill="#747B61"/>
+              </svg>
+              <span class="orb-title">심리학</span>
+            </button>
+
+            <!-- 오브 2: 명리학 (천구 혼천의 / 천체 궤도 축 SVG) -->
+            <button type="button" id="btn-start-saju" class="celestial-orb-btn orb-saju" aria-label="명리학 세션 시작">
+              <svg width="42" height="42" viewBox="0 0 48 48" fill="none" stroke="#747B61" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="24" cy="24" r="3" fill="#747B61"/>
+                <ellipse cx="24" cy="24" rx="17" ry="7.5" transform="rotate(-30 24 24)"/>
+                <ellipse cx="24" cy="24" rx="17" ry="7.5" transform="rotate(50 24 24)"/>
+                <line x1="24" y1="5" x2="24" y2="8.5"/>
+                <line x1="24" y1="39.5" x2="24" y2="43"/>
+                <line x1="5" y1="24" x2="8.5" y2="24"/>
+                <line x1="39.5" y1="24" x2="43" y2="24"/>
+              </svg>
+              <span class="orb-title">명리학</span>
+            </button>
+          </div>
+
+          <!-- 가이드 텍스트 (엔터 줄바꿈 반영) -->
+          <p class="landing-guide-text">
+            내면의 무의식과 타고난 운명의 결,<br>
+            마주하고 싶은 문을 터치하세요.
+          </p>
+        </div>
+      </section>
+
+      <!-- 2. 심리학 검사 대화방 섹션 -->
+      <section id="view-psychology" class="view-section chat-view hidden">
+        <div id="psychology-chat-messages" class="chat-messages-container"></div>
+        <div id="psychology-input-bar" class="chat-input-bar hidden">
+          <!-- 첨부된 사진 칩 컨테이너 -->
+          <div id="psychology-attached-tags" class="attached-tags-container hidden"></div>
+          <div class="chat-input-inner">
+            <input type="file" id="file-input-psychology" accept="image/*,.txt,.html,text/plain,text/html" class="hidden" />
+            <button type="button" id="btn-attach-psychology" class="btn-attach" aria-label="파일 첨부" title="파일 첨부 (사진, TXT, HTML)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            </button>
+            <textarea id="psychology-input" class="chat-textarea" rows="1" placeholder="분석 보고서에 대해 궁금한 점을 편하게 질문해주세요..."></textarea>
+            <button type="button" id="btn-send-psychology" class="btn-send" aria-label="전송">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. 명리학 분석 대화방 섹션 -->
+      <section id="view-saju" class="view-section chat-view hidden">
+        <div id="saju-chat-messages" class="chat-messages-container"></div>
+        <div class="chat-input-bar">
+          <!-- 명식 선택 시 누적 첨부될 태그 칩 컨테이너 -->
+          <div id="saju-attached-tags" class="attached-tags-container hidden"></div>
+          <div class="chat-input-inner">
+            <input type="file" id="file-input-saju" accept="image/*,.txt,.html,text/plain,text/html" class="hidden" />
+            <button type="button" id="btn-attach-saju" class="btn-attach" aria-label="파일 첨부" title="파일 첨부 (사진, TXT, HTML)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            </button>
+            <textarea id="saju-input" class="chat-textarea" rows="1"></textarea>
+            <button type="button" id="btn-send-saju" class="btn-send" aria-label="전송">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
+            </button>
+          </div>
+        </div>
+      <!-- 4. 커스텀 프롬프트 대화 모드 홈 (10가지 인터랙티브 디자인 테스팅 룸) -->
+      <section id="view-custom-home" class="view-section hidden">
+        <div class="custom-home-stage">
+          <!-- 상단 10가지 디자인 테스팅 툴바 -->
+          <div class="design-tester-bar" id="design-tester-bar">
+            <div class="tester-label-row">
+              <span class="tester-title">🎨 홈 디자인 인터랙션 테스트 (10종)</span>
+              <span class="tester-hint">상단 탭을 눌러 10가지 홈 화면을 자유롭게 테스트하고 선택하세요</span>
+            </div>
+            <div class="tester-tabs-scroll">
+              <button type="button" class="tester-tab-btn active" data-design="1">1. 모놀리스</button>
+              <button type="button" class="tester-tab-btn" data-design="2">2. 나침반</button>
+              <button type="button" class="tester-tab-btn" data-design="3">3. 젠 슬레이트</button>
+              <button type="button" class="tester-tab-btn" data-design="4">4. 성좌 노드</button>
+              <button type="button" class="tester-tab-btn" data-design="5">5. 플로팅 아일랜드</button>
+              <button type="button" class="tester-tab-btn" data-design="6">6. 듀얼 포털</button>
+              <button type="button" class="tester-tab-btn" data-design="7">7. 카드 캐러셀</button>
+              <button type="button" class="tester-tab-btn" data-design="8">8. 고서 코덱스</button>
+              <button type="button" class="tester-tab-btn" data-design="9">9. 오라 웨이브</button>
+              <button type="button" class="tester-tab-btn" data-design="10">10. 퀵 런처</button>
+            </div>
+            <div class="tester-confirm-row">
+              <button type="button" id="btn-confirm-design" class="btn-confirm-design">
+                <span id="confirm-design-label">✓ [1번: 모놀리스]로 대화 시작하기</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 10가지 인터랙티브 디자인 컨테이너들 -->
+          <div class="design-views-container">
+            <!-- 1번: 미니멀 모놀리스 -->
+            <div class="design-variant active" id="design-variant-1">
+              <div class="dv1-monolith-box">
+                <div class="dv-badge">PROMPT WORKSPACE</div>
+                <div class="dv1-halo-ring">
+                  <div class="dv1-core-dot"></div>
+                </div>
+                <h2 class="dv-title">사유와 문답의 방</h2>
+                <p class="dv-desc">우측 상단 서랍에서 원하는 프롬프트를 지정하고,<br>깊이 있는 사유와 탐구를 시작하세요.</p>
+                <div class="dv-active-prompt-indicator" id="dv1-prompt-indicator">
+                  <span class="indicator-dot"></span>
+                  <span class="indicator-text">기본 시스템 프롬프트 활성</span>
+                </div>
+                <button type="button" class="dv-cta-btn btn-launch-custom-chat">
+                  <span>대화 시작하기</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- 2번: 나침반 다이얼 -->
+            <div class="design-variant hidden" id="design-variant-2">
+              <div class="dv2-compass-stage">
+                <div class="dv-badge">CELESTIAL COMPASS</div>
+                <div class="dv2-compass-dial">
+                  <svg viewBox="0 0 240 240" class="dv2-dial-svg">
+                    <circle cx="120" cy="120" r="105" stroke="#D1CFC2" stroke-width="1.2" stroke-dasharray="3 6" fill="none"/>
+                    <circle cx="120" cy="120" r="85" stroke="#747B61" stroke-width="1" fill="none" opacity="0.4"/>
+                    <line x1="120" y1="15" x2="120" y2="35" stroke="#747B61" stroke-width="2"/>
+                    <line x1="120" y1="205" x2="120" y2="225" stroke="#747B61" stroke-width="1.5"/>
+                    <line x1="15" y1="120" x2="35" y2="120" stroke="#747B61" stroke-width="1.5"/>
+                    <line x1="205" y1="120" x2="225" y2="120" stroke="#747B61" stroke-width="1.5"/>
+                    <circle cx="120" cy="120" r="28" fill="#747B61" fill-opacity="0.12"/>
+                  </svg>
+                  <button type="button" class="dv2-center-trigger btn-launch-custom-chat" aria-label="사유 시작">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5A614A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+                  </button>
+                  <span class="dv2-cardinal dv2-n">통찰 (洞察)</span>
+                  <span class="dv2-cardinal dv2-s">성찰 (省察)</span>
+                  <span class="dv2-cardinal dv2-w">철학</span>
+                  <span class="dv2-cardinal dv2-e">문답</span>
+                </div>
+                <h2 class="dv-title">프롬프트 나침반</h2>
+                <p class="dv-desc">중앙의 나침반을 누르면 새로운 대화 세션이 열립니다.</p>
+              </div>
+            </div>
+
+            <!-- 3번: 젠 에디토리얼 슬레이트 -->
+            <div class="design-variant hidden" id="design-variant-3">
+              <div class="dv3-zen-container">
+                <div class="dv3-header-meta">
+                  <span class="dv-badge">ZEN CODEX</span>
+                  <span class="dv3-vol">No. 01</span>
+                </div>
+                <h2 class="dv3-main-heading">무제(無題)의 사유실</h2>
+                <div class="dv3-card-slate">
+                  <div class="dv3-card-label">현재 연결된 시스템 지침</div>
+                  <div class="dv3-card-content" id="dv3-prompt-content">
+                    등록된 프롬프트가 선택되면 이곳에 미리보기가 반영됩니다. 우측 상단 아이콘으로 언제든 프롬프트를 변경할 수 있습니다.
+                  </div>
+                </div>
+                <button type="button" class="dv-cta-btn dv3-btn btn-launch-custom-chat">
+                  <span>새 사유 기록 작성</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- 4번: 성좌 기하학 노드 -->
+            <div class="design-variant hidden" id="design-variant-4">
+              <div class="dv4-constellation-stage">
+                <div class="dv-badge">CONSTELLATION</div>
+                <div class="dv4-canvas-node-box">
+                  <svg viewBox="0 0 260 220" class="dv4-svg">
+                    <polygon points="130,20 230,80 190,190 70,190 30,80" fill="rgba(116, 123, 97, 0.05)" stroke="#8F967E" stroke-width="1.2" stroke-dasharray="2 4"/>
+                    <line x1="130" y1="20" x2="190" y2="190" stroke="#747B61" stroke-width="0.8" opacity="0.4"/>
+                    <line x1="130" y1="20" x2="70" y2="190" stroke="#747B61" stroke-width="0.8" opacity="0.4"/>
+                    <circle cx="130" cy="20" r="4.5" fill="#5A614A"/>
+                    <circle cx="230" cy="80" r="3.5" fill="#747B61"/>
+                    <circle cx="190" cy="190" r="4" fill="#8F967E"/>
+                    <circle cx="70" cy="190" r="4" fill="#8F967E"/>
+                    <circle cx="30" cy="80" r="3.5" fill="#747B61"/>
+                    <circle cx="130" cy="115" r="7" fill="#747B61" fill-opacity="0.2"/>
+                    <circle cx="130" cy="115" r="3" fill="#5A614A"/>
+                  </svg>
+                </div>
+                <h2 class="dv-title">성좌적 연결망</h2>
+                <p class="dv-desc">생각과 언어가 이어지는 다차원 사유의 망을 펼칩니다.</p>
+                <button type="button" class="dv-cta-btn btn-launch-custom-chat">
+                  <span>성좌 진입하기</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 5번: 플로팅 아일랜드 (FAB) -->
+            <div class="design-variant hidden" id="design-variant-5">
+              <div class="dv5-floating-island">
+                <div class="dv-badge">FLOATING HAVEN</div>
+                <div class="dv5-card">
+                  <div class="dv5-icon-bubble">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5A614A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  </div>
+                  <h2 class="dv-title">온전한 몰입의 캔버스</h2>
+                  <p class="dv-desc">우측 상단 '프롬프트 설정'에서 페르소나를 장착하고<br>아래 플로팅 버튼을 터치하여 사유를 시작하세요.</p>
+                </div>
+                <button type="button" class="dv5-fab btn-launch-custom-chat" aria-label="새 대화 열기">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FAF8F2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- 6번: 듀얼 포털 (Dual Mode Chamber) -->
+            <div class="design-variant hidden" id="design-variant-6">
+              <div class="dv6-dual-stage">
+                <div class="dv-badge">TWO REALMS</div>
+                <h2 class="dv-title">사유의 두 가지 결</h2>
+                <div class="dv6-portals-grid">
+                  <div class="dv6-portal-card btn-launch-custom-chat" data-mode="custom-prompt">
+                    <div class="dv6-portal-icon">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 8a1 1 0 0 1-1-1V2a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8z"/><path d="M20 8v12a2 2 0 0 1-2 2h-4.182"/><circle cx="7" cy="18" r="3"/></svg>
+                    </div>
+                    <span class="dv6-portal-name">프롬프트 페르소나</span>
+                    <span class="dv6-portal-sub">지정된 규칙과 시스템 지침 기반 심층 응답</span>
+                  </div>
+                  <div class="dv6-portal-card btn-launch-custom-chat" data-mode="custom-free">
+                    <div class="dv6-portal-icon">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    </div>
+                    <span class="dv6-portal-name">자유 백지 사유</span>
+                    <span class="dv6-portal-sub">제약 없는 원초적 사고와 자유로운 필담</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 7번: 프롬프트 카드 캐러셀 -->
+            <div class="design-variant hidden" id="design-variant-7">
+              <div class="dv7-carousel-stage">
+                <div class="dv-badge">PROMPT CAROUSEL</div>
+                <h2 class="dv-title">프롬프트 쇼케이스</h2>
+                <div class="dv7-cards-strip" id="dv7-cards-strip">
+                  <div class="dv7-card active-card">
+                    <div class="dv7-card-badge">DEFAULT</div>
+                    <div class="dv7-card-title">사유와 성찰의 대화가</div>
+                    <div class="dv7-card-desc">깊은 사유와 명확한 어조로 질문에 대해 지혜로운 관점을 제시합니다.</div>
+                  </div>
+                  <div class="dv7-card">
+                    <div class="dv7-card-badge">CUSTOM</div>
+                    <div class="dv7-card-title">우측 상단 '+'로 추가</div>
+                    <div class="dv7-card-desc">나만의 전문 페르소나나 프롬프트를 직접 구성해 보세요.</div>
+                  </div>
+                </div>
+                <button type="button" class="dv-cta-btn btn-launch-custom-chat">
+                  <span>선택된 프롬프트로 시작</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 8번: 고서 코덱스 (Antique Codex) -->
+            <div class="design-variant hidden" id="design-variant-8">
+              <div class="dv8-codex-stage">
+                <div class="dv8-parchment-sheet">
+                  <div class="dv8-ornament">✦ ✦ ✦</div>
+                  <h2 class="dv8-seal-title">사 유 록 (思 惟 錄)</h2>
+                  <p class="dv8-quote">
+                    "마음이 머무는 자리에 언어가 피어나고,<br>
+                    물음이 깊어질 때 비로소 길이 열린다."
+                  </p>
+                  <div class="dv8-stamp-btn btn-launch-custom-chat" title="인장을 눌러 대화 시작">
+                    <div class="dv8-stamp-inner">
+                      <span>開 筆</span>
+                      <small>대화 개시</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 9번: 오라 웨이브 (Organic Waveform) -->
+            <div class="design-variant hidden" id="design-variant-9">
+              <div class="dv9-wave-stage">
+                <div class="dv-badge">BREATHING MIND</div>
+                <div class="dv9-wave-box">
+                  <div class="dv9-ripple dv9-r1"></div>
+                  <div class="dv9-ripple dv9-r2"></div>
+                  <div class="dv9-ripple dv9-r3"></div>
+                  <div class="dv9-core-node">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#FAF8F2" stroke-width="1.8"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+                  </div>
+                </div>
+                <h2 class="dv-title">생각의 파동</h2>
+                <p class="dv-desc">숨을 고르고, 당신의 생각과 감정을<br>파동처럼 자연스럽게 흘려보내세요.</p>
+                <button type="button" class="dv-cta-btn btn-launch-custom-chat">
+                  <span>파동과 공명하기</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 10번: 퀵 런처 (Speed Dial Launch Matrix) -->
+            <div class="design-variant hidden" id="design-variant-10">
+              <div class="dv10-matrix-stage">
+                <div class="dv-badge">QUICK LAUNCHER</div>
+                <h2 class="dv-title">즉시 사유 시작</h2>
+                <div class="dv10-grid">
+                  <div class="dv10-cell btn-launch-custom-chat" data-starter="질문과 탐구">
+                    <span class="dv10-icon">💡</span>
+                    <span class="dv10-label">철학적 질문</span>
+                  </div>
+                  <div class="dv10-cell btn-launch-custom-chat" data-starter="글쓰기와 다듬기">
+                    <span class="dv10-icon">✍️</span>
+                    <span class="dv10-label">문장과 사유</span>
+                  </div>
+                  <div class="dv10-cell btn-launch-custom-chat" data-starter="감정과 내면 정리">
+                    <span class="dv10-icon">🌿</span>
+                    <span class="dv10-label">마음의 결</span>
+                  </div>
+                  <div class="dv10-cell" id="dv10-open-prompt-drawer">
+                    <span class="dv10-icon">⚙️</span>
+                    <span class="dv10-label">프롬프트 설정</span>
+                  </div>
+                </div>
+                <button type="button" class="dv-cta-btn btn-launch-custom-chat" style="margin-top: 14px;">
+                  <span>새 대화 세션 열기</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. 커스텀 프롬프트 대화방 섹션 (명리학/심리학과 100% 동일한 구조와 무손실 첨부) -->
+      <section id="view-custom" class="view-section chat-view hidden">
+        <div id="custom-chat-messages" class="chat-messages-container"></div>
+        <div class="chat-input-bar">
+          <!-- 첨부된 태그/문서/사진 칩 컨테이너 (프롬프트 칩은 절대 표시하지 않음!) -->
+          <div id="custom-attached-tags" class="attached-tags-container hidden"></div>
+          <div class="chat-input-inner">
+            <input type="file" id="file-input-custom" accept="image/*,.txt,.html,text/plain,text/html" class="hidden" />
+            <button type="button" id="btn-attach-custom" class="btn-attach" aria-label="파일 첨부" title="파일 첨부 (사진, TXT, HTML)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            </button>
+            <textarea id="custom-input" class="chat-textarea" rows="1" placeholder="설정된 프롬프트를 바탕으로 자유롭게 대화하세요..."></textarea>
+            <button type="button" id="btn-send-custom" class="btn-send" aria-label="전송">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- 배경 암전(Dim Layer) 오버레이 -->
+    <div id="backdrop-overlay" class="backdrop-overlay hidden"></div>
+
+    <!-- 좌측 글로벌 서랍 메뉴 컨테이너 (8번 플로팅 시트 & 컴팩트 단일행) -->
+    <aside id="left-drawer" class="drawer-container drawer-left" aria-hidden="true">
+      <div class="drawer-content">
+        <!-- 8번 플로팅 시트: 버튼 위까지 확장되어 심리학/명리학 반반 배분 -->
+        <div class="drawer-floating-sheet">
+          <!-- 1. 심리학 대화 기록 섹션 -->
+          <section id="drawer-section-psych" class="drawer-section">
+            <div class="drawer-section-header">
+              <span class="drawer-section-title">심리학 대화 기록</span>
+              <button type="button" id="btn-delete-mode-psych" class="icon-btn-minimal" title="대화 다중 선택 삭제">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash"><path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
+            <div id="psychology-chat-list" class="drawer-list-scroll">
+              <div class="empty-list-notice">기록된 대화가 없습니다.</div>
+            </div>
+          </section>
+
+          <div id="drawer-divider-psych-saju" class="drawer-inner-divider"></div>
+
+          <!-- 2. 명리학 대화 기록 섹션 -->
+          <section id="drawer-section-saju" class="drawer-section">
+            <div class="drawer-section-header">
+              <span class="drawer-section-title">명리학 대화 기록</span>
+              <button type="button" id="btn-delete-mode-saju" class="icon-btn-minimal" title="대화 다중 선택 삭제">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash"><path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
+            <div id="saju-chat-list" class="drawer-list-scroll">
+              <div class="empty-list-notice">기록된 대화가 없습니다.</div>
+            </div>
+          </section>
+
+          <!-- 3. 커스텀 프롬프트 대화 모드 전용 통합 '대화 기록' 섹션 (구분 없음) -->
+          <section id="drawer-section-custom" class="drawer-section hidden" style="flex: 1 1 100%; max-height: 100%;">
+            <div class="drawer-section-header">
+              <span class="drawer-section-title">대화 기록</span>
+              <button type="button" id="btn-delete-mode-custom" class="icon-btn-minimal" title="대화 다중 선택 삭제">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash"><path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
+            <div id="custom-chat-list" class="drawer-list-scroll">
+              <div class="empty-list-notice">기록된 대화가 없습니다.</div>
+            </div>
+          </section>
+        </div>
+
+        <!-- 3. 하단 툴바: 최좌측 독립 버튼 + 우측 정렬 설정 버튼들 -->
+        <div class="drawer-bottom-toolbar">
+          <div class="toolbar-left-group">
+            <button type="button" id="btn-open-custom-mode" class="toolbar-btn" title="프롬프트 대화 새 창 열기" aria-label="프롬프트 대화 새 창 열기">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-circle preview-icon"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/></svg>
+            </button>
+          </div>
+          <div class="toolbar-right-group">
+            <button type="button" id="btn-open-api-modal" class="toolbar-btn" title="설정">
+              <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-key-round"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/></svg>
+            </button>
+            <button type="button" id="btn-cloud-backup" class="toolbar-btn" title="클라우드 백업">
+              <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cloud-upload"><path d="M12 13v8"/><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="m8 17 4-4 4 4"/></svg>
+            </button>
+            <button type="button" id="btn-cloud-restore" class="toolbar-btn" title="클라우드 복원">
+              <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cloud-download"><path d="M12 13v8l-4-4"/><path d="m12 21 4-4"/><path d="M4.393 15.269A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.436 8.284"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 우측 명식 서랍 메뉴 컨테이너 (헤더 2 아래부터 슬라이드) -->
+    <aside id="right-saju-drawer" class="drawer-container drawer-right" aria-hidden="true">
+      <div class="drawer-content">
+        <div class="saju-drawer-header">
+          <span class="drawer-section-title">명식 선택하기</span>
+          <div class="saju-header-actions">
+            <button type="button" id="btn-open-add-saju" class="icon-btn" title="명식 추가">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-circle-plus"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+            </button>
+            <button type="button" id="btn-toggle-delete-saju" class="icon-btn" title="선택 삭제">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-circle-x"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+            </button>
+          </div>
+        </div>
+        <div id="saju-profiles-list" class="drawer-list-scroll saju-list-scroll">
+          <div class="empty-list-notice">등록된 명식이 없습니다.<br>'+' 버튼으로 만세력을 추가하세요.</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 우측 프롬프트 설정 서랍 메뉴 컨테이너 (커스텀 대화 모드 전용) -->
+    <aside id="right-prompt-drawer" class="drawer-container drawer-right" aria-hidden="true">
+      <div class="drawer-content">
+        <div class="saju-drawer-header">
+          <span class="drawer-section-title">프롬프트 설정</span>
+          <div class="saju-header-actions">
+            <button type="button" id="btn-open-add-prompt" class="icon-btn" title="프롬프트 추가">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-circle-plus"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+            </button>
+            <button type="button" id="btn-toggle-delete-prompt" class="icon-btn" title="선택 삭제">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-circle-x"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+            </button>
+          </div>
+        </div>
+        <div id="custom-prompts-list" class="drawer-list-scroll saju-list-scroll">
+          <div class="empty-list-notice">등록된 프롬프트가 없습니다.<br>'+' 버튼으로 프롬프트를 추가하세요.</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 공통 팝업/모달 레이어 컨테이너 -->
+    <div id="modal-container" class="modal-layer hidden">
+      <!-- 2. 환경 설정 모달 (4개 탭) -->
+      <div id="modal-settings" class="app-modal hidden" role="dialog" aria-modal="true">
+        <div class="modal-header">
+          <h2 class="modal-title">환경 설정</h2>
+          <button type="button" class="btn-close-modal icon-btn" data-target="modal-settings">✕</button>
+        </div>
+        <div class="modal-tabs four-tabs">
+          <button type="button" class="tab-btn active" data-tab="tab-gemini">Gemini</button>
+          <button type="button" class="tab-btn" data-tab="tab-vertex">Vertex AI</button>
+          <button type="button" class="tab-btn" data-tab="tab-firestore">Firestore</button>
+          <button type="button" class="tab-btn" data-tab="tab-general">설정</button>
+        </div>
+        <div class="modal-body">
+          <!-- 탭 1: Gemini API 키 -->
+          <div id="tab-gemini" class="tab-content active">
+            <label class="input-label" for="setting-gemini-key">Gemini API Key</label>
+            <input type="password" id="setting-gemini-key" class="modal-input" placeholder="AI Studio에서 발급받은 API 키를 입력하세요">
+            <p class="input-guide">Gemini API 키가 입력되어 있으면 기본 대화 엔진으로 우선 사용됩니다.</p>
+          </div>
+
+          <!-- 탭 2: Vertex AI & App Check 설정 -->
+          <div id="tab-vertex" class="tab-content hidden">
+            <label class="input-label" for="setting-vertex-config">Firebase Web Config (firebaseConfig 또는 전체 스크립트)</label>
+            <textarea id="setting-vertex-config" class="modal-textarea code-area" placeholder="const firebaseConfig = {
+  apiKey: &quot;AIzaSy...&quot;,
+  authDomain: &quot;...&quot;,
+  projectId: &quot;...&quot;,
+  appId: &quot;...&quot;
+};"></textarea>
+            <p class="input-guide">reCAPTCHA Enterprise SDK(7일 토큰 보존)가 백그라운드에서 자동 연동됩니다.</p>
+          </div>
+
+          <!-- 탭 3: Firestore 백업 설정 -->
+          <div id="tab-firestore" class="tab-content hidden">
+            <label class="input-label" for="setting-firestore-config">Firestore 백업용 Firebase Config</label>
+            <textarea id="setting-firestore-config" class="modal-textarea code-area" placeholder="Firestore 연동을 위한 firebaseConfig 스크립트를 입력하세요"></textarea>
+            <p class="input-guide">클라우드 백업 및 타 기기 복원에 활용됩니다.</p>
+          </div>
+
+          <!-- 탭 4: 일반 설정 (출력 방식 + 모델 선택 + 4대 안전필터) -->
+          <div id="tab-general" class="tab-content hidden">
+            <div>
+              <label class="input-label">답변 출력 방식</label>
+              <div class="custom-dropdown" id="dropdown-output-mode">
+                <button type="button" class="dropdown-trigger" id="dropdown-output-btn">
+                  <span id="dropdown-selected-text">스트리밍 출력 (실시간 생성)</span>
+                  <span class="dropdown-arrow">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="m6 9 6 6 6-6"/>
+                    </svg>
+                  </span>
+                </button>
+                <div class="dropdown-menu hidden" id="dropdown-output-menu">
+                  <div class="dropdown-item selected" data-value="stream">스트리밍 출력 (실시간 생성)</div>
+                  <div class="dropdown-item" data-value="batch">일시 출력 (답변 완성 후 한번에 표시)</div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="input-label">AI 모델 선택</label>
+              <input type="hidden" id="select-gemini-model" value="gemini-3.8-flash">
+              <div class="custom-dropdown" id="dropdown-model-select">
+                <button type="button" class="dropdown-trigger" id="dropdown-model-btn">
+                  <span id="dropdown-model-selected-text">Gemini 3.8 Flash</span>
+                  <span class="dropdown-arrow">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="m6 9 6 6 6-6"/>
+                    </svg>
+                  </span>
+                </button>
+                <div class="dropdown-menu hidden" id="dropdown-model-menu">
+                  <div class="dropdown-item selected" data-value="gemini-3.8-flash">Gemini 3.8 Flash</div>
+                  <div class="dropdown-item" data-value="gemini-3.7-flash">Gemini 3.7 Flash</div>
+                  <div class="dropdown-item" data-value="gemini-3.6-flash">Gemini 3.6 Flash</div>
+                  <div class="dropdown-item" data-value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</div>
+                  <div class="dropdown-item" data-value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite</div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="input-label" for="ep-lore-reasoning-select">생각 깊이 (Reasoning)</label>
+              <input type="hidden" id="ep-lore-reasoning-select" value="high">
+              <div class="custom-dropdown" id="dropdown-reasoning-select">
+                <button type="button" class="dropdown-trigger" id="dropdown-reasoning-btn">
+                  <span id="dropdown-reasoning-selected-text">High (동적 심층 사고)</span>
+                  <span class="dropdown-arrow">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="m6 9 6 6 6-6"/>
+                    </svg>
+                  </span>
+                </button>
+                <div class="dropdown-menu hidden" id="dropdown-reasoning-menu">
+                  <div class="dropdown-item selected" data-value="high">High (동적 심층 사고, AI Studio 동급)</div>
+                  <div class="dropdown-item" data-value="medium">Medium (8192)</div>
+                  <div class="dropdown-item" data-value="low">Low (2048)</div>
+                  <div class="dropdown-item" data-value="minimal">Minimal (1024)</div>
+                  <div class="dropdown-item" data-value="off">Off (비활성)</div>
+                  <div class="dropdown-item" data-value="budget">Budget (직접 예산 입력)</div>
+                </div>
+              </div>
+              <div id="reasoning-budget-wrapper" class="hidden" style="margin-top: 8px;">
+                <input type="number" id="ep-lore-reasoning-budget-input" class="modal-input" placeholder="생각 예산 토큰 수 입력 (예: 2048)" min="0" max="65536" step="128" style="height: 40px; padding: 0 12px; font-size: 0.88rem;">
+              </div>
+            </div>
+
+            <div>
+              <label class="input-label">4대 안전 필터 설정</label>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px;">
+                <div>
+                  <span style="display: block; font-size: 0.76rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 7px;">괴롭힘 방지</span>
+                  <input type="hidden" id="safety-harassment" value="BLOCK_NONE">
+                  <div class="custom-dropdown" id="dropdown-safety-harassment">
+                    <button type="button" class="dropdown-trigger dropdown-trigger-compact" id="dropdown-harassment-btn">
+                      <span id="dropdown-harassment-text">차단 안함</span>
+                      <span class="dropdown-arrow">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="m6 9 6 6 6-6"/>
+                        </svg>
+                      </span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-compact hidden" id="dropdown-harassment-menu">
+                      <div class="dropdown-item dropdown-item-compact selected" data-value="BLOCK_NONE">차단 안함</div>
+                      <div class="dropdown-item dropdown-item-compact" data-value="BLOCK_ONLY_HIGH">높은 위험만</div>
+                      <div class="dropdown-item dropdown-item-compact" data-value="BLOCK_MEDIUM_AND_ABOVE">보통 이상</div>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <span style="display: block; font-size: 0.76rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 7px;">혐오 발언</span>
+                  <input type="hidden" id="safety-hate" value="BLOCK_NONE">
+                  <div class="custom-dropdown" id="dropdown-safety-hate">
+                    <button type="button" class="dropdown-trigger dropdown-trigger-compact" id="dropdown-hate-btn">
+                      <span id="dropdown-hate-text">차단 안함</span>
+                      <span class="dropdown-arrow">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="m6 9 6 6 6-6"/>
+                        </svg>
+                      </span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-compact hidden" id="dropdown-hate-menu">
+                      <div class="dropdown-item dropdown-item-compact selected" data-value="BLOCK_NONE">차단 안함</div>
+                      <div class="dropdown-item dropdown-item-compact" data-value="BLOCK_ONLY_HIGH">높은 위험만</div>
+                      <div class="dropdown-item dropdown-item-compact" data-value="BLOCK_MEDIUM_AND_ABOVE">보통 이상</div>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <span style="display: block; font-size: 0.76rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 7px;">성적 콘텐츠</span>
+                  <input type="hidden" id="safety-sex" value="BLOCK_NONE">
+                  <div class="custom-dropdown" id="dropdown-safety-sex">
+                    <button type="button" class="dropdown-trigger dropdown-trigger-compact" id="dropdown-sex-btn">
+                      <span id="dropdown-sex-text">차단 안함</span>
+                      <span class="dropdown-arrow">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="m6 9 6 6 6-6"/>
+                        </svg>
+                      </span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-compact hidden" id="dropdown-sex-menu">
+                      <div class="dropdown-item dropdown-item-compact selected" data-value="BLOCK_NONE">차단 안함</div>
+                      <div class="dropdown-item dropdown-item-compact" data-value="BLOCK_ONLY_HIGH">높은 위험만</div>
+                      <div class="dropdown-item dropdown-item-compact" data-value="BLOCK_MEDIUM_AND_ABOVE">보통 이상</div>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <span style="display: block; font-size: 0.76rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 7px;">위험 콘텐츠</span>
+                  <input type="hidden" id="safety-danger" value="BLOCK_NONE">
+                  <div class="custom-dropdown" id="dropdown-safety-danger">
+                    <button type="button" class="dropdown-trigger dropdown-trigger-compact" id="dropdown-danger-btn">
+                      <span id="dropdown-danger-text">차단 안함</span>
+                      <span class="dropdown-arrow">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="m6 9 6 6 6-6"/>
+                        </svg>
+                      </span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-compact hidden" id="dropdown-danger-menu">
+                      <div class="dropdown-item dropdown-item-compact selected" data-value="BLOCK_NONE">차단 안함</div>
+                      <div class="dropdown-item dropdown-item-compact" data-value="BLOCK_ONLY_HIGH">높은 위험만</div>
+                      <div class="dropdown-item dropdown-item-compact" data-value="BLOCK_MEDIUM_AND_ABOVE">보통 이상</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. 명식 추가/수정 모달 (닫힐 때 자동 저장) -->
+      <div id="modal-add-saju" class="app-modal modal-saju-add hidden" role="dialog" aria-modal="true">
+        <div class="modal-header">
+          <h2 id="modal-saju-title" class="modal-title">명식 추가</h2>
+          <button type="button" class="btn-close-modal icon-btn" data-target="modal-add-saju">
+            <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+        </div>
+        <div class="modal-body modal-saju-body">
+          <div class="form-group-item">
+            <label class="input-label" for="saju-profile-name">이름</label>
+            <input type="text" id="saju-profile-name" class="modal-input" placeholder="이름을 입력하세요">
+          </div>
+
+          <!-- 만세력 YAML 텍스트 직접 입력 영역 -->
+          <div class="form-group-item saju-text-group">
+            <label class="input-label" for="saju-profile-text">만세력 텍스트 (YAML 등)</label>
+            <textarea id="saju-profile-text" class="modal-textarea saju-text-area" rows="7" placeholder="만세력 정보를 YAML 또는 텍스트 형식으로 입력하세요.&#10;예시:&#10;생년월일: 1995-03-20 10:30 (양력, 여)&#10;대운수: 4&#10;사주:&#10;  시: 己巳&#10;  일: 甲子&#10;  월: 己卯&#10;  년: 乙亥"></textarea>
+            <p class="input-guide" style="margin-top: 6px;">창을 닫으면 자동으로 저장됩니다. 대화 시 이름은 전송되지 않으며, 오직 만세력 내용만 코드블럭으로 AI에게 안전하게 전달됩니다.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. 토큰 슬라이싱 설정 모달 (서랍 설정 팝업 디자인 일치) -->
+      <div id="modal-token-settings" class="app-modal modal-token-config hidden" role="dialog" aria-modal="true">
+        <div class="modal-header">
+          <h2 class="modal-title">대화 맥락 및 토큰 설정</h2>
+          <button type="button" class="btn-close-modal icon-btn" data-target="modal-token-settings">
+            <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+        </div>
+        <div class="modal-body spacious-body">
+          <div class="token-config-info-card">
+            <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+              기본 권장 토큰(50,000)을 초과하더라도 모든 대화가 온전히 전송됩니다.<br>
+              API 분당 사용량 한도(429)를 고려하여 대화 길이를 제한하려면 슬라이싱을 켜세요.
+            </p>
+          </div>
+
+          <!-- 토글 스위치 행 -->
+          <div class="toggle-setting-row" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0;">
+            <div>
+              <label class="input-label" style="margin-bottom: 2px; cursor: pointer;" for="toggle-token-slicing">대화 토큰 슬라이싱 제한</label>
+              <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">지정 토큰을 초과하면 이전 대화 텍스트만 오래된 순으로 잘라냅니다.</span>
+            </div>
+            <label class="switch-toggle">
+              <input type="checkbox" id="toggle-token-slicing">
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <!-- 조건부 노출되는 슬라이싱 토큰 수 입력 필드 -->
+          <div id="token-slicing-input-group" class="form-group-item hidden">
+            <label class="input-label" for="input-max-tokens">슬라이싱 기준 토큰 수</label>
+            <div style="position: relative; display: flex; align-items: center;">
+              <input type="number" id="input-max-tokens" class="modal-input" placeholder="50000" min="1000" step="1000" value="50000" style="padding-right: 50px;">
+              <span style="position: absolute; right: 14px; font-size: 0.82rem; font-weight: 600; color: var(--text-muted); pointer-events: none;">토큰</span>
+            </div>
+            <p class="input-guide">사진, 만세력 이미지, 첨부 문서는 항상 100% 무손실 보존되며, 순수 대화 텍스트만 슬라이싱됩니다.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. 프롬프트 추가/수정 모달 (닫힐 때 자동 저장) -->
+      <div id="modal-add-prompt" class="app-modal modal-saju-add hidden" role="dialog" aria-modal="true">
+        <div class="modal-header">
+          <h2 id="modal-prompt-title-header" class="modal-title">프롬프트 추가</h2>
+          <button type="button" class="btn-close-modal icon-btn" data-target="modal-add-prompt">
+            <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+        </div>
+        <div class="modal-body modal-saju-body">
+          <div class="form-group-item">
+            <label class="input-label" for="custom-prompt-title">제목</label>
+            <input type="text" id="custom-prompt-title" class="modal-input" placeholder="프롬프트 제목을 입력하세요 (예: 심층 사유가, 심리학자, 시인)">
+          </div>
+
+          <!-- 시스템 지침 텍스트 입력 영역 -->
+          <div class="form-group-item saju-text-group">
+            <label class="input-label" for="custom-prompt-content">시스템 지침 (System Instruction)</label>
+            <textarea id="custom-prompt-content" class="modal-textarea saju-text-area" rows="8" placeholder="AI에게 부여할 역할, 말투, 분석 원칙 등의 시스템 지침을 입력하세요.&#10;예시:&#10;너는 심오한 통찰을 지닌 철학자이자 온화한 대화 상대야. 상대방의 물음에 깊이 공감하고 본질적인 질문을 던져줘."></textarea>
+            <p class="input-guide" style="margin-top: 6px;">창을 닫으면 자동으로 저장됩니다. 우측 서랍에서 터치하여 선택하면 대화의 시스템 지침(System Instruction)으로 적용됩니다. (길게 누르면 수정)</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 전체화면 최종 분석 보고서 오버레이 (헤더 1 제외 전체 덮기) -->
+    <div id="report-fullscreen-view" class="report-fullscreen hidden" role="dialog" aria-modal="true">
+      <div class="report-header">
+        <h2 id="report-modal-title" class="report-header-title">심층 분석 보고서</h2>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <button type="button" id="btn-continue-test" class="icon-btn" aria-label="검사 계속 이어서 하기" title="검사 계속 이어서 하기">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+          <button type="button" id="btn-close-report" class="icon-btn" aria-label="보고서 닫기" title="보고서 닫기">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+        </div>
+      </div>
+      <div id="report-body-content" class="report-body-scroll"></div>
+    </div>
+  </div>
+
+  <script src="js/db.js?v=20261026_v200"></script>
+  <script src="js/app.js?v=20261026_v200"></script>
 </body>
 </html>
