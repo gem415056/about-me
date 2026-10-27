@@ -150,6 +150,10 @@ body.is-landing-view #header-1 #header-title {
   display: none !important;
 }
 
+body.is-landing-view #token-floating-chip {
+  display: none !important;
+}
+
 body.is-landing-view #header-1 #btn-open-left-drawer {
   pointer-events: auto;
   background-color: rgba(45, 47, 39, 0.05);

@@ -3465,7 +3465,7 @@ const TokenEstimator = {
 
   async calculateCurrentTokens(category) {
     const currentCat = category || (typeof Router !== 'undefined' ? Router.currentView : 'saju');
-    if (currentCat === 'landing' || !currentCat) return 0;
+    if (!currentCat || currentCat === 'landing' || currentCat === 'custom_home') return 0;
 
     // 1. 시스템 프롬프트 토큰 추정 (심리학 약 14,000, 명리학 약 7,000)
     let promptTokens = currentCat === 'psychology' ? 14000 : 7000;
@@ -3537,7 +3537,7 @@ const TokenEstimator = {
     if (!displayEl || !chipEl) return;
 
     const currentCat = category || (typeof Router !== 'undefined' ? Router.currentView : null);
-    if (!currentCat || currentCat === 'landing') {
+    if (!currentCat || currentCat === 'landing' || currentCat === 'custom_home') {
       chipEl.classList.add('hidden');
       return;
     }
