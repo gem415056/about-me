@@ -1443,8 +1443,8 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
   pointer-events: auto;
 }
 
-/* 헤더 2 아이콘 및 명식 추가 아이콘 부드러운 톤 완화 */
-#btn-toggle-saju-drawer svg, #btn-open-add-saju svg {
+/* 헤더 우측 서랍 아이콘들(명식, 프롬프트) 및 추가 아이콘 부드러운 톤 완화 */
+#btn-toggle-saju-drawer svg, #btn-open-add-saju svg, #btn-toggle-prompt-drawer svg {
   color: var(--text-secondary);
   opacity: 0.85;
 }
@@ -3428,9 +3428,12 @@ html.is-ios .choice-chk {
   height: 100%;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
   position: relative;
   overflow: hidden;
-  background: radial-gradient(circle at 50% 38%, #F7F5EE 0%, var(--bg-primary) 100%);
+  background: radial-gradient(circle at 50% 45%, #F7F5EE 0%, var(--bg-primary) 100%);
+  padding: 20px 20px 40px 20px;
 }
 
 .design-tester-bar {
@@ -4045,37 +4048,53 @@ html.is-ios .choice-chk {
   font-weight: 600;
 }
 
-/* 9번 디자인: 오라 웨이브 */
+/* 9번 디자인: 오라 웨이브 (생각의 파동) */
 .dv9-wave-stage {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  margin-top: 36px;
+  width: 100%;
 }
 
 .dv9-wave-box {
   position: relative;
-  width: 120px;
-  height: 120px;
+  width: 250px;
+  height: 250px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 18px;
+  margin-bottom: 24px;
 }
 
 .dv9-ripple {
   position: absolute;
   border-radius: 50%;
-  border: 1px solid #747B61;
-  animation: dvRippleAnim 3.2s ease-out infinite;
+  border: 1.5px solid rgba(116, 123, 97, 0.45);
+  pointer-events: none;
+  animation: dvRippleAnim 3.6s cubic-bezier(0.2, 0.6, 0.35, 1) infinite;
 }
 
-.dv9-r1 { width: 50px; height: 50px; animation-delay: 0s; }
-.dv9-r2 { width: 75px; height: 75px; animation-delay: 1s; }
-.dv9-r3 { width: 105px; height: 105px; animation-delay: 2s; }
+.dv9-r1 { width: 70px; height: 70px; animation-delay: 0s; }
+.dv9-r2 { width: 125px; height: 125px; animation-delay: 0.9s; }
+.dv9-r3 { width: 180px; height: 180px; animation-delay: 1.8s; }
+.dv9-r4 { width: 235px; height: 235px; animation-delay: 2.7s; }
 
 @keyframes dvRippleAnim {
-  0% { transform: scale(0.6); opacity: 0.8; }
-  100% { transform: scale(1.3); opacity: 0; }
+  0% {
+    transform: scale(0.65);
+    opacity: 0.85;
+    border-color: rgba(116, 123, 97, 0.75);
+  }
+  50% {
+    opacity: 0.45;
+  }
+  100% {
+    transform: scale(1.45);
+    opacity: 0;
+    border-color: rgba(116, 123, 97, 0.08);
+  }
 }
 
 .dv9-core-node {
@@ -4086,8 +4105,20 @@ html.is-ios .choice-chk {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2;
-  box-shadow: 0 4px 14px rgba(116, 123, 97, 0.35);
+  z-index: 5;
+  box-shadow: 0 4px 18px rgba(116, 123, 97, 0.4);
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+  color: #FAF8F2;
+}
+
+.dv9-core-node:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 22px rgba(116, 123, 97, 0.55);
+}
+
+.dv9-core-node:active {
+  transform: scale(0.94);
 }
 
 /* 10번 디자인: 퀵 런처 */

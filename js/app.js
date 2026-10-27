@@ -4329,9 +4329,7 @@ const CloudBackupManager = {
       return;
     }
 
-    const backupKey = prompt('백업에 사용할 고유 복원 코드(비밀번호)를 입력하세요.\n(다른 기기에서 이 코드로 복원합니다):');
-    if (!backupKey || !backupKey.trim()) return;
-    const cleanKey = encodeURIComponent(backupKey.trim());
+    const cleanKey = 'main_backup';
 
     try {
       this.showProgressToast('📦 로컬 데이터베이스 압축 및 패키징 중...');
@@ -4389,7 +4387,7 @@ const CloudBackupManager = {
       }
 
       this.hideProgressToast();
-      alert(`✅ 백업이 성공적으로 완료되었습니다!\n총 ${chunks.length}개의 조각으로 안전하게 분할 저장되었습니다.\n복원 코드: ${backupKey.trim()}`);
+      alert(`✅ 백업이 성공적으로 완료되었습니다!\n총 ${chunks.length}개의 조각으로 안전하게 클라우드에 저장되었습니다.`);
     } catch (err) {
       this.hideProgressToast();
       console.error('[백업 오류]:', err);
@@ -4407,9 +4405,7 @@ const CloudBackupManager = {
       return;
     }
 
-    const backupKey = prompt('복원할 백업 고유 코드(비밀번호)를 입력하세요:');
-    if (!backupKey || !backupKey.trim()) return;
-    const cleanKey = encodeURIComponent(backupKey.trim());
+    const cleanKey = 'main_backup';
 
     try {
       this.showProgressToast('🔍 백업 메타데이터 조회 중...');
@@ -4421,6 +4417,9 @@ const CloudBackupManager = {
       // 1. 메타데이터 조회
       const metaUrl = `${baseUrl}/about_me_backups/${cleanKey}?key=${config.apiKey}`;
       const metaRes = await this.fetchWithRetry(metaUrl, { headers: reqHeaders });
+      if (!metaRes.ok) {
+        throw new Error('저장된 클라우드 백업 데이터를 찾을 수 없습니다. 먼저 백업을 진행해 주세요.');
+      }
 
       const metaData = await metaRes.json();
       const totalChunks = parseInt(metaData.fields?.totalChunks?.integerValue || '1', 10);
@@ -6371,65 +6370,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================================================
-  // 10가지 인터랙티브 홈 화면 디자인 테스터 탭 전환 및 시작 버튼 바인딩
+  // 일반대화 홈: 생각의 파동 터치 시 새 대화 시작
   // ==========================================================================
-  const DESIGN_NAMES = {
-    1: '1번: 미니멀 모놀리스',
-    2: '2번: 나침반 다이얼',
-    3: '3번: 젠 슬레이트',
-    4: '4번: 성좌 노드',
-    5: '5번: 플로팅 아일랜드',
-    6: '6번: 듀얼 포털',
-    7: '7번: 카드 캐러셀',
-    8: '8번: 고서 코덱스',
-    9: '9번: 오라 웨이브',
-    10: '10번: 퀵 런처'
-  };
-
-  const confirmDesignLabel = document.getElementById('confirm-design-label');
-  let currentDesignId = 1;
-  try {
-    const savedDesign = localStorage.getItem('selected_custom_design');
-    if (savedDesign && DESIGN_NAMES[savedDesign]) {
-      currentDesignId = parseInt(savedDesign, 10);
-    }
-  } catch (_) {}
-
-  const switchDesignVariant = (num) => {
-    currentDesignId = num;
-    document.querySelectorAll('.tester-tab-btn').forEach(btn => {
-      btn.classList.toggle('active', parseInt(btn.dataset.design, 10) === num);
-    });
-    document.querySelectorAll('.design-variant').forEach(v => {
-      v.classList.add('hidden');
-      v.classList.remove('active');
-    });
-    const target = document.getElementById(`design-variant-${num}`);
-    if (target) {
-      target.classList.remove('hidden');
-      target.classList.add('active');
-    }
-    if (confirmDesignLabel && DESIGN_NAMES[num]) {
-      confirmDesignLabel.textContent = `✓ [${DESIGN_NAMES[num]}]로 대화 시작하기`;
-    }
-    try { localStorage.setItem('selected_custom_design', String(num)); } catch (_) {}
-  };
-
-  switchDesignVariant(currentDesignId);
-
-  document.querySelectorAll('.tester-tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const dNum = parseInt(btn.dataset.design, 10);
-      if (dNum) switchDesignVariant(dNum);
-    });
-  });
-
-  const btnConfirmDesign = document.getElementById('btn-confirm-design');
-  if (btnConfirmDesign) {
-    btnConfirmDesign.addEventListener('click', () => {
-      startFreshChat('custom');
-    });
-  }
 
   document.querySelectorAll('.btn-launch-custom-chat').forEach(btn => {
     btn.addEventListener('click', (e) => {

@@ -24,7 +24,7 @@
       </button>
       <!-- 우측 프롬프트 설정 아이콘 (커스텀 대화 모드에서만 활성화) -->
       <button type="button" id="btn-toggle-prompt-drawer" class="icon-btn hidden" aria-label="프롬프트 설정 열기" title="프롬프트 설정">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-cog preview-icon"><path d="M15 8a1 1 0 0 1-1-1V2a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8z"/><path d="M20 8v12a2 2 0 0 1-2 2h-4.182"/><path d="m3.305 19.53.923-.382"/><path d="M4 10.592V4a2 2 0 0 1 2-2h8"/><path d="m4.228 16.852-.924-.383"/><path d="m5.852 15.228-.383-.923"/><path d="m5.852 20.772-.383.924"/><path d="m8.148 15.228.383-.923"/><path d="m8.53 21.696-.382-.924"/><path d="m9.773 16.852.922-.383"/><path d="m9.773 19.148.922.383"/><circle cx="7" cy="18" r="3"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-cog"><path d="M15 8a1 1 0 0 1-1-1V2a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8z"/><path d="M20 8v12a2 2 0 0 1-2 2h-4.182"/><path d="m3.305 19.53.923-.382"/><path d="M4 10.592V4a2 2 0 0 1 2-2h8"/><path d="m4.228 16.852-.924-.383"/><path d="m5.852 15.228-.383-.923"/><path d="m5.852 20.772-.383.924"/><path d="m8.148 15.228.383-.923"/><path d="m8.53 21.696-.382-.924"/><path d="m9.773 16.852.922-.383"/><path d="m9.773 19.148.922.383"/><circle cx="7" cy="18" r="3"/></svg>
       </button>
     </header>
 
@@ -135,262 +135,24 @@
             </button>
           </div>
         </div>
-      <!-- 4. 커스텀 프롬프트 대화 모드 홈 (10가지 인터랙티브 디자인 테스팅 룸) -->
+      </section>
+
+      <!-- 4. 일반대화 모드 홈 (확정 디자인: 생각의 파동) -->
       <section id="view-custom-home" class="view-section hidden">
         <div class="custom-home-stage">
-          <!-- 상단 10가지 디자인 테스팅 툴바 -->
-          <div class="design-tester-bar" id="design-tester-bar">
-            <div class="tester-label-row">
-              <span class="tester-title">🎨 홈 디자인 인터랙션 테스트 (10종)</span>
-              <span class="tester-hint">상단 탭을 눌러 10가지 홈 화면을 자유롭게 테스트하고 선택하세요</span>
-            </div>
-            <div class="tester-tabs-scroll">
-              <button type="button" class="tester-tab-btn active" data-design="1">1. 모놀리스</button>
-              <button type="button" class="tester-tab-btn" data-design="2">2. 나침반</button>
-              <button type="button" class="tester-tab-btn" data-design="3">3. 젠 슬레이트</button>
-              <button type="button" class="tester-tab-btn" data-design="4">4. 성좌 노드</button>
-              <button type="button" class="tester-tab-btn" data-design="5">5. 플로팅 아일랜드</button>
-              <button type="button" class="tester-tab-btn" data-design="6">6. 듀얼 포털</button>
-              <button type="button" class="tester-tab-btn" data-design="7">7. 카드 캐러셀</button>
-              <button type="button" class="tester-tab-btn" data-design="8">8. 고서 코덱스</button>
-              <button type="button" class="tester-tab-btn" data-design="9">9. 오라 웨이브</button>
-              <button type="button" class="tester-tab-btn" data-design="10">10. 퀵 런처</button>
-            </div>
-            <div class="tester-confirm-row">
-              <button type="button" id="btn-confirm-design" class="btn-confirm-design">
-                <span id="confirm-design-label">✓ [1번: 모놀리스]로 대화 시작하기</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- 10가지 인터랙티브 디자인 컨테이너들 -->
-          <div class="design-views-container">
-            <!-- 1번: 미니멀 모놀리스 -->
-            <div class="design-variant active" id="design-variant-1">
-              <div class="dv1-monolith-box">
-                <div class="dv-badge">PROMPT WORKSPACE</div>
-                <div class="dv1-halo-ring">
-                  <div class="dv1-core-dot"></div>
-                </div>
-                <h2 class="dv-title">사유와 문답의 방</h2>
-                <p class="dv-desc">우측 상단 서랍에서 원하는 프롬프트를 지정하고,<br>깊이 있는 사유와 탐구를 시작하세요.</p>
-                <div class="dv-active-prompt-indicator" id="dv1-prompt-indicator">
-                  <span class="indicator-dot"></span>
-                  <span class="indicator-text">기본 시스템 프롬프트 활성</span>
-                </div>
-                <button type="button" class="dv-cta-btn btn-launch-custom-chat">
-                  <span>대화 시작하기</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                </button>
+          <div class="dv9-wave-stage">
+            <div class="dv-badge">BREATHING MIND</div>
+            <div class="dv9-wave-box">
+              <div class="dv9-ripple dv9-r1"></div>
+              <div class="dv9-ripple dv9-r2"></div>
+              <div class="dv9-ripple dv9-r3"></div>
+              <div class="dv9-ripple dv9-r4"></div>
+              <div class="dv9-core-node btn-launch-custom-chat" style="cursor: pointer;" title="터치하여 대화 시작">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-activity"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></svg>
               </div>
             </div>
-
-            <!-- 2번: 나침반 다이얼 -->
-            <div class="design-variant hidden" id="design-variant-2">
-              <div class="dv2-compass-stage">
-                <div class="dv-badge">CELESTIAL COMPASS</div>
-                <div class="dv2-compass-dial">
-                  <svg viewBox="0 0 240 240" class="dv2-dial-svg">
-                    <circle cx="120" cy="120" r="105" stroke="#D1CFC2" stroke-width="1.2" stroke-dasharray="3 6" fill="none"/>
-                    <circle cx="120" cy="120" r="85" stroke="#747B61" stroke-width="1" fill="none" opacity="0.4"/>
-                    <line x1="120" y1="15" x2="120" y2="35" stroke="#747B61" stroke-width="2"/>
-                    <line x1="120" y1="205" x2="120" y2="225" stroke="#747B61" stroke-width="1.5"/>
-                    <line x1="15" y1="120" x2="35" y2="120" stroke="#747B61" stroke-width="1.5"/>
-                    <line x1="205" y1="120" x2="225" y2="120" stroke="#747B61" stroke-width="1.5"/>
-                    <circle cx="120" cy="120" r="28" fill="#747B61" fill-opacity="0.12"/>
-                  </svg>
-                  <button type="button" class="dv2-center-trigger btn-launch-custom-chat" aria-label="사유 시작">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5A614A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
-                  </button>
-                  <span class="dv2-cardinal dv2-n">통찰 (洞察)</span>
-                  <span class="dv2-cardinal dv2-s">성찰 (省察)</span>
-                  <span class="dv2-cardinal dv2-w">철학</span>
-                  <span class="dv2-cardinal dv2-e">문답</span>
-                </div>
-                <h2 class="dv-title">프롬프트 나침반</h2>
-                <p class="dv-desc">중앙의 나침반을 누르면 새로운 대화 세션이 열립니다.</p>
-              </div>
-            </div>
-
-            <!-- 3번: 젠 에디토리얼 슬레이트 -->
-            <div class="design-variant hidden" id="design-variant-3">
-              <div class="dv3-zen-container">
-                <div class="dv3-header-meta">
-                  <span class="dv-badge">ZEN CODEX</span>
-                  <span class="dv3-vol">No. 01</span>
-                </div>
-                <h2 class="dv3-main-heading">무제(無題)의 사유실</h2>
-                <div class="dv3-card-slate">
-                  <div class="dv3-card-label">현재 연결된 시스템 지침</div>
-                  <div class="dv3-card-content" id="dv3-prompt-content">
-                    등록된 프롬프트가 선택되면 이곳에 미리보기가 반영됩니다. 우측 상단 아이콘으로 언제든 프롬프트를 변경할 수 있습니다.
-                  </div>
-                </div>
-                <button type="button" class="dv-cta-btn dv3-btn btn-launch-custom-chat">
-                  <span>새 사유 기록 작성</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-                </button>
-              </div>
-            </div>
-
-            <!-- 4번: 성좌 기하학 노드 -->
-            <div class="design-variant hidden" id="design-variant-4">
-              <div class="dv4-constellation-stage">
-                <div class="dv-badge">CONSTELLATION</div>
-                <div class="dv4-canvas-node-box">
-                  <svg viewBox="0 0 260 220" class="dv4-svg">
-                    <polygon points="130,20 230,80 190,190 70,190 30,80" fill="rgba(116, 123, 97, 0.05)" stroke="#8F967E" stroke-width="1.2" stroke-dasharray="2 4"/>
-                    <line x1="130" y1="20" x2="190" y2="190" stroke="#747B61" stroke-width="0.8" opacity="0.4"/>
-                    <line x1="130" y1="20" x2="70" y2="190" stroke="#747B61" stroke-width="0.8" opacity="0.4"/>
-                    <circle cx="130" cy="20" r="4.5" fill="#5A614A"/>
-                    <circle cx="230" cy="80" r="3.5" fill="#747B61"/>
-                    <circle cx="190" cy="190" r="4" fill="#8F967E"/>
-                    <circle cx="70" cy="190" r="4" fill="#8F967E"/>
-                    <circle cx="30" cy="80" r="3.5" fill="#747B61"/>
-                    <circle cx="130" cy="115" r="7" fill="#747B61" fill-opacity="0.2"/>
-                    <circle cx="130" cy="115" r="3" fill="#5A614A"/>
-                  </svg>
-                </div>
-                <h2 class="dv-title">성좌적 연결망</h2>
-                <p class="dv-desc">생각과 언어가 이어지는 다차원 사유의 망을 펼칩니다.</p>
-                <button type="button" class="dv-cta-btn btn-launch-custom-chat">
-                  <span>성좌 진입하기</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- 5번: 플로팅 아일랜드 (FAB) -->
-            <div class="design-variant hidden" id="design-variant-5">
-              <div class="dv5-floating-island">
-                <div class="dv-badge">FLOATING HAVEN</div>
-                <div class="dv5-card">
-                  <div class="dv5-icon-bubble">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5A614A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                  </div>
-                  <h2 class="dv-title">온전한 몰입의 캔버스</h2>
-                  <p class="dv-desc">우측 상단 '프롬프트 설정'에서 페르소나를 장착하고<br>아래 플로팅 버튼을 터치하여 사유를 시작하세요.</p>
-                </div>
-                <button type="button" class="dv5-fab btn-launch-custom-chat" aria-label="새 대화 열기">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FAF8F2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-                </button>
-              </div>
-            </div>
-
-            <!-- 6번: 듀얼 포털 (Dual Mode Chamber) -->
-            <div class="design-variant hidden" id="design-variant-6">
-              <div class="dv6-dual-stage">
-                <div class="dv-badge">TWO REALMS</div>
-                <h2 class="dv-title">사유의 두 가지 결</h2>
-                <div class="dv6-portals-grid">
-                  <div class="dv6-portal-card btn-launch-custom-chat" data-mode="custom-prompt">
-                    <div class="dv6-portal-icon">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 8a1 1 0 0 1-1-1V2a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8z"/><path d="M20 8v12a2 2 0 0 1-2 2h-4.182"/><circle cx="7" cy="18" r="3"/></svg>
-                    </div>
-                    <span class="dv6-portal-name">프롬프트 페르소나</span>
-                    <span class="dv6-portal-sub">지정된 규칙과 시스템 지침 기반 심층 응답</span>
-                  </div>
-                  <div class="dv6-portal-card btn-launch-custom-chat" data-mode="custom-free">
-                    <div class="dv6-portal-icon">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                    </div>
-                    <span class="dv6-portal-name">자유 백지 사유</span>
-                    <span class="dv6-portal-sub">제약 없는 원초적 사고와 자유로운 필담</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 7번: 프롬프트 카드 캐러셀 -->
-            <div class="design-variant hidden" id="design-variant-7">
-              <div class="dv7-carousel-stage">
-                <div class="dv-badge">PROMPT CAROUSEL</div>
-                <h2 class="dv-title">프롬프트 쇼케이스</h2>
-                <div class="dv7-cards-strip" id="dv7-cards-strip">
-                  <div class="dv7-card active-card">
-                    <div class="dv7-card-badge">DEFAULT</div>
-                    <div class="dv7-card-title">사유와 성찰의 대화가</div>
-                    <div class="dv7-card-desc">깊은 사유와 명확한 어조로 질문에 대해 지혜로운 관점을 제시합니다.</div>
-                  </div>
-                  <div class="dv7-card">
-                    <div class="dv7-card-badge">CUSTOM</div>
-                    <div class="dv7-card-title">우측 상단 '+'로 추가</div>
-                    <div class="dv7-card-desc">나만의 전문 페르소나나 프롬프트를 직접 구성해 보세요.</div>
-                  </div>
-                </div>
-                <button type="button" class="dv-cta-btn btn-launch-custom-chat">
-                  <span>선택된 프롬프트로 시작</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- 8번: 고서 코덱스 (Antique Codex) -->
-            <div class="design-variant hidden" id="design-variant-8">
-              <div class="dv8-codex-stage">
-                <div class="dv8-parchment-sheet">
-                  <div class="dv8-ornament">✦ ✦ ✦</div>
-                  <h2 class="dv8-seal-title">사 유 록 (思 惟 錄)</h2>
-                  <p class="dv8-quote">
-                    "마음이 머무는 자리에 언어가 피어나고,<br>
-                    물음이 깊어질 때 비로소 길이 열린다."
-                  </p>
-                  <div class="dv8-stamp-btn btn-launch-custom-chat" title="인장을 눌러 대화 시작">
-                    <div class="dv8-stamp-inner">
-                      <span>開 筆</span>
-                      <small>대화 개시</small>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 9번: 오라 웨이브 (Organic Waveform) -->
-            <div class="design-variant hidden" id="design-variant-9">
-              <div class="dv9-wave-stage">
-                <div class="dv-badge">BREATHING MIND</div>
-                <div class="dv9-wave-box">
-                  <div class="dv9-ripple dv9-r1"></div>
-                  <div class="dv9-ripple dv9-r2"></div>
-                  <div class="dv9-ripple dv9-r3"></div>
-                  <div class="dv9-core-node">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#FAF8F2" stroke-width="1.8"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-                  </div>
-                </div>
-                <h2 class="dv-title">생각의 파동</h2>
-                <p class="dv-desc">숨을 고르고, 당신의 생각과 감정을<br>파동처럼 자연스럽게 흘려보내세요.</p>
-                <button type="button" class="dv-cta-btn btn-launch-custom-chat">
-                  <span>파동과 공명하기</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- 10번: 퀵 런처 (Speed Dial Launch Matrix) -->
-            <div class="design-variant hidden" id="design-variant-10">
-              <div class="dv10-matrix-stage">
-                <div class="dv-badge">QUICK LAUNCHER</div>
-                <h2 class="dv-title">즉시 사유 시작</h2>
-                <div class="dv10-grid">
-                  <div class="dv10-cell btn-launch-custom-chat" data-starter="질문과 탐구">
-                    <span class="dv10-icon">💡</span>
-                    <span class="dv10-label">철학적 질문</span>
-                  </div>
-                  <div class="dv10-cell btn-launch-custom-chat" data-starter="글쓰기와 다듬기">
-                    <span class="dv10-icon">✍️</span>
-                    <span class="dv10-label">문장과 사유</span>
-                  </div>
-                  <div class="dv10-cell btn-launch-custom-chat" data-starter="감정과 내면 정리">
-                    <span class="dv10-icon">🌿</span>
-                    <span class="dv10-label">마음의 결</span>
-                  </div>
-                  <div class="dv10-cell" id="dv10-open-prompt-drawer">
-                    <span class="dv10-icon">⚙️</span>
-                    <span class="dv10-label">프롬프트 설정</span>
-                  </div>
-                </div>
-                <button type="button" class="dv-cta-btn btn-launch-custom-chat" style="margin-top: 14px;">
-                  <span>새 대화 세션 열기</span>
-                </button>
-              </div>
-            </div>
+            <h2 class="dv-title">생각의 파동</h2>
+            <p class="dv-desc">숨을 고르고, 당신의 생각과 감정을<br>파동처럼 자연스럽게 흘려보내세요.</p>
           </div>
         </div>
       </section>
