@@ -1703,14 +1703,16 @@ body.is-landing-view #header-1 #btn-open-left-drawer:active {
    10. 마크다운 스타일링 (저대비 웜톤 인용구 & 전체화면 보고서 & 심리학 특화 UI)
    ========================================================================== */
 
-/* 심리학 & 명리학 공통: AI 말풍선 가로 전체 너비 확장 & 소프트 포슬린 테마 */
+/* 심리학 & 명리학 & 일반대화 공통: AI 말풍선 가로 전체 너비 확장 & 소프트 포슬린 테마 */
 #psychology-chat-messages .chat-message-row.model,
-#saju-chat-messages .chat-message-row.model {
+#saju-chat-messages .chat-message-row.model,
+#custom-chat-messages .chat-message-row.model {
   width: 100% !important;
 }
 
 #psychology-chat-messages .chat-bubble.model,
-#saju-chat-messages .chat-bubble.model {
+#saju-chat-messages .chat-bubble.model,
+#custom-chat-messages .chat-bubble.model {
   width: 100% !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
@@ -4060,12 +4062,13 @@ html.is-ios .choice-chk {
 
 .dv9-wave-box {
   position: relative;
-  width: 250px;
-  height: 250px;
+  width: 240px;
+  height: 240px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 24px;
+  margin-top: 10px;
+  margin-bottom: 28px;
 }
 
 .dv9-ripple {
@@ -4073,17 +4076,18 @@ html.is-ios .choice-chk {
   border-radius: 50%;
   border: 1.5px solid rgba(116, 123, 97, 0.45);
   pointer-events: none;
+  opacity: 0;
   animation: dvRippleAnim 3.6s cubic-bezier(0.2, 0.6, 0.35, 1) infinite;
 }
 
-.dv9-r1 { width: 70px; height: 70px; animation-delay: 0s; }
-.dv9-r2 { width: 125px; height: 125px; animation-delay: 0.9s; }
-.dv9-r3 { width: 180px; height: 180px; animation-delay: 1.8s; }
-.dv9-r4 { width: 235px; height: 235px; animation-delay: 2.7s; }
+.dv9-r1 { width: 58px; height: 58px; animation-delay: 0s; }
+.dv9-r2 { width: 102px; height: 102px; animation-delay: -2.7s; }
+.dv9-r3 { width: 146px; height: 146px; animation-delay: -1.8s; }
+.dv9-r4 { width: 190px; height: 190px; animation-delay: -0.9s; }
 
 @keyframes dvRippleAnim {
   0% {
-    transform: scale(0.65);
+    transform: scale(0.42);
     opacity: 0.85;
     border-color: rgba(116, 123, 97, 0.75);
   }
@@ -4091,9 +4095,9 @@ html.is-ios .choice-chk {
     opacity: 0.45;
   }
   100% {
-    transform: scale(1.45);
+    transform: scale(1.06);
     opacity: 0;
-    border-color: rgba(116, 123, 97, 0.08);
+    border-color: rgba(116, 123, 97, 0.05);
   }
 }
 

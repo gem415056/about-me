@@ -95,11 +95,15 @@ app.post('/api/gemini', async (req, res) => {
       } else {
         console.warn(`[Gemini Proxy Call] Category: "${category}" prompt file empty or not found on disk.`);
       }
-    } else if (req.body.customPrompt) {
+    } else if (req.body.customPrompt && req.body.customPrompt.trim()) {
       payload.systemInstruction = {
-        parts: [{ text: req.body.customPrompt }]
+        parts: [{ text: req.body.customPrompt.trim() }]
       };
       console.log(`[Gemini Proxy Call] Custom prompt injected (${req.body.customPrompt.length} chars)`);
+    } else {
+      // 프롬프트 선택 안할 시에는 시스템인스트럭션 없이 전송
+      delete payload.systemInstruction;
+      console.log(`[Gemini Proxy Call] Category: "${category}" -> No prompt selected, SystemInstruction excluded`);
     }
 
     console.log(`[Gemini Proxy Call] Model: "${modelName}" | Category: "${category}" | SystemInstruction: ${payload?.systemInstruction ? 'Present' : 'None'} | Temp: ${payload?.generationConfig?.temperature} | Stream: ${stream}`);

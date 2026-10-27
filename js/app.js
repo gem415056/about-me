@@ -46,9 +46,12 @@ const NavStack = {
         }
       } else {
         // 스택에 요소가 없고 대화방 화면인 경우 -> 홈 화면으로 1단계 복귀
-        const homeView = isCustomMode ? 'custom_home' : 'landing';
-        if (Router.currentView !== homeView) {
-          Router.navigate(homeView, false);
+        if (Router.currentView === 'custom') {
+          Router.navigate('custom_home', false);
+        } else if (Router.currentView === 'custom_home') {
+          Router.navigate('landing', false);
+        } else if (Router.currentView !== 'landing') {
+          Router.navigate('landing', false);
         }
       }
     });
@@ -148,6 +151,22 @@ const Router = {
     }
     if (typeof TokenEstimator !== 'undefined') {
       TokenEstimator.updateDisplay(viewName);
+    }
+    this.updateDrawerCustomButton(viewName);
+  },
+
+  updateDrawerCustomButton(viewName) {
+    const btn = document.getElementById('btn-open-custom-mode');
+    if (!btn) return;
+    const isCustomSection = (viewName === 'custom_home' || viewName === 'custom');
+    if (isCustomSection) {
+      btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-house preview-icon"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>`;
+      btn.title = '심리명리학 홈';
+      btn.setAttribute('aria-label', '심리명리학 홈');
+    } else {
+      btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-circle"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/></svg>`;
+      btn.title = '일반대화';
+      btn.setAttribute('aria-label', '일반대화');
     }
   }
 };
@@ -3713,56 +3732,65 @@ const AIEngine = {
       const outputMode = generalSetting?.outputMode || 'stream';
 
       // [시스템 프롬프트 적용]
-      // 사용자가 prompt_saju.txt, prompt_psychology.txt에 직접 수정한 원문을 100% 실시간으로 읽어 적용 (하드코딩 대체/임시방편 일체 배제)
       let systemInstruction = '';
 
-      // 다중 경로 안전 로더 (상대경로/절대경로 및 API/정적파일 순차 시도, 샌드박스 호환을 위해 URL 타임스탬프로 캐시 우회)
-      const promptCandidates = [
-        `api/prompt/${category}?t=${Date.now()}`,
-        `/api/prompt/${category}?t=${Date.now()}`,
-        `prompt_${category}.txt?t=${Date.now()}`,
-        `/prompt_${category}.txt?t=${Date.now()}`
-      ];
+      if (category === 'saju' || category === 'psychology') {
+        // 다중 경로 안전 로더 (상대경로/절대경로 및 API/정적파일 순차 시도, 샌드박스 호환을 위해 URL 타임스탬프로 캐시 우회)
+        const promptCandidates = [
+          `api/prompt/${category}?t=${Date.now()}`,
+          `/api/prompt/${category}?t=${Date.now()}`,
+          `prompt_${category}.txt?t=${Date.now()}`,
+          `/prompt_${category}.txt?t=${Date.now()}`
+        ];
 
-      for (const pUrl of promptCandidates) {
-        if (systemInstruction) break;
-        try {
-          const res = await fetch(pUrl);
-          if (res.ok) {
-            const cType = res.headers.get('content-type') || '';
-            if (cType.includes('application/json')) {
-              const data = await res.json();
-              if (data?.prompt && data.prompt.trim().length > 0) {
-                systemInstruction = data.prompt.trim();
-                break;
-              }
-            } else {
-              const rawTxt = await res.text();
-              if (rawTxt && !rawTxt.trim().startsWith('<!DOCTYPE') && rawTxt.trim().length > 10) {
-                systemInstruction = rawTxt.trim();
-                break;
+        for (const pUrl of promptCandidates) {
+          if (systemInstruction) break;
+          try {
+            const res = await fetch(pUrl);
+            if (res.ok) {
+              const cType = res.headers.get('content-type') || '';
+              if (cType.includes('application/json')) {
+                const data = await res.json();
+                if (data?.prompt && data.prompt.trim().length > 0) {
+                  systemInstruction = data.prompt.trim();
+                  break;
+                }
+              } else {
+                const rawTxt = await res.text();
+                if (rawTxt && !rawTxt.trim().startsWith('<!DOCTYPE') && rawTxt.trim().length > 10) {
+                  systemInstruction = rawTxt.trim();
+                  break;
+                }
               }
             }
+          } catch (e) {
+            // 다음 경로 시도
           }
-        } catch (e) {
-          // 다음 경로 시도
         }
-      }
 
-      // 3순위: IndexedDB에 저장된 사용자 커스텀 프롬프트 (설정 등에서 지정된 경우)
-      if (!systemInstruction) {
-        try {
-          const promptData = await DB.get('prompts', category);
-          if (promptData?.content?.trim()) {
-            systemInstruction = promptData.content.trim();
+        // 3순위: IndexedDB에 저장된 사용자 프롬프트 (설정 등에서 지정된 경우)
+        if (!systemInstruction) {
+          try {
+            const promptData = await DB.get('prompts', category);
+            if (promptData?.content?.trim()) {
+              systemInstruction = promptData.content.trim();
+            }
+          } catch (e) {}
+        }
+
+        // 만약 Vertex AI 직접 모드(서버 프록시 미사용)인데 프롬프트가 없는 경우에만 에러 발생
+        if (!systemInstruction && !apiKey && parsedVertexConfig) {
+          const fileName = category === 'psychology' ? 'prompt_psychology.txt' : 'prompt_saju.txt';
+          throw new Error(`[${category === 'psychology' ? '심리학' : '명리학'}] 프롬프트 파일(${fileName})을 불러오지 못했습니다. 파일 내용이 비어있지 않은지 확인해 주세요.`);
+        }
+      } else if (category === 'custom') {
+        // [프롬프트 선택 안할 시 시스템인스트럭션 없이 전송]
+        if (typeof CustomPromptManager !== 'undefined') {
+          const activeContent = CustomPromptManager.getActivePromptContent();
+          if (activeContent && activeContent.trim()) {
+            systemInstruction = activeContent.trim();
           }
-        } catch (e) {}
-      }
-
-      // 만약 Vertex AI 직접 모드(서버 프록시 미사용)인데 프롬프트가 없는 경우에만 에러 발생
-      if (!systemInstruction && !apiKey && parsedVertexConfig) {
-        const fileName = category === 'psychology' ? 'prompt_psychology.txt' : 'prompt_saju.txt';
-        throw new Error(`[${category === 'psychology' ? '심리학' : '명리학'}] 프롬프트 파일(${fileName})을 불러오지 못했습니다. 파일 내용이 비어있지 않은지 확인해 주세요.`);
+        }
       }
 
       // 2. 페이로드 생성 (비동기 이미지 안전 압축 포함)
@@ -3800,13 +3828,9 @@ const AIEngine = {
         payload.systemInstruction = {
           parts: [{ text: systemInstruction }]
         };
-      } else if (category === 'custom' && typeof CustomPromptManager !== 'undefined') {
-        const customPromptText = CustomPromptManager.getActivePromptContent();
-        if (customPromptText) {
-          payload.systemInstruction = {
-            parts: [{ text: customPromptText }]
-          };
-        }
+      } else {
+        // 프롬프트 미선택 시에는 시스템 지침 없이 온전히 전송
+        delete payload.systemInstruction;
       }
 
       // 3. 설정된 모델명 및 안전필터 Payload 결합
@@ -3855,7 +3879,7 @@ const AIEngine = {
               payload: payload,
               stream: isStream,
               category: category,
-              customPrompt: (category === 'custom' && typeof CustomPromptManager !== 'undefined') ? CustomPromptManager.getActivePromptContent() : undefined
+              customPrompt: (category === 'custom' && systemInstruction) ? systemInstruction : undefined
             })
           });
 
@@ -3895,7 +3919,7 @@ const AIEngine = {
               payload: payload,
               stream: isStream,
               category: category,
-              customPrompt: (category === 'custom' && typeof CustomPromptManager !== 'undefined') ? CustomPromptManager.getActivePromptContent() : undefined
+              customPrompt: (category === 'custom' && systemInstruction) ? systemInstruction : undefined
             })
           });
         } catch (proxyErr) {
@@ -4590,7 +4614,9 @@ const SessionManager = {
     }
 
     const isPsychology = session.category === 'psychology';
-    const containerId = isPsychology ? 'psychology-chat-messages' : 'saju-chat-messages';
+    const containerId = session.category === 'psychology' 
+      ? 'psychology-chat-messages' 
+      : (session.category === 'custom' ? 'custom-chat-messages' : 'saju-chat-messages');
     const container = document.getElementById(containerId);
     if (container) container.innerHTML = '';
 
@@ -4851,6 +4877,9 @@ const ChatManager = {
     // 3. 첨부된 명식과 사진을 현재 세션에 영구 동기화 (사용자가 ✕ 누르기 전까지 모든 턴에 지속 유지)
     if (!isPsychology) {
       await SajuManager.syncToSession();
+    }
+    if (typeof AttachmentManager !== 'undefined') {
+      await AttachmentManager.syncToSession(category);
     }
 
     // 4. AI 답변 말풍선 미리 생성 (고유 ID 즉시 발급)
@@ -5992,8 +6021,12 @@ const DrawerController = {
     if (this.isOpenLeft) return;
     this.isOpenLeft = true;
 
-    // 좌측 서랍 열릴 때 대화 기록 리스트 최신 상태로 갱신
-    if (isCustomMode) {
+    // 좌측 서랍 열릴 때 대화 기록 리스트 및 하단 홈/대화 전환 버튼 최신 상태로 갱신
+    const isCustomViewActive = (Router.currentView === 'custom_home' || Router.currentView === 'custom');
+    if (typeof Router !== 'undefined' && typeof Router.updateDrawerCustomButton === 'function') {
+      Router.updateDrawerCustomButton(Router.currentView);
+    }
+    if (isCustomViewActive) {
       SessionManager.renderSessionList('custom');
       const customSec = document.getElementById('drawer-section-custom');
       const psychSec = document.getElementById('drawer-section-psych');
@@ -6066,19 +6099,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const savedView = typeof localStorage !== 'undefined' ? localStorage.getItem('about_me_active_view') : null;
       const savedSessionId = typeof localStorage !== 'undefined' ? localStorage.getItem('about_me_active_session_id') : null;
 
-      if (isCustomMode) {
+      if (isCustomMode || savedView === 'custom_home') {
+        Router.navigate('custom_home', false);
+        restored = true;
+      } else if (savedView === 'custom') {
         if (savedSessionId) {
           const session = await DB.get('chat_sessions', savedSessionId);
           if (session && session.category === 'custom') {
             await SessionManager.loadSession(savedSessionId);
-            restored = true;
-          }
-        }
-        if (!restored) {
-          const allSessions = await DB.getAll('chat_sessions');
-          const customSessions = allSessions.filter(s => s.category === 'custom').sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-          if (customSessions.length > 0) {
-            await SessionManager.loadSession(customSessions[0].id);
             restored = true;
           }
         }
@@ -6274,7 +6302,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 헤더 1 로고 터치 시 어디서든 홈(랜딩 화면)으로 복귀
+  // 헤더 1 로고 터치 시:
+  // - 일반대화 대화창(custom) 또는 일반대화 홈(custom_home)에서는 일반대화 홈(custom_home)으로 진입
+  // - 그 외 화면에서는 심리명리학 홈페이지(landing)로 복귀
   const headerLogo = document.getElementById('header-title');
   if (headerLogo) {
     headerLogo.addEventListener('click', () => {
@@ -6285,8 +6315,22 @@ document.addEventListener('DOMContentLoaded', () => {
       if (ModalController.activeModalId) ModalController.close(false);
 
       if (isCustomMode) {
-        // [사용자 요구사항] 새 창에서 헤더의 about me 누르면 다시 심리명리학 천체 디자인의 홈으로 복귀
-        window.location.href = window.location.pathname;
+        try {
+          history.replaceState(null, '', window.location.pathname);
+        } catch (e) {}
+      }
+
+      // [사용자 요구사항] 일반대화 대화창에서 헤더의 about me 누르면 일반대화 홈으로 진입!
+      if (Router.currentView === 'custom' || Router.currentView === 'custom_home') {
+        try {
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('about_me_active_view', 'custom_home');
+            localStorage.removeItem('about_me_active_session_id');
+          }
+        } catch (e) {}
+        ChatManager.currentSessionId = null;
+        ChatManager.activeHistory = [];
+        Router.navigate('custom_home');
         return;
       }
 
@@ -6360,12 +6404,35 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 좌측 서랍 최하단 최좌측 독립 버튼: 새 창(탭)으로 프롬프트 대화 모드 열기
+  // 좌측 서랍 최하단 최좌측 독립 버튼:
+  // - 심리명리학 모드일 때: 일반대화 메인홈(custom_home)으로 진입
+  // - 일반대화 섹션(custom_home / custom)일 때: 심리명리학 홈페이지(landing)로 즉시 복귀
   const btnOpenCustomMode = document.getElementById('btn-open-custom-mode');
   if (btnOpenCustomMode) {
     btnOpenCustomMode.addEventListener('click', () => {
       DrawerController.closeLeft(false);
-      window.open('?mode=custom', '_blank');
+      const isCustomSection = (Router.currentView === 'custom_home' || Router.currentView === 'custom');
+      if (isCustomSection) {
+        // [사용자 요구사항] 일반대화 섹션에서 홈(house) 아이콘을 누르면 바로 심리명리학 홈페이지로 돌아옴
+        try {
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('about_me_active_view', 'landing');
+            localStorage.removeItem('about_me_active_session_id');
+          }
+        } catch (e) {}
+        Router.navigate('landing');
+      } else {
+        // 심리명리학 섹션에서 일반대화 대화 아이콘을 누르면 일반대화 메인홈으로 진입
+        try {
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('about_me_active_view', 'custom_home');
+            localStorage.removeItem('about_me_active_session_id');
+          }
+        } catch (e) {}
+        ChatManager.currentSessionId = null;
+        ChatManager.activeHistory = [];
+        Router.navigate('custom_home');
+      }
     });
   }
 
