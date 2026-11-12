@@ -81,7 +81,7 @@ app.post('/api/gemini', async (req, res) => {
       });
     }
 
-    const { modelName = 'gemini-3.8-flash', payload, stream = true, category } = req.body;
+    const { modelName = 'gemini-4-hydrogen', payload, stream = true, category } = req.body;
     const action = stream ? 'streamGenerateContent?alt=sse' : 'generateContent';
 
     // category가 전달된 경우, 디스크의 최신 txt 파일 원문 프롬프트를 100% 무결하게 페이로드에 강제 주입

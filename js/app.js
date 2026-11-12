@@ -3834,7 +3834,8 @@ const AIEngine = {
       }
 
       // 3. 설정된 모델명 및 안전필터 Payload 결합
-      const modelName = generalSetting?.model || 'gemini-3.8-flash';
+      const rawModelSetting = generalSetting?.model;
+      const modelName = (!rawModelSetting || rawModelSetting === 'gemini-3.1-pro-preview') ? 'gemini-4-hydrogen' : rawModelSetting;
       const safety = generalSetting?.safety || {};
 
       payload.safetySettings = [
@@ -5792,7 +5793,8 @@ const ModalController = {
         syncCustomDropdown('dropdown-output-mode', 'dropdown-output-mode', 'dropdown-selected-text', outputMode);
 
         // 2. 모델 선택 복원
-        const modelVal = general?.model || 'gemini-3.8-flash';
+        const rawSavedModel = general?.model;
+        const modelVal = (!rawSavedModel || rawSavedModel === 'gemini-3.1-pro-preview') ? 'gemini-4-hydrogen' : rawSavedModel;
         syncCustomDropdown('dropdown-model-select', 'select-gemini-model', 'dropdown-model-selected-text', modelVal);
 
         // 3. 생각 깊이 복원
