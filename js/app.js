@@ -3552,6 +3552,43 @@ const TokenEstimator = {
   }
 };
 
+function isGemini4Model(modelName) {
+  return String(modelName || '').toLowerCase().includes('gemini-4');
+}
+
+function normalizeReasoningLevel(rawLevel, modelName) {
+  const upper = String(rawLevel || 'HIGH').toUpperCase();
+  const validLevels = isGemini4Model(modelName)
+    ? ['LOW', 'MEDIUM', 'HIGH', 'XHIGH']
+    : ['LOW', 'MEDIUM', 'HIGH'];
+  return validLevels.includes(upper) ? upper : 'HIGH';
+}
+
+function updateReasoningOptionsForModel(modelName) {
+  const isGen4 = isGemini4Model(modelName);
+  const menu = document.getElementById('dropdown-reasoning-menu');
+  const hiddenInput = document.getElementById('ep-lore-reasoning-select');
+  const label = document.getElementById('dropdown-reasoning-selected-text');
+
+  if (menu) {
+    const xhighItem = menu.querySelector('.dropdown-item[data-value="XHIGH"]');
+    if (xhighItem) {
+      xhighItem.classList.toggle('hidden', !isGen4);
+    }
+  }
+
+  const currentVal = hiddenInput ? hiddenInput.value : 'HIGH';
+  const normalized = normalizeReasoningLevel(currentVal, modelName);
+
+  if (hiddenInput) hiddenInput.value = normalized;
+  if (label) label.textContent = normalized;
+  if (menu) {
+    menu.querySelectorAll('.dropdown-item').forEach(item => {
+      item.classList.toggle('selected', item.dataset.value === normalized);
+    });
+  }
+}
+
 // 10. AI 멀티모달 통신 엔진 (AIEngine)
 const AIEngine = {
   // Base64 Data URL에서 MIME 타입과 순수 바이너리 데이터 안전 추출 및 정규화
@@ -3802,26 +3839,13 @@ const AIEngine = {
         }
       };
 
-      // 생각 깊이 (Reasoning) 설정 적용 (AI Studio와 100% 동일한 고성능 동적/심층 사고)
-      const reasoningMode = generalSetting?.reasoning || 'high';
-      const customBudget = parseInt(generalSetting?.reasoningBudget, 10);
-      let thinkingBudget = -1;
-      if (reasoningMode === 'off') {
-        thinkingBudget = 0;
-      } else if (reasoningMode === 'minimal') {
-        thinkingBudget = 1024;
-      } else if (reasoningMode === 'low') {
-        thinkingBudget = 2048;
-      } else if (reasoningMode === 'medium') {
-        thinkingBudget = 8192;
-      } else if (reasoningMode === 'high') {
-        thinkingBudget = -1; // AI Studio High와 100% 동일한 무제한 동적 사고 (Dynamic Thinking)
-      } else if (reasoningMode === 'budget') {
-        thinkingBudget = !isNaN(customBudget) && customBudget > 0 ? customBudget : -1;
-      }
+      // 3. 설정된 모델명 및 생각 깊이(thinkingLevel) & 안전필터 Payload 결합
+      const rawModelSetting = generalSetting?.model;
+      const modelName = (!rawModelSetting || rawModelSetting === 'gemini-3.1-pro-preview') ? 'gemini-4-hydrogen' : rawModelSetting;
+      const thinkingLevel = normalizeReasoningLevel(generalSetting?.reasoning, modelName);
 
       payload.generationConfig.thinkingConfig = {
-        thinkingBudget: thinkingBudget
+        thinkingLevel: thinkingLevel
       };
 
       if (systemInstruction) {
@@ -3833,9 +3857,6 @@ const AIEngine = {
         delete payload.systemInstruction;
       }
 
-      // 3. 설정된 모델명 및 안전필터 Payload 결합
-      const rawModelSetting = generalSetting?.model;
-      const modelName = (!rawModelSetting || rawModelSetting === 'gemini-3.1-pro-preview') ? 'gemini-4-hydrogen' : rawModelSetting;
       const safety = generalSetting?.safety || {};
 
       payload.safetySettings = [
@@ -3937,7 +3958,7 @@ const AIEngine = {
         try {
           const errClone = await response.clone().json().catch(() => ({}));
           const errMsg = errClone.error?.message || '';
-          if (errMsg.toLowerCase().includes('thinking') || errMsg.toLowerCase().includes('budget')) {
+          if (errMsg.toLowerCase().includes('thinking') || errMsg.toLowerCase().includes('level') || errMsg.toLowerCase().includes('budget')) {
             console.warn(`Model ${cleanModel} rejected thinkingConfig (${errMsg}). Retrying without thinkingConfig.`);
             const retryPayload = JSON.parse(JSON.stringify(payload));
             delete retryPayload.generationConfig.thinkingConfig;
@@ -5797,17 +5818,10 @@ const ModalController = {
         const modelVal = (!rawSavedModel || rawSavedModel === 'gemini-3.1-pro-preview') ? 'gemini-4-hydrogen' : rawSavedModel;
         syncCustomDropdown('dropdown-model-select', 'select-gemini-model', 'dropdown-model-selected-text', modelVal);
 
-        // 3. 생각 깊이 복원
-        const reasoningVal = general?.reasoning || 'high';
+        // 3. 생각 깊이 복원 및 모델 시리즈별 옵션 동기화
+        const reasoningVal = normalizeReasoningLevel(general?.reasoning, modelVal);
         syncCustomDropdown('dropdown-reasoning-select', 'ep-lore-reasoning-select', 'dropdown-reasoning-selected-text', reasoningVal);
-        const budgetWrapper = document.getElementById('reasoning-budget-wrapper');
-        if (budgetWrapper) {
-          budgetWrapper.classList.toggle('hidden', reasoningVal !== 'budget');
-        }
-        const reasoningBudgetInput = document.getElementById('ep-lore-reasoning-budget-input');
-        if (reasoningBudgetInput) {
-          reasoningBudgetInput.value = general?.reasoningBudget || 2048;
-        }
+        updateReasoningOptionsForModel(modelVal);
 
         // 4. 4대 안전필터 복원
         const safety = general?.safety || {};
@@ -5864,9 +5878,7 @@ const ModalController = {
         };
 
         const reasoningSelect = document.getElementById('ep-lore-reasoning-select');
-        const reasoningBudgetInput = document.getElementById('ep-lore-reasoning-budget-input');
-        const reasoningVal = reasoningSelect ? reasoningSelect.value : 'high';
-        const reasoningBudget = reasoningBudgetInput ? parseInt(reasoningBudgetInput.value, 10) : 2048;
+        const reasoningVal = normalizeReasoningLevel(reasoningSelect ? reasoningSelect.value : 'HIGH', selectedModel);
 
         await DB.set('settings', {
           id: 'general_settings',
@@ -5874,7 +5886,6 @@ const ModalController = {
           model: selectedModel,
           safety: safetySettings,
           reasoning: reasoningVal,
-          reasoningBudget: isNaN(reasoningBudget) ? 2048 : reasoningBudget,
           updatedAt: Date.now()
         });
       } else if (modalId === 'modal-add-saju') {
@@ -6615,15 +6626,12 @@ document.addEventListener('DOMContentLoaded', () => {
   setupCustomDropdown('dropdown-output-mode');
 
   // 2. AI 모델 선택
-  setupCustomDropdown('dropdown-model-select');
+  setupCustomDropdown('dropdown-model-select', (selectedModel) => {
+    updateReasoningOptionsForModel(selectedModel);
+  });
 
   // 3. 생각 깊이 (Reasoning)
-  setupCustomDropdown('dropdown-reasoning-select', (val) => {
-    const reasoningBudgetWrapper = document.getElementById('reasoning-budget-wrapper');
-    if (reasoningBudgetWrapper) {
-      reasoningBudgetWrapper.classList.toggle('hidden', val !== 'budget');
-    }
-  });
+  setupCustomDropdown('dropdown-reasoning-select');
 
   // 4. 4대 안전 필터 설정
   setupCustomDropdown('dropdown-safety-harassment');

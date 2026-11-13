@@ -115,7 +115,7 @@ app.post('/api/gemini', async (req, res) => {
       try {
         const errClone = await response.clone().json().catch(() => ({}));
         const errMsg = errClone.error?.message || '';
-        if (errMsg.toLowerCase().includes('thinking') || errMsg.toLowerCase().includes('budget')) {
+        if (errMsg.toLowerCase().includes('thinking') || errMsg.toLowerCase().includes('level') || errMsg.toLowerCase().includes('budget')) {
           console.warn(`Model ${modelName} rejected thinkingConfig (${errMsg}). Retrying without thinkingConfig.`);
           const retryPayload = JSON.parse(JSON.stringify(payload));
           delete retryPayload.generationConfig.thinkingConfig;

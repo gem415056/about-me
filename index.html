@@ -374,10 +374,10 @@
 
             <div>
               <label class="input-label" for="ep-lore-reasoning-select">생각 깊이 (Reasoning)</label>
-              <input type="hidden" id="ep-lore-reasoning-select" value="high">
+              <input type="hidden" id="ep-lore-reasoning-select" value="HIGH">
               <div class="custom-dropdown" id="dropdown-reasoning-select">
                 <button type="button" class="dropdown-trigger" id="dropdown-reasoning-btn">
-                  <span id="dropdown-reasoning-selected-text">High (동적 심층 사고)</span>
+                  <span id="dropdown-reasoning-selected-text">HIGH</span>
                   <span class="dropdown-arrow">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                       <path d="m6 9 6 6 6-6"/>
@@ -385,16 +385,11 @@
                   </span>
                 </button>
                 <div class="dropdown-menu hidden" id="dropdown-reasoning-menu">
-                  <div class="dropdown-item selected" data-value="high">High (동적 심층 사고, AI Studio 동급)</div>
-                  <div class="dropdown-item" data-value="medium">Medium (8192)</div>
-                  <div class="dropdown-item" data-value="low">Low (2048)</div>
-                  <div class="dropdown-item" data-value="minimal">Minimal (1024)</div>
-                  <div class="dropdown-item" data-value="off">Off (비활성)</div>
-                  <div class="dropdown-item" data-value="budget">Budget (직접 예산 입력)</div>
+                  <div class="dropdown-item" data-value="LOW">LOW</div>
+                  <div class="dropdown-item" data-value="MEDIUM">MEDIUM</div>
+                  <div class="dropdown-item selected" data-value="HIGH">HIGH</div>
+                  <div class="dropdown-item" data-value="XHIGH">XHIGH</div>
                 </div>
-              </div>
-              <div id="reasoning-budget-wrapper" class="hidden" style="margin-top: 8px;">
-                <input type="number" id="ep-lore-reasoning-budget-input" class="modal-input" placeholder="생각 예산 토큰 수 입력 (예: 2048)" min="0" max="65536" step="128" style="height: 40px; padding: 0 12px; font-size: 0.88rem;">
               </div>
             </div>
 
